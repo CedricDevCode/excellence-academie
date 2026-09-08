@@ -7,7 +7,7 @@
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
-    "build": "vite build && npx esbuild server/index.ts --platform=node --format=esm --bundle --outfile=dist/server.js --packages=external",
+    "build": "prisma generate && prisma db push --accept-data-loss && vite build && npx esbuild server/index.ts --platform=node --format=esm --bundle --outfile=dist/server.js --packages=external",
     "build:client": "vite build",
     "build:server": "npx esbuild server/index.ts --platform=node --format=esm --bundle --outfile=dist/server.js --packages=external",
     "preview": "vite preview",
