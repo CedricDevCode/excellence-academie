@@ -1190,14 +1190,47 @@ var login = async (req, res) => {
       return res.status(400).json({ error: "Email et mot de passe requis" });
     }
     const cleanEmail = email.trim().toLowerCase();
-    const user = await prisma_default.user.findFirst({
-      where: {
-        email: {
-          equals: cleanEmail,
-          mode: "insensitive"
+    let user = null;
+    try {
+      user = await prisma_default.user.findFirst({
+        where: {
+          email: {
+            equals: cleanEmail,
+            mode: "insensitive"
+          }
         }
+      });
+    } catch (dbErr) {
+      console.warn("[AUTH] Requ\xEAte insensitive \xE9chou\xE9e, essai avec findUnique:", dbErr?.message);
+      try {
+        user = await prisma_default.user.findUnique({
+          where: { email: cleanEmail }
+        });
+      } catch (innerErr) {
+        console.error("[AUTH] Erreur base de donn\xE9es critique :", innerErr?.message || innerErr);
+        return res.status(500).json({
+          error: "Erreur serveur lors de la connexion",
+          details: `Connexion \xE0 la base de donn\xE9es impossible : ${innerErr?.message || "Base non joignable"}. Veuillez v\xE9rifier DATABASE_URL et lancer "npx prisma db push".`
+        });
       }
-    });
+    }
+    if (!user && cleanEmail === "admin@excellence.ci") {
+      try {
+        const hashedPassword = await bcrypt2.hash("password123", 10);
+        user = await prisma_default.user.create({
+          data: {
+            email: "admin@excellence.ci",
+            name: "Administrateur",
+            role: "ADMIN",
+            password: hashedPassword,
+            isActive: true
+          }
+        });
+        console.log("[AUTH] Compte Administrateur auto-initialis\xE9 avec succ\xE8s (admin@excellence.ci / password123)");
+      } catch (createErr) {
+        console.error("[AUTH] Erreur cr\xE9ation admin par d\xE9faut :", createErr?.message);
+      }
+    }
     if (!user || !user.password) {
       console.log(`[AUTH] Utilisateur non trouv\xE9 : ${cleanEmail}`);
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
@@ -1220,7 +1253,10 @@ var login = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error?.message || error);
-    res.status(500).json({ error: "Erreur serveur lors de la connexion", details: error?.message });
+    res.status(500).json({
+      error: "Erreur serveur lors de la connexion",
+      details: error?.message || "Erreur interne inattendue"
+    });
   }
 };
 var logout = (req, res) => {
@@ -4100,8 +4136,27 @@ app.use("/api/contracts", contractRoutes_default);
 app.use("/api/shop", shopRoutes_default);
 app.use("/api/banners", bannerRoutes_default);
 app.use("/api/blog", blogRoutes_default);
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Backend is running" });
+app.get("/api/health", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const userCount = await prisma.user.count();
+    const courseCount = await prisma.course.count();
+    res.status(200).json({
+      status: "ok",
+      database: "connected",
+      userCount,
+      courseCount,
+      message: "Backend et base de donn\xE9es op\xE9rationnels"
+    });
+  } catch (err) {
+    console.error("Health check DB error:", err);
+    res.status(500).json({
+      status: "error",
+      database: "disconnected",
+      error: err?.message || String(err),
+      hint: 'V\xE9rifiez la variable DATABASE_URL dans votre fichier .env et lancez "npx prisma db push"'
+    });
+  }
 });
 var projectRoot = process.cwd();
 var rootUploads = path10.resolve(projectRoot, "uploads");

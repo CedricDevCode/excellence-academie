@@ -60,7 +60,10 @@ export default function StudentLogin() {
         else if (role === "TEACHER") navigate("/teacher/dashboard");
         else if (role === "ACCOUNTANT") navigate("/accountant/dashboard");
       } else {
-        setServerError(data.error || 'Email ou mot de passe incorrect.');
+        const errorMsg = data.details
+          ? `${data.error} (${data.details})`
+          : (data.error || 'Email ou mot de passe incorrect.');
+        setServerError(errorMsg);
       }
     } catch {
       setServerError('Erreur de connexion au serveur. Vérifiez que le backend est démarré.');

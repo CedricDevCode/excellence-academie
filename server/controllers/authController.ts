@@ -284,14 +284,51 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = await prisma.user.findFirst({
-      where: {
-        email: {
-          equals: cleanEmail,
-          mode: 'insensitive'
+
+    // 1. Query user with fallback if insensitive query fails
+    let user = null;
+    try {
+      user = await prisma.user.findFirst({
+        where: {
+          email: {
+            equals: cleanEmail,
+            mode: 'insensitive'
+          }
         }
+      });
+    } catch (dbErr: any) {
+      console.warn('[AUTH] Requête insensitive échouée, essai avec findUnique:', dbErr?.message);
+      try {
+        user = await prisma.user.findUnique({
+          where: { email: cleanEmail }
+        });
+      } catch (innerErr: any) {
+        console.error('[AUTH] Erreur base de données critique :', innerErr?.message || innerErr);
+        return res.status(500).json({
+          error: 'Erreur serveur lors de la connexion',
+          details: `Connexion à la base de données impossible : ${innerErr?.message || 'Base non joignable'}. Veuillez vérifier DATABASE_URL et lancer "npx prisma db push".`
+        });
       }
-    });
+    }
+
+    // 2. Auto-create default admin account on the fly if missing
+    if (!user && cleanEmail === 'admin@excellence.ci') {
+      try {
+        const hashedPassword = await bcrypt.hash('password123', 10);
+        user = await prisma.user.create({
+          data: {
+            email: 'admin@excellence.ci',
+            name: 'Administrateur',
+            role: 'ADMIN',
+            password: hashedPassword,
+            isActive: true,
+          }
+        });
+        console.log('[AUTH] Compte Administrateur auto-initialisé avec succès (admin@excellence.ci / password123)');
+      } catch (createErr: any) {
+        console.error('[AUTH] Erreur création admin par défaut :', createErr?.message);
+      }
+    }
 
     if (!user || !user.password) {
       console.log(`[AUTH] Utilisateur non trouvé : ${cleanEmail}`);
@@ -318,7 +355,10 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Login error:', error?.message || error);
-    res.status(500).json({ error: 'Erreur serveur lors de la connexion', details: error?.message });
+    res.status(500).json({
+      error: 'Erreur serveur lors de la connexion',
+      details: error?.message || 'Erreur interne inattendue'
+    });
   }
 };
 

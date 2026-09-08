@@ -83,9 +83,28 @@ app.use('/api/contracts', contractRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/blog', blogRoutes);
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Backend is running' });
+// Health check endpoint with database diagnostics
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const userCount = await prisma.user.count();
+    const courseCount = await prisma.course.count();
+    res.status(200).json({
+      status: 'ok',
+      database: 'connected',
+      userCount,
+      courseCount,
+      message: 'Backend et base de données opérationnels'
+    });
+  } catch (err: any) {
+    console.error('Health check DB error:', err);
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      error: err?.message || String(err),
+      hint: 'Vérifiez la variable DATABASE_URL dans votre fichier .env et lancez "npx prisma db push"'
+    });
+  }
 });
 
 // Ensure uploads directories exist
