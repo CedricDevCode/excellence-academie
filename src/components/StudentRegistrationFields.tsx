@@ -23,7 +23,17 @@ interface StudentPersonalFieldsProps {
 
 interface StudentProgramFieldsProps {
   form: StudentFormState;
-  courses: { id: string; title: string; category?: string; price?: number; description?: string }[];
+  courses: {
+    id: string;
+    title: string;
+    category?: string;
+    price?: number;
+    description?: string;
+    registrationFee?: number;
+    monthlyFee?: number;
+    hasPresentiel?: boolean;
+    hasOnline?: boolean;
+  }[];
   onChange: (field: keyof StudentFormState, value: any) => void;
 }
 
