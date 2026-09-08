@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
+import { sendNotification, sendNotificationToRole } from './notificationController';
 
 export const getMyPayments = async (req: Request, res: Response) => {
   try {
@@ -145,6 +146,19 @@ export const verifyPayment = async (req: Request, res: Response) => {
     });
 
     if (isSuccess) {
+      try {
+        const p = await prisma.payment.findUnique({
+          where: { id: paymentId },
+          include: { user: true }
+        });
+        if (p?.user) {
+          await sendNotification(p.userId, "Paiement validé", `Votre versement de ${Number(p.amount).toLocaleString('fr-FR')} FCFA a été validé avec succès.`);
+          await sendNotificationToRole("ADMIN", "Nouveau paiement reçu", `Paiement de ${Number(p.amount).toLocaleString('fr-FR')} FCFA reçu de l'étudiant(e) ${p.user.name}.`);
+          await sendNotificationToRole("ACCOUNTANT", "Paiement comptabilisé", `Règlement de ${Number(p.amount).toLocaleString('fr-FR')} FCFA reçu de ${p.user.name}.`);
+        }
+      } catch (err) {
+        console.error('Notification error on payment verification:', err);
+      }
       res.status(200).json({ success: true, message: 'Payment verified' });
     } else {
       res.status(400).json({ success: false, message: 'Payment failed' });

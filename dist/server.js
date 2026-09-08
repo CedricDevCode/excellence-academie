@@ -298,6 +298,157 @@ async function handleGeniusPayResponse(response) {
   return result.data;
 }
 
+// server/controllers/notificationController.ts
+import nodemailer from "nodemailer";
+import { EventEmitter } from "events";
+var notificationEvents = new EventEmitter();
+notificationEvents.setMaxListeners(100);
+var streamNotifications = (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+  res.write(`data: ${JSON.stringify({ type: "connected", time: Date.now() })}
+
+`);
+  const userId = req.user?.id;
+  const userRole = req.user?.role;
+  const onNotification = (data) => {
+    if (!data.userId || data.userId === userId || data.role && data.role === userRole) {
+      res.write(`data: ${JSON.stringify({ type: "notification", ...data })}
+
+`);
+    }
+  };
+  notificationEvents.on("notification", onNotification);
+  const heartbeat = setInterval(() => {
+    res.write(": keepalive\n\n");
+  }, 25e3);
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    notificationEvents.off("notification", onNotification);
+  });
+};
+var transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "smtp.ethereal.email",
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  auth: {
+    user: process.env.SMTP_USER || "ethereal.user@ethereal.email",
+    pass: process.env.SMTP_PASS || "ethereal.pass"
+  }
+});
+var sendDirectEmail = async (to, subject, html) => {
+  try {
+    const fromAddress = process.env.SMTP_FROM || "noreply@excellence-academie.ci";
+    await transporter.sendMail({
+      from: `"Excellence Acad\xE9mie" <${fromAddress}>`,
+      to,
+      subject,
+      html
+    });
+  } catch (error) {
+    console.error("Error sending direct email:", error);
+  }
+};
+var getNotifications = async (req, res) => {
+  try {
+    const notifications = await prisma_default.notification.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+};
+var markAsRead = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const notification = await prisma_default.notification.updateMany({
+      where: { id, userId: req.user.id },
+      data: { isRead: true }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update notification" });
+  }
+};
+var markAllAsRead = async (req, res) => {
+  try {
+    await prisma_default.notification.updateMany({
+      where: { userId: req.user.id, isRead: false },
+      data: { isRead: true }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to mark all notifications as read" });
+  }
+};
+var sendNotification = async (userId, title, message) => {
+  try {
+    const user = await prisma_default.user.findUnique({ where: { id: userId } });
+    if (!user) return;
+    const notif = await prisma_default.notification.create({
+      data: {
+        userId,
+        title,
+        message
+      }
+    });
+    notificationEvents.emit("notification", {
+      id: notif.id,
+      userId,
+      title,
+      message,
+      createdAt: notif.createdAt
+    });
+    const fromAddress = process.env.SMTP_FROM || "noreply@excellence-academie.ci";
+    await transporter.sendMail({
+      from: `"Excellence Acad\xE9mie" <${fromAddress}>`,
+      to: user.email,
+      subject: title,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; background: #f4f7f6;">
+          <h2 style="color: #0056B3;">${title}</h2>
+          <p>${message}</p>
+          <hr />
+          <p style="font-size: 12px; color: #888;">Ceci est un message automatique, merci de ne pas y r\xE9pondre.</p>
+        </div>
+      `
+    });
+  } catch (error) {
+    console.error("Error sending notification:", error);
+  }
+};
+var sendNotificationToRole = async (role, title, message) => {
+  try {
+    const users = await prisma_default.user.findMany({
+      where: { role, isActive: true },
+      select: { id: true }
+    });
+    for (const u of users) {
+      await sendNotification(u.id, title, message);
+    }
+  } catch (err) {
+    console.error(`Error sending notification to role ${role}:`, err);
+  }
+};
+var sendBulkNotification = async (req, res) => {
+  try {
+    const { userIds, title, message } = req.body;
+    if (!userIds || !Array.isArray(userIds) || !title || !message) {
+      return res.status(400).json({ error: "Param\xE8tres manquants ou invalides" });
+    }
+    for (const userId of userIds) {
+      await sendNotification(userId, title, message);
+    }
+    res.json({ success: true, count: userIds.length });
+  } catch (error) {
+    console.error("Error sending bulk notifications:", error);
+    res.status(500).json({ error: "Erreur lors de l'envoi des notifications group\xE9es" });
+  }
+};
+
 // server/controllers/paymentController.ts
 var getMyPayments = async (req, res) => {
   try {
@@ -418,6 +569,19 @@ var verifyPayment = async (req, res) => {
       data: { status: isSuccess ? "SUCCESS" : "FAILED" }
     });
     if (isSuccess) {
+      try {
+        const p = await prisma_default.payment.findUnique({
+          where: { id: paymentId },
+          include: { user: true }
+        });
+        if (p?.user) {
+          await sendNotification(p.userId, "Paiement valid\xE9", `Votre versement de ${Number(p.amount).toLocaleString("fr-FR")} FCFA a \xE9t\xE9 valid\xE9 avec succ\xE8s.`);
+          await sendNotificationToRole("ADMIN", "Nouveau paiement re\xE7u", `Paiement de ${Number(p.amount).toLocaleString("fr-FR")} FCFA re\xE7u de l'\xE9tudiant(e) ${p.user.name}.`);
+          await sendNotificationToRole("ACCOUNTANT", "Paiement comptabilis\xE9", `R\xE8glement de ${Number(p.amount).toLocaleString("fr-FR")} FCFA re\xE7u de ${p.user.name}.`);
+        }
+      } catch (err) {
+        console.error("Notification error on payment verification:", err);
+      }
       res.status(200).json({ success: true, message: "Payment verified" });
     } else {
       res.status(400).json({ success: false, message: "Payment failed" });
@@ -454,133 +618,6 @@ async function generateMatricule() {
   }
   return `EA-${year}-${String(next).padStart(4, "0")}`;
 }
-
-// server/controllers/notificationController.ts
-import nodemailer from "nodemailer";
-import { EventEmitter } from "events";
-var notificationEvents = new EventEmitter();
-notificationEvents.setMaxListeners(100);
-var streamNotifications = (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders?.();
-  res.write(`data: ${JSON.stringify({ type: "connected", time: Date.now() })}
-
-`);
-  const userId = req.user?.id;
-  const userRole = req.user?.role;
-  const onNotification = (data) => {
-    if (!data.userId || data.userId === userId || data.role && data.role === userRole) {
-      res.write(`data: ${JSON.stringify({ type: "notification", ...data })}
-
-`);
-    }
-  };
-  notificationEvents.on("notification", onNotification);
-  const heartbeat = setInterval(() => {
-    res.write(": keepalive\n\n");
-  }, 25e3);
-  req.on("close", () => {
-    clearInterval(heartbeat);
-    notificationEvents.off("notification", onNotification);
-  });
-};
-var transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.ethereal.email",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  auth: {
-    user: process.env.SMTP_USER || "ethereal.user@ethereal.email",
-    pass: process.env.SMTP_PASS || "ethereal.pass"
-  }
-});
-var sendDirectEmail = async (to, subject, html) => {
-  try {
-    const fromAddress = process.env.SMTP_FROM || "noreply@excellence-academie.ci";
-    await transporter.sendMail({
-      from: `"Excellence Acad\xE9mie" <${fromAddress}>`,
-      to,
-      subject,
-      html
-    });
-  } catch (error) {
-    console.error("Error sending direct email:", error);
-  }
-};
-var getNotifications = async (req, res) => {
-  try {
-    const notifications = await prisma_default.notification.findMany({
-      where: { userId: req.user.id },
-      orderBy: { createdAt: "desc" }
-    });
-    res.json(notifications);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch notifications" });
-  }
-};
-var markAsRead = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const notification = await prisma_default.notification.updateMany({
-      where: { id, userId: req.user.id },
-      data: { isRead: true }
-    });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update notification" });
-  }
-};
-var sendNotification = async (userId, title, message) => {
-  try {
-    const user = await prisma_default.user.findUnique({ where: { id: userId } });
-    if (!user) return;
-    const notif = await prisma_default.notification.create({
-      data: {
-        userId,
-        title,
-        message
-      }
-    });
-    notificationEvents.emit("notification", {
-      id: notif.id,
-      userId,
-      title,
-      message,
-      createdAt: notif.createdAt
-    });
-    const fromAddress = process.env.SMTP_FROM || "noreply@excellence-academie.ci";
-    await transporter.sendMail({
-      from: `"Excellence Acad\xE9mie" <${fromAddress}>`,
-      to: user.email,
-      subject: title,
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; background: #f4f7f6;">
-          <h2 style="color: #0056B3;">${title}</h2>
-          <p>${message}</p>
-          <hr />
-          <p style="font-size: 12px; color: #888;">Ceci est un message automatique, merci de ne pas y r\xE9pondre.</p>
-        </div>
-      `
-    });
-  } catch (error) {
-    console.error("Error sending notification:", error);
-  }
-};
-var sendBulkNotification = async (req, res) => {
-  try {
-    const { userIds, title, message } = req.body;
-    if (!userIds || !Array.isArray(userIds) || !title || !message) {
-      return res.status(400).json({ error: "Param\xE8tres manquants ou invalides" });
-    }
-    for (const userId of userIds) {
-      await sendNotification(userId, title, message);
-    }
-    res.json({ success: true, count: userIds.length });
-  } catch (error) {
-    console.error("Error sending bulk notifications:", error);
-    res.status(500).json({ error: "Erreur lors de l'envoi des notifications group\xE9es" });
-  }
-};
 
 // server/controllers/geniusPayController.ts
 var initPayment = async (req, res) => {
@@ -953,6 +990,12 @@ var register = async (req, res) => {
       await prisma_default.user.update({ where: { id: user.id }, data: { matricule } });
     }
     setAuthCookie(res, user.id, user.role);
+    try {
+      await sendNotification(user.id, "Bienvenue chez Excellence Acad\xE9mie !", "Votre compte a \xE9t\xE9 cr\xE9\xE9 avec succ\xE8s. Acc\xE9dez d\xE8s \xE0 pr\xE9sent \xE0 vos cours, emplois du temps et ressources.");
+      await sendNotificationToRole("ADMIN", "Nouvelle inscription", `L'\xE9tudiant(e) ${user.name} (${user.email}) vient de s'inscrire sur la plateforme.`);
+    } catch (err) {
+      console.error("Notification error on registration:", err);
+    }
     res.status(201).json({ message: "User registered successfully", userId: user.id });
   } catch (error) {
     console.error("Registration error:", error);
@@ -1116,6 +1159,12 @@ var confirmPayment = async (req, res) => {
           });
         }
       }
+      try {
+        await sendNotification(user.id, "Inscription et paiement valid\xE9s", `Votre paiement de ${totalAmount.toLocaleString("fr-FR")} FCFA a \xE9t\xE9 re\xE7u et valid\xE9 avec succ\xE8s. Bienvenue dans votre parcours de formation !`);
+        await sendNotificationToRole("ADMIN", "Paiement inscription re\xE7u", `L'\xE9tudiant(e) ${user.name} a finalis\xE9 son inscription et pay\xE9 ${totalAmount.toLocaleString("fr-FR")} FCFA.`);
+      } catch (err) {
+        console.error("Notification error on payment confirmation:", err);
+      }
       setAuthCookie(res, user.id, user.role);
       return res.json({
         success: true,
@@ -1206,6 +1255,7 @@ var router4 = Router4();
 router4.use(authenticateToken);
 router4.get("/stream", streamNotifications);
 router4.get("/", getNotifications);
+router4.put("/read-all", markAllAsRead);
 router4.put("/:id/read", markAsRead);
 router4.post("/bulk", sendBulkNotification);
 var notificationRoutes_default = router4;
@@ -2951,6 +3001,13 @@ var signContract = async (req, res) => {
         userAgent: req.headers["user-agent"] || ""
       }
     });
+    try {
+      const student = await prisma_default.user.findUnique({ where: { id: userId }, select: { name: true } });
+      await sendNotification(userId, "Contrat de formation valid\xE9", "Votre contrat de formation a \xE9t\xE9 sign\xE9 \xE9lectroniquement avec succ\xE8s.");
+      await sendNotificationToRole("ADMIN", "Nouveau contrat sign\xE9", `L'\xE9tudiant(e) ${student?.name || "Un apprenant"} a valid\xE9 et sign\xE9 son contrat de formation.`);
+    } catch (e) {
+      console.error("Notification error on contract signing:", e);
+    }
     res.status(201).json({ success: true, contract });
   } catch (error) {
     console.error("Contract sign error:", error?.message || error);

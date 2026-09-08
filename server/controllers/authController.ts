@@ -5,6 +5,7 @@ import { setAuthCookie } from '../utils/jwt';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { calcRegistrationPrice, calcMonthlyAmount, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
+import { sendNotification, sendNotificationToRole } from './notificationController';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -41,6 +42,13 @@ export const register = async (req: Request, res: Response) => {
     }
 
     setAuthCookie(res, user.id, user.role);
+
+    try {
+      await sendNotification(user.id, "Bienvenue chez Excellence Académie !", "Votre compte a été créé avec succès. Accédez dès à présent à vos cours, emplois du temps et ressources.");
+      await sendNotificationToRole("ADMIN", "Nouvelle inscription", `L'étudiant(e) ${user.name} (${user.email}) vient de s'inscrire sur la plateforme.`);
+    } catch (err) {
+      console.error('Notification error on registration:', err);
+    }
 
     res.status(201).json({ message: 'User registered successfully', userId: user.id });
   } catch (error) {
@@ -237,6 +245,13 @@ export const confirmPayment = async (req: Request, res: Response) => {
             },
           });
         }
+      }
+
+      try {
+        await sendNotification(user.id, "Inscription et paiement validés", `Votre paiement de ${totalAmount.toLocaleString('fr-FR')} FCFA a été reçu et validé avec succès. Bienvenue dans votre parcours de formation !`);
+        await sendNotificationToRole("ADMIN", "Paiement inscription reçu", `L'étudiant(e) ${user.name} a finalisé son inscription et payé ${totalAmount.toLocaleString('fr-FR')} FCFA.`);
+      } catch (err) {
+        console.error('Notification error on payment confirmation:', err);
       }
 
       setAuthCookie(res, user.id, user.role);

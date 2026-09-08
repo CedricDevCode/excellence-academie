@@ -84,6 +84,18 @@ export const markAsRead = async (req: Request, res: Response) => {
   }
 };
 
+export const markAllAsRead = async (req: Request, res: Response) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user.id, isRead: false },
+      data: { isRead: true }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to mark all notifications as read' });
+  }
+};
+
 // Internal function to create a notification and send email
 export const sendNotification = async (userId: string, title: string, message: string) => {
   try {
@@ -125,6 +137,20 @@ export const sendNotification = async (userId: string, title: string, message: s
     });
   } catch (error) {
     console.error('Error sending notification:', error);
+  }
+};
+
+export const sendNotificationToRole = async (role: string, title: string, message: string) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: role as any, isActive: true },
+      select: { id: true }
+    });
+    for (const u of users) {
+      await sendNotification(u.id, title, message);
+    }
+  } catch (err) {
+    console.error(`Error sending notification to role ${role}:`, err);
   }
 };
 

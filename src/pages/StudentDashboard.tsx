@@ -5,7 +5,8 @@ import {
   CheckCircle, Clock, Download, GraduationCap,
   Calendar, ChevronRight, BookOpen, Phone, AlertCircle, Loader2, Camera, Save, Printer, Eye, FileText, ShoppingCart
 } from "lucide-react";
-import { getMe, logout as apiLogout, fetchMyPayments, fetchNotifications, markNotificationRead, fetchEvents, updateMyProfile, fetchMySubscriptions, fetchOverdueItems, paySubscription, fetchMyContract, signContract, getSignedContractPdfUrl, fetchBlogPosts } from "../utils/api";
+import { getMe, logout as apiLogout, fetchMyPayments, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchEvents, updateMyProfile, fetchMySubscriptions, fetchOverdueItems, paySubscription, fetchMyContract, signContract, getSignedContractPdfUrl, fetchBlogPosts } from "../utils/api";
+import { useLiveNotifications } from "../hooks/useLiveNotifications";
 import { generatePaymentReceipt, generatePaymentsReport } from "../utils/pdf";
 import StudentSessionsView from "../components/StudentSessionsView";
 import ContractView from "../components/ContractView";
@@ -601,6 +602,17 @@ function NotificationsPage({ notifs, onRefresh }: { notifs: any[]; onRefresh: ()
     onRefresh();
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const unreadCount = notifs.filter(n => !n.isRead).length;
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
@@ -608,11 +620,21 @@ function NotificationsPage({ notifs, onRefresh }: { notifs: any[]; onRefresh: ()
           <h2 className="font-black text-gray-900 text-xl">Notifications</h2>
           <p className="text-gray-500 text-sm">Dernières alertes et messages reçus.</p>
         </div>
-        {notifs.filter(n => !n.isRead).length > 0 && (
-          <span className="bg-[#FF6B00] text-white text-xs font-bold px-2 py-1 rounded-full">
-            {notifs.filter(n => !n.isRead).length} non lue(s)
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {unreadCount > 0 && (
+            <>
+              <span className="bg-[#FF6B00] text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={handleMarkAllRead}
+                className="text-xs font-bold text-[#0056B3] hover:underline bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+              >
+                <CheckCircle size={14} /> Tout marquer comme lu
+              </button>
+            </>
+          )}
+        </div>
       </div>
       {notifs.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
@@ -964,6 +986,11 @@ export default function StudentDashboard() {
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  // In-app real-time notifications
+  useLiveNotifications((newNotif) => {
+    setNotifs(prev => [newNotif, ...prev]);
+  });
+
   const loadData = useCallback(async () => {
     setError(null);
     try {
@@ -1133,9 +1160,28 @@ export default function StudentDashboard() {
               </button>
               {showNotifDropdown && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-96 overflow-y-auto">
-                  <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                    <h3 className="font-bold text-gray-900 text-sm">Notifications</h3>
-                    <button onClick={() => setActiveTab("notifs")} className="text-[#0056B3] text-xs font-semibold hover:underline">Voir tout</button>
+                  <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-gray-900 text-sm">Notifications</h3>
+                      {notifs.filter(n => !n.isRead).length > 0 && (
+                        <span className="bg-[#FF6B00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                          {notifs.filter(n => !n.isRead).length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {notifs.filter(n => !n.isRead).length > 0 && (
+                        <button
+                          onClick={() => markAllNotificationsRead().then(() => loadData())}
+                          className="text-[11px] text-[#0056B3] hover:underline font-semibold"
+                        >
+                          Tout lire
+                        </button>
+                      )}
+                      <button onClick={() => { setActiveTab("notifs"); setShowNotifDropdown(false); }} className="text-[#0056B3] text-xs font-semibold hover:underline">
+                        Voir tout
+                      </button>
+                    </div>
                   </div>
                   {notifs.length === 0 ? (
                     <p className="text-gray-400 text-xs text-center py-6">Aucune notification</p>

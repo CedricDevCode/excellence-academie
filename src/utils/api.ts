@@ -190,6 +190,14 @@ export const markNotificationRead = async (id: string) => {
   return res.json();
 };
 
+export const markAllNotificationsRead = async () => {
+  const res = await authFetch(`${API_BASE_URL}/notifications/read-all`, {
+    method: 'PUT',
+  });
+  if (!res.ok) throw new Error('Failed to mark all notifications as read');
+  return res.json();
+};
+
 // Testimonials
 export const fetchTestimonials = async () => {
   const res = await fetch(`${API_BASE_URL}/testimonials`);

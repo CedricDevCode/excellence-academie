@@ -9,7 +9,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   fetchStats, fetchUsers, fetchPayments, fetchExpenses,
-  fetchNotifications, markNotificationRead, createExpense, updateExpense, deleteExpense,
+  fetchNotifications, markNotificationRead, markAllNotificationsRead, createExpense, updateExpense, deleteExpense,
   fetchCityBreakdown,
   fetchCities, createCity, updateCity, deleteCity,
   getMe, logout as apiLogout, registerStudent, registerAndPay, sendBulkNotification,
@@ -19,6 +19,7 @@ import {
   fetchShopOrders,
   fetchBlogPosts, deleteBlogPost
 } from "../utils/api";
+import { useLiveNotifications } from "../hooks/useLiveNotifications";
 import { calcRegistrationPrice } from "../constants/student";
 import StudentRegistrationForm from "../components/StudentRegistrationForm";
 import TeacherSessionsView from "../components/TeacherSessionsView";
@@ -1729,6 +1730,15 @@ function NotifsView() {
     loadNotifs();
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      loadNotifs();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   const unreadCount = notifs.filter((n: any) => !n.isRead).length;
@@ -1742,6 +1752,14 @@ function NotifsView() {
             <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unreadCount} non lue{unreadCount > 1 ? 's' : ''}</span>
           )}
         </h2>
+        {unreadCount > 0 && (
+          <button
+            onClick={handleMarkAllRead}
+            className="text-xs font-bold text-[#0056B3] hover:underline flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-lg"
+          >
+            <CheckCircle size={14} /> Tout marquer comme lu
+          </button>
+        )}
       </div>
       <div className="divide-y divide-gray-100">
         {notifs.length === 0 ? (
@@ -3387,6 +3405,29 @@ export default function AdminDashboard() {
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  // Real-time in-app live notifications
+  useLiveNotifications((newNotif) => {
+    setNotifications(prev => [newNotif, ...prev]);
+  });
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error('Erreur marquage notifications lues :', err);
+    }
+  };
+
+  const handleMarkSingleRead = async (id: string) => {
+    try {
+      await markNotificationRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (err) {
+      console.error('Erreur marquage notification lue :', err);
+    }
+  };
+
   useEffect(() => { fetchNotifications().then(setNotifications).catch(() => { }); }, []);
 
   useEffect(() => {
@@ -3538,19 +3579,55 @@ export default function AdminDashboard() {
                 )}
               </button>
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
-                  <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                    <span className="font-bold text-gray-900 text-sm">Notifications</span>
-                    <button onClick={() => setActiveTab('notifs')} className="text-xs text-[#0056B3] hover:underline">Voir tout</button>
+                <div className="absolute right-0 mt-2 w-84 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-fadeIn">
+                  <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900 text-sm">Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllRead}
+                          className="text-[11px] text-[#0056B3] hover:underline font-semibold"
+                        >
+                          Tout lire
+                        </button>
+                      )}
+                      <button onClick={() => { setActiveTab('notifs'); setNotifOpen(false); }} className="text-[11px] text-gray-500 hover:text-gray-800">
+                        Voir tout
+                      </button>
+                    </div>
                   </div>
-                  <div className="max-h-72 overflow-y-auto">
+                  <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
                     {notifications.length === 0 ? (
-                      <div className="p-6 text-center text-gray-400 text-sm">Aucune notification</div>
+                      <div className="p-6 text-center text-gray-400 text-sm">
+                        <Bell size={24} className="mx-auto text-gray-300 mb-2 opacity-50" />
+                        Aucune notification
+                      </div>
                     ) : (
-                      notifications.slice(0, 5).map((n: any) => (
-                        <div key={n.id} className={`px-4 py-3 border-b border-gray-50 text-sm ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
-                          <div className="font-semibold text-gray-900">{n.title}</div>
-                          <div className="text-gray-500 text-xs mt-0.5 line-clamp-2">{n.message}</div>
+                      notifications.slice(0, 6).map((n: any) => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            if (!n.isRead) handleMarkSingleRead(n.id);
+                          }}
+                          className={`px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-gray-50 ${!n.isRead ? 'bg-blue-50/60' : ''}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-semibold text-gray-900 text-xs flex items-center gap-1.5">
+                              {!n.isRead && <span className="w-2 h-2 rounded-full bg-[#0056B3] shrink-0" />}
+                              <span>{n.title}</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 shrink-0">
+                              {n.createdAt ? new Date(n.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
+                          <div className="text-gray-500 text-xs mt-1 line-clamp-2">{n.message}</div>
                         </div>
                       ))
                     )}

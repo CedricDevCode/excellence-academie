@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { generateSignedContractPdf } from '../utils/contractPdf';
+import { sendNotification, sendNotificationToRole } from './notificationController';
 
 export const signContract = async (req: Request, res: Response) => {
   try {
@@ -25,6 +26,15 @@ export const signContract = async (req: Request, res: Response) => {
         userAgent: req.headers['user-agent'] || '',
       },
     });
+
+    // Send in-app notifications
+    try {
+      const student = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+      await sendNotification(userId, "Contrat de formation validé", "Votre contrat de formation a été signé électroniquement avec succès.");
+      await sendNotificationToRole("ADMIN", "Nouveau contrat signé", `L'étudiant(e) ${student?.name || 'Un apprenant'} a validé et signé son contrat de formation.`);
+    } catch (e) {
+      console.error('Notification error on contract signing:', e);
+    }
 
     res.status(201).json({ success: true, contract });
   } catch (error: any) {
