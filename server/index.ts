@@ -2,6 +2,8 @@ import './env';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import bcrypt from 'bcrypt';
+import { prisma } from './utils/prisma';
 
 import userRoutes from './routes/userRoutes';
 import paymentRoutes from './routes/paymentRoutes';
@@ -121,6 +123,36 @@ app.use((req, res, next) => {
   next();
 });
 
+async function initDatabaseDefaults() {
+  try {
+    const adminExists = await prisma.user.findUnique({
+      where: { email: 'admin@excellence.ci' }
+    });
+    if (!adminExists) {
+      console.log('🔄 Initialisation des comptes par défaut en cours...');
+      const password = await bcrypt.hash('password123', 10);
+      const defaultUsers = [
+        { email: 'admin@excellence.ci', name: 'Administrateur', role: 'ADMIN' as const, password },
+        { email: 'accountant@excellence.ci', name: 'Comptable', role: 'ACCOUNTANT' as const, password },
+        { email: 'teacher@excellence.ci', name: 'Enseignant', role: 'TEACHER' as const, password },
+        { email: 'student@excellence.ci', name: 'Étudiant Test', role: 'STUDENT' as const, password },
+      ];
+      for (const u of defaultUsers) {
+        await prisma.user.upsert({
+          where: { email: u.email },
+          update: {},
+          create: u,
+        });
+      }
+      console.log('✅ Compte Administrateur créé : admin@excellence.ci (mdp: password123)');
+    }
+  } catch (err) {
+    console.error('Erreur initialisation admin :', err);
+  }
+}
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  initDatabaseDefaults();
 });
+

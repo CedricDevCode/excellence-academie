@@ -9,6 +9,12 @@ dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import bcrypt3 from "bcrypt";
+
+// server/utils/prisma.ts
+import { PrismaClient } from "@prisma/client";
+var prisma = new PrismaClient();
+var prisma_default = prisma;
 
 // server/routes/userRoutes.ts
 import { Router } from "express";
@@ -20,13 +26,6 @@ import { fileURLToPath as fileURLToPath2 } from "url";
 
 // server/controllers/userController.ts
 import bcrypt from "bcrypt";
-
-// server/utils/prisma.ts
-import { PrismaClient } from "@prisma/client";
-var prisma = new PrismaClient();
-var prisma_default = prisma;
-
-// server/controllers/userController.ts
 var getUsers = async (req, res) => {
   try {
     const users = await prisma_default.user.findMany();
@@ -3953,6 +3952,34 @@ app.use((req, res, next) => {
   }
   next();
 });
+async function initDatabaseDefaults() {
+  try {
+    const adminExists = await prisma.user.findUnique({
+      where: { email: "admin@excellence.ci" }
+    });
+    if (!adminExists) {
+      console.log("\u{1F504} Initialisation des comptes par d\xE9faut en cours...");
+      const password = await bcrypt3.hash("password123", 10);
+      const defaultUsers = [
+        { email: "admin@excellence.ci", name: "Administrateur", role: "ADMIN", password },
+        { email: "accountant@excellence.ci", name: "Comptable", role: "ACCOUNTANT", password },
+        { email: "teacher@excellence.ci", name: "Enseignant", role: "TEACHER", password },
+        { email: "student@excellence.ci", name: "\xC9tudiant Test", role: "STUDENT", password }
+      ];
+      for (const u of defaultUsers) {
+        await prisma.user.upsert({
+          where: { email: u.email },
+          update: {},
+          create: u
+        });
+      }
+      console.log("\u2705 Compte Administrateur cr\xE9\xE9 : admin@excellence.ci (mdp: password123)");
+    }
+  } catch (err) {
+    console.error("Erreur initialisation admin :", err);
+  }
+}
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  initDatabaseDefaults();
 });
