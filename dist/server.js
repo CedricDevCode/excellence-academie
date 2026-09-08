@@ -1190,27 +1190,48 @@ var login = async (req, res) => {
       return res.status(400).json({ error: "Email et mot de passe requis" });
     }
     const cleanEmail = email.trim().toLowerCase();
+    const retryWithNeonWakeup = async (fn, retries = 2, delayMs = 2e3) => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          return await fn();
+        } catch (err) {
+          const msg = err?.message || String(err);
+          const isSleepOrConn = msg.includes("Can't reach database") || msg.includes("P1001") || msg.includes("timeout") || msg.includes("Connection terminated") || msg.includes("ETIMEDOUT");
+          if (isSleepOrConn && attempt < retries) {
+            console.log(`[Neon DB] Base en cours de r\xE9veil... tentative ${attempt + 1}/${retries} dans ${delayMs}ms`);
+            await new Promise((r) => setTimeout(r, delayMs));
+            continue;
+          }
+          throw err;
+        }
+      }
+      return fn();
+    };
     let user = null;
     try {
-      user = await prisma_default.user.findFirst({
-        where: {
-          email: {
-            equals: cleanEmail,
-            mode: "insensitive"
+      user = await retryWithNeonWakeup(async () => {
+        return await prisma_default.user.findFirst({
+          where: {
+            email: {
+              equals: cleanEmail,
+              mode: "insensitive"
+            }
           }
-        }
+        });
       });
     } catch (dbErr) {
       console.warn("[AUTH] Requ\xEAte insensitive \xE9chou\xE9e, essai avec findUnique:", dbErr?.message);
       try {
-        user = await prisma_default.user.findUnique({
-          where: { email: cleanEmail }
+        user = await retryWithNeonWakeup(async () => {
+          return await prisma_default.user.findUnique({
+            where: { email: cleanEmail }
+          });
         });
       } catch (innerErr) {
         console.error("[AUTH] Erreur base de donn\xE9es critique :", innerErr?.message || innerErr);
         return res.status(500).json({
           error: "Erreur serveur lors de la connexion",
-          details: `Connexion \xE0 la base de donn\xE9es impossible : ${innerErr?.message || "Base non joignable"}. Veuillez v\xE9rifier DATABASE_URL et lancer "npx prisma db push".`
+          details: `Connexion \xE0 la base de donn\xE9es impossible : ${innerErr?.message || "Base non joignable"}. V\xE9rifiez que Neon n'est pas en veille et que DATABASE_URL est correct.`
         });
       }
     }
@@ -4223,4 +4244,11 @@ async function initDatabaseDefaults() {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
   initDatabaseDefaults();
+  setInterval(async () => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+    } catch (err) {
+      console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping r\xE9veil Neon :", err?.message || err);
+    }
+  }, 180 * 1e3);
 });

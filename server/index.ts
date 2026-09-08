@@ -181,5 +181,17 @@ async function initDatabaseDefaults() {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
   initDatabaseDefaults();
+
+  // 🌟 Neon PostgreSQL Keep-Alive:
+  // Sur Neon, les bases de données entrent en veille (suspend) après 5 minutes d'inactivité.
+  // Ce ping léger SELECT 1 toutes les 3 minutes (180s) maintient la base éveillée 24h/24 !
+  setInterval(async () => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      // console.log('[Neon Keep-Alive] Ping DB OK');
+    } catch (err: any) {
+      console.warn('⚠️ [Neon Keep-Alive] Ping réveil Neon :', err?.message || err);
+    }
+  }, 180 * 1000);
 });
 

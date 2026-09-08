@@ -285,28 +285,55 @@ export const login = async (req: Request, res: Response) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Query user with fallback if insensitive query fails
+    // Helper to retry query if Neon database is cold-starting
+    const retryWithNeonWakeup = async <T>(fn: () => Promise<T>, retries = 2, delayMs = 2000): Promise<T> => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          return await fn();
+        } catch (err: any) {
+          const msg = err?.message || String(err);
+          const isSleepOrConn = msg.includes("Can't reach database") ||
+            msg.includes("P1001") ||
+            msg.includes("timeout") ||
+            msg.includes("Connection terminated") ||
+            msg.includes("ETIMEDOUT");
+          if (isSleepOrConn && attempt < retries) {
+            console.log(`[Neon DB] Base en cours de réveil... tentative ${attempt + 1}/${retries} dans ${delayMs}ms`);
+            await new Promise((r) => setTimeout(r, delayMs));
+            continue;
+          }
+          throw err;
+        }
+      }
+      return fn();
+    };
+
+    // 1. Query user with fallback if insensitive query fails and retry on Neon wake-up
     let user = null;
     try {
-      user = await prisma.user.findFirst({
-        where: {
-          email: {
-            equals: cleanEmail,
-            mode: 'insensitive'
+      user = await retryWithNeonWakeup(async () => {
+        return await prisma.user.findFirst({
+          where: {
+            email: {
+              equals: cleanEmail,
+              mode: 'insensitive'
+            }
           }
-        }
+        });
       });
     } catch (dbErr: any) {
       console.warn('[AUTH] Requête insensitive échouée, essai avec findUnique:', dbErr?.message);
       try {
-        user = await prisma.user.findUnique({
-          where: { email: cleanEmail }
+        user = await retryWithNeonWakeup(async () => {
+          return await prisma.user.findUnique({
+            where: { email: cleanEmail }
+          });
         });
       } catch (innerErr: any) {
         console.error('[AUTH] Erreur base de données critique :', innerErr?.message || innerErr);
         return res.status(500).json({
           error: 'Erreur serveur lors de la connexion',
-          details: `Connexion à la base de données impossible : ${innerErr?.message || 'Base non joignable'}. Veuillez vérifier DATABASE_URL et lancer "npx prisma db push".`
+          details: `Connexion à la base de données impossible : ${innerErr?.message || 'Base non joignable'}. Vérifiez que Neon n'est pas en veille et que DATABASE_URL est correct.`
         });
       }
     }
