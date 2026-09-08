@@ -1814,7 +1814,16 @@ function FormationsView() {
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ id: '', title: '', category: 'Concours Juridiques & Judiciaires', description: '', price: '' });
+  const [form, setForm] = useState({
+    id: '',
+    title: '',
+    category: 'Concours Juridiques & Judiciaires',
+    description: '',
+    registrationFee: '35000',
+    monthlyFee: '30000',
+    hasPresentiel: true,
+    hasOnline: true,
+  });
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -1877,14 +1886,23 @@ function FormationsView() {
     return courses.reduce((acc, c) => acc + (c._count?.subscriptions || c._count?.payments || 0), 0);
   }, [courses]);
 
-  const averagePrice = useMemo(() => {
-    if (!courses.length) return 0;
-    const sum = courses.reduce((acc, c) => acc + (Number(c.price) || 0), 0);
+  const averageMonthlyFee = useMemo(() => {
+    if (!courses.length) return 30000;
+    const sum = courses.reduce((acc, c) => acc + (Number(c.monthlyFee || 30000) || 0), 0);
     return Math.round(sum / courses.length);
   }, [courses]);
 
   const handleOpenAdd = () => {
-    setForm({ id: '', title: '', category: CATEGORY_PRESETS[0], description: '', price: '' });
+    setForm({
+      id: '',
+      title: '',
+      category: CATEGORY_PRESETS[0],
+      description: '',
+      registrationFee: '35000',
+      monthlyFee: '30000',
+      hasPresentiel: true,
+      hasOnline: true,
+    });
     setIsCustomCategory(false);
     setCustomCategory('');
     setShowModal(true);
@@ -1897,7 +1915,10 @@ function FormationsView() {
       title: c.title || '',
       category: isPreset ? c.category : 'CUSTOM',
       description: c.description || '',
-      price: c.price !== undefined ? String(c.price) : '',
+      registrationFee: String(c.registrationFee !== undefined ? c.registrationFee : (c.price || 35000)),
+      monthlyFee: String(c.monthlyFee !== undefined ? c.monthlyFee : 30000),
+      hasPresentiel: c.hasPresentiel !== undefined ? c.hasPresentiel : true,
+      hasOnline: c.hasOnline !== undefined ? c.hasOnline : true,
     });
     if (!isPreset && c.category) {
       setIsCustomCategory(true);
@@ -1915,10 +1936,13 @@ function FormationsView() {
       toast('error', 'Le titre de la formation est obligatoire');
       return;
     }
-    if (!form.price || isNaN(Number(form.price)) || Number(form.price) < 0) {
-      toast('error', 'Veuillez saisir un prix valide en FCFA');
+    if (!form.hasPresentiel && !form.hasOnline) {
+      toast('error', 'Veuillez cocher au moins un mode de formation (Présentiel ou En ligne)');
       return;
     }
+
+    const regFee = Number(form.registrationFee) || 35000;
+    const mFee = Number(form.monthlyFee) || 30000;
 
     const finalCategory = isCustomCategory
       ? (customCategory.trim() || 'Général')
@@ -1930,7 +1954,11 @@ function FormationsView() {
         title: form.title.trim(),
         category: finalCategory,
         description: form.description.trim() || undefined,
-        price: Number(form.price),
+        price: regFee,
+        registrationFee: regFee,
+        monthlyFee: mFee,
+        hasPresentiel: Boolean(form.hasPresentiel),
+        hasOnline: Boolean(form.hasOnline),
       };
 
       if (form.id) {
@@ -2022,8 +2050,8 @@ function FormationsView() {
             <DollarSign size={24} />
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tarif Moyen</div>
-            <div className="text-2xl font-black text-[#FF6B00]">{averagePrice.toLocaleString('fr-FR')} <span className="text-xs text-gray-600">F</span></div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Mensualité Moyenne</div>
+            <div className="text-2xl font-black text-[#FF6B00]">{averageMonthlyFee.toLocaleString('fr-FR')} <span className="text-xs text-gray-600">F/m</span></div>
           </div>
         </div>
 
@@ -2133,6 +2161,10 @@ function FormationsView() {
             const cat = c.category || 'Général';
             const style = CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR;
             const studentsCount = c._count?.subscriptions || c._count?.payments || 0;
+            const regFee = c.registrationFee !== undefined && c.registrationFee !== null ? Number(c.registrationFee) : (c.price ? Number(c.price) : 35000);
+            const mFee = c.monthlyFee !== undefined && c.monthlyFee !== null ? Number(c.monthlyFee) : 30000;
+            const hasPres = c.hasPresentiel !== false;
+            const hasOnl = c.hasOnline !== false;
 
             return (
               <div
@@ -2141,7 +2173,7 @@ function FormationsView() {
               >
                 {/* Header with category and actions */}
                 <div>
-                  <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-start justify-between gap-2 mb-2.5">
                     <span className={`inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wide uppercase ${style.badge}`}>
                       {cat}
                     </span>
@@ -2163,25 +2195,54 @@ function FormationsView() {
                     </div>
                   </div>
 
-                  {/* Title & Description */}
+                  {/* Title */}
                   <h3 className="font-black text-gray-900 text-base mb-1.5 leading-snug group-hover:text-[#0056B3] transition-colors">
                     {c.title}
                   </h3>
-                  <p className="text-gray-500 text-xs leading-relaxed line-clamp-3 mb-4 min-h-[3.25rem]">
+
+                  {/* Modes tags */}
+                  <div className="flex flex-wrap gap-1.5 mb-2.5">
+                    {hasPres && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        🏛️ Présentiel
+                      </span>
+                    )}
+                    {hasOnl && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                        🌐 En ligne
+                      </span>
+                    )}
+                    {!hasPres && !hasOnl && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-50 text-gray-500 border border-gray-200">
+                        Mode non spécifié
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 mb-4">
                     {c.description || "Aucune description détaillée renseignée."}
                   </p>
                 </div>
 
-                {/* Footer with Price & Info */}
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <Users size={14} className="text-gray-400" />
-                    <span>{studentsCount} inscrit{studentsCount > 1 ? 's' : ''}</span>
+                {/* Footer with Price breakdown & Students */}
+                <div className="pt-3 border-t border-gray-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-medium">Inscription :</span>
+                    <span className="font-bold text-gray-900">
+                      {regFee.toLocaleString('fr-FR')} FCFA
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-gray-500 uppercase font-semibold block leading-tight">Tarif</span>
-                    <span className="font-black text-[#FF6B00] text-base">
-                      {Number(c.price || 0).toLocaleString('fr-FR')} <span className="text-xs font-bold">FCFA</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 font-medium">Mensualité :</span>
+                    <span className="font-black text-[#FF6B00]">
+                      {mFee.toLocaleString('fr-FR')} FCFA/mois
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-50 text-[11px] text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Users size={12} />
+                      {studentsCount} inscrit{studentsCount > 1 ? 's' : ''}
                     </span>
                   </div>
                 </div>
@@ -2205,7 +2266,7 @@ function FormationsView() {
                     {form.id ? 'Modifier la formation' : 'Ajouter une nouvelle formation'}
                   </h3>
                   <p className="text-xs text-gray-500">
-                    {form.id ? 'Mettez à jour les informations et tarifs de la filière' : 'Définissez une nouvelle filière de concours ou de cours'}
+                    {form.id ? 'Mettez à jour les informations, tarifs et modes de la filière' : 'Définissez une nouvelle filière avec ses tarifs réels'}
                   </p>
                 </div>
               </div>
@@ -2271,29 +2332,85 @@ function FormationsView() {
                   )}
                 </div>
 
-                {/* Prix */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                    Prix de la formation (FCFA) *
-                  </label>
-                  <div className="relative">
-                    <input
-                      required
-                      type="number"
-                      min="0"
-                      step="1000"
-                      value={form.price}
-                      onChange={e => setForm({ ...form, price: e.target.value })}
-                      placeholder="Ex: 150000"
-                      className="w-full pl-4 pr-16 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:border-[#0056B3] focus:outline-none transition-colors"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">
-                      FCFA
-                    </span>
+                {/* Tarifs (2 colonnes : Inscription + Mensualité) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Frais d'inscription (FCFA) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        required
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={form.registrationFee}
+                        onChange={e => setForm({ ...form, registrationFee: e.target.value })}
+                        placeholder="Ex: 35000"
+                        className="w-full pl-3 pr-14 py-2 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:border-[#0056B3] focus:outline-none transition-colors"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">
+                        FCFA
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Frais uniques d'entrée</p>
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    Tarif standard applicable pour l'inscription ou le forfait de cette formation.
-                  </p>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                      Coût Mensualité (FCFA / mois) *
+                    </label>
+                    <div className="relative">
+                      <input
+                        required
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={form.monthlyFee}
+                        onChange={e => setForm({ ...form, monthlyFee: e.target.value })}
+                        placeholder="Ex: 30000"
+                        className="w-full pl-3 pr-14 py-2 border-2 border-gray-200 rounded-xl text-sm font-bold text-[#FF6B00] focus:border-[#0056B3] focus:outline-none transition-colors"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">
+                        FCFA/m
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Mensualité standard</p>
+                  </div>
+                </div>
+
+                {/* Modes de formation dispensés */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                    Modes de formation dispensés *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${form.hasPresentiel ? "border-[#0056B3] bg-blue-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                      <input
+                        type="checkbox"
+                        checked={form.hasPresentiel}
+                        onChange={e => setForm({ ...form, hasPresentiel: e.target.checked })}
+                        className="w-4 h-4 accent-[#0056B3] rounded"
+                      />
+                      <div>
+                        <div className="text-sm font-bold text-gray-900">🏛️ Présentiel</div>
+                        <div className="text-[11px] text-gray-500">Cours en centre / salle</div>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${form.hasOnline ? "border-purple-500 bg-purple-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                      <input
+                        type="checkbox"
+                        checked={form.hasOnline}
+                        onChange={e => setForm({ ...form, hasOnline: e.target.checked })}
+                        className="w-4 h-4 accent-purple-600 rounded"
+                      />
+                      <div>
+                        <div className="text-sm font-bold text-gray-900">🌐 En Ligne</div>
+                        <div className="text-[11px] text-gray-500">À distance (Meet, visio)</div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Description */}
@@ -3490,63 +3607,89 @@ export default function AdminDashboard() {
   return (
     <div className="flex h-screen bg-gray-100 font-[Inter,sans-serif] overflow-hidden">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 bg-[#0056B3] text-white transform transition-all duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`}>
-        <div className={`flex items-center justify-between border-b border-blue-400/30 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 bg-[#0056B3] text-white flex flex-col h-screen transform transition-all duration-300 lg:relative lg:translate-x-0 shadow-2xl ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`}>
+        {/* Top Header */}
+        <div className={`shrink-0 flex items-center justify-between border-b border-blue-400/30 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
           {sidebarCollapsed ? (
-            <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0" />
+            <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0 shadow-sm" />
           ) : (
             <div className="flex items-center gap-3 overflow-hidden">
-              <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0" />
+              <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0 shadow-sm" />
               <div className="min-w-0">
-                <div className="font-black text-sm truncate">Excellence Académie</div>
-                <div className="text-blue-200 text-xs truncate">Administrateur</div>
+                <div className="font-black text-sm truncate tracking-tight">Excellence Académie</div>
+                <div className="text-blue-200 text-xs truncate">Panneau Administration</div>
               </div>
             </div>
           )}
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-blue-200 hover:text-white shrink-0">
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-blue-200 hover:text-white shrink-0 p-1">
             <X size={20} />
           </button>
         </div>
-        <nav className={`space-y-2 ${sidebarCollapsed ? "p-2" : "p-4"} overflow-y-auto pb-24`}>
-          {NAV_GROUPS.map((group) => (
-            <div key={group.category} className="space-y-1">
-              {!sidebarCollapsed && (
-                <button
-                  onClick={() => setOpenCategories(prev =>
-                    prev.includes(group.category)
-                      ? prev.filter(c => c !== group.category)
-                      : [group.category]
-                  )}
-                  className="w-full flex items-center justify-between text-blue-200 hover:text-white px-2 py-2 text-xs font-bold uppercase tracking-wider mb-1 transition-colors"
-                >
-                  {group.category}
-                  {openCategories.includes(group.category) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </button>
-              )}
 
-              <div className={`space-y-1 transition-all duration-300 overflow-hidden ${!sidebarCollapsed && !openCategories.includes(group.category) ? 'max-h-0 opacity-0' : 'max-h-[500px] opacity-100'}`}>
-                {group.items.map(item => (
-                  <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"} ${activeTab === item.id ? "bg-white/20 text-white font-bold" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}
-                    title={sidebarCollapsed ? item.label : undefined}>
-                    <span className="shrink-0">{item.icon}</span>
-                    {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+        {/* Scrollable Nav Area */}
+        <nav className={`flex-1 min-h-0 overflow-y-auto space-y-3 ${sidebarCollapsed ? "p-2" : "p-3.5"} select-none`}>
+          {NAV_GROUPS.map((group) => {
+            const isOpen = openCategories.includes(group.category);
+            return (
+              <div key={group.category} className="space-y-1">
+                {!sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenCategories(prev =>
+                      prev.includes(group.category)
+                        ? prev.filter(c => c !== group.category)
+                        : [...prev, group.category]
+                    )}
+                    className="w-full flex items-center justify-between text-blue-200 hover:text-white px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-white/5 transition-all"
+                  >
+                    <span>{group.category}</span>
+                    <span className="shrink-0 transition-transform duration-200">
+                      {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
                   </button>
-                ))}
+                )}
+
+                <div className={`space-y-1 transition-all duration-300 overflow-hidden ${!sidebarCollapsed && !isOpen ? 'max-h-0 opacity-0' : 'max-h-[600px] opacity-100'}`}>
+                  {group.items.map(item => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                        className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-3.5 py-2.5"} ${isActive ? "bg-white/20 text-white font-bold shadow-sm" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}
+                        title={sidebarCollapsed ? item.label : undefined}
+                      >
+                        <span className="shrink-0">{item.icon}</span>
+                        {!sidebarCollapsed && <span className="truncate text-left">{item.label}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
-        <div className={`absolute bottom-0 left-0 right-0 border-t border-blue-400/30 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
-          <button onClick={toggleSidebar} className={`w-full flex items-center gap-3 text-blue-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
-            title={sidebarCollapsed ? "Agrandir" : "Réduire"}>
+
+        {/* Solid Docked Bottom Footer */}
+        <div className={`shrink-0 border-t border-blue-400/30 bg-[#004799] space-y-1 z-10 shadow-lg ${sidebarCollapsed ? "p-2" : "p-3"}`}>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className={`w-full flex items-center gap-3 text-blue-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"}`}
+            title={sidebarCollapsed ? "Agrandir le menu" : "Réduire le menu"}
+          >
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-            {!sidebarCollapsed && <span>Réduire</span>}
+            {!sidebarCollapsed && <span className="text-xs font-semibold">Réduire le menu</span>}
           </button>
-          <button onClick={handleLogout} className={`w-full flex items-center gap-3 text-blue-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
-            title="Déconnexion">
-            <LogOut size={18} />
-            {!sidebarCollapsed && <span>Déconnexion</span>}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`w-full flex items-center gap-3 text-red-200 hover:text-white text-sm rounded-xl hover:bg-red-500/20 transition-all ${sidebarCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"}`}
+            title="Déconnexion"
+          >
+            <LogOut size={18} className="text-red-300" />
+            {!sidebarCollapsed && <span className="text-xs font-bold text-red-100">Déconnexion</span>}
           </button>
         </div>
       </aside>

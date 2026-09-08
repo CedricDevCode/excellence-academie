@@ -1870,15 +1870,21 @@ var getAllCourses = async (req, res) => {
 };
 var createCourse = async (req, res) => {
   try {
-    const { title, description, price, category } = req.body;
-    if (!title || price === void 0) {
-      return res.status(400).json({ message: "Le titre et le prix sont obligatoires" });
+    const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
+    if (!title) {
+      return res.status(400).json({ message: "Le titre est obligatoire" });
     }
+    const regFee = registrationFee !== void 0 ? Number(registrationFee) : price !== void 0 ? Number(price) : 35e3;
+    const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : 3e4;
     const course = await prisma_default.course.create({
       data: {
         title: title.trim(),
         description: description ? description.trim() : null,
-        price: Number(price),
+        price: regFee,
+        registrationFee: regFee,
+        monthlyFee: mFee,
+        hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : true,
+        hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : true,
         category: category && category.trim() ? category.trim() : "G\xE9n\xE9ral"
       }
     });
@@ -1895,13 +1901,19 @@ var updateCourse = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "id de la formation requis" });
     }
-    const { title, description, price, category } = req.body;
+    const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
+    const regFee = registrationFee !== void 0 ? Number(registrationFee) : price !== void 0 ? Number(price) : void 0;
+    const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : void 0;
     const course = await prisma_default.course.update({
       where: { id },
       data: {
         title: title !== void 0 ? title.trim() : void 0,
         description: description !== void 0 ? description.trim() : void 0,
-        price: price !== void 0 ? Number(price) : void 0,
+        price: regFee !== void 0 ? regFee : void 0,
+        registrationFee: regFee !== void 0 ? regFee : void 0,
+        monthlyFee: mFee !== void 0 ? mFee : void 0,
+        hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : void 0,
+        hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : void 0,
         category: category !== void 0 ? category ? category.trim() : "G\xE9n\xE9ral" : void 0
       }
     });
@@ -4041,50 +4053,82 @@ var DEFAULT_FORMATIONS = [
   {
     title: "Magistrature",
     category: "Concours Juridiques & Judiciaires",
-    price: 15e4,
-    description: "Pr\xE9paration intensive au concours d'acc\xE8s \xE0 la Magistrature"
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 3e4,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: "Pr\xE9paration intensive d'excellence au concours direct et professionnel de la Magistrature"
   },
   {
     title: "Greffe",
     category: "Concours Juridiques & Judiciaires",
-    price: 12e4,
-    description: "Pr\xE9paration compl\xE8te au concours des greffiers et administrateurs des greffes"
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 3e4,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: "Pr\xE9paration compl\xE8te aux concours des greffiers et administrateurs des greffes"
   },
   {
     title: "Avocature & Notariat",
     category: "Concours Juridiques & Judiciaires",
-    price: 15e4,
-    description: "Pr\xE9paration au CAPA, examen d'avocat et concours de notariat"
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 3e4,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: "Pr\xE9paration au certificat d'aptitude (CAPA) et concours de notariat"
   },
   {
     title: "ENA (Tous cycles)",
     category: "Administration Publique",
-    price: 1e5,
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 3e4,
+    hasPresentiel: true,
+    hasOnline: true,
     description: "Pr\xE9paration aux cycles Moyen, Moyen Sup\xE9rieur et Sup\xE9rieur de l'ENA"
   },
   {
     title: "Fonction Publique",
     category: "Administration Publique",
-    price: 8e4,
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 3e4,
+    hasPresentiel: true,
+    hasOnline: true,
     description: "Concours directs et professionnels de la Fonction Publique"
   },
   {
     title: "EPPJEJ & EPP",
     category: "Administration Publique",
-    price: 1e5,
-    description: "Pr\xE9paration aux concours de la protection judiciaire de l'enfance et de la jeunesse"
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 3e4,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: "Protection judiciaire de l'enfance, de la jeunesse et \xE9ducateurs"
   },
   {
     title: "Police",
     category: "S\xE9curit\xE9 & Force Publique",
-    price: 12e4,
-    description: "Pr\xE9paration aux concours des Officiers et Sous-Officiers de Police"
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 3e4,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: "Pr\xE9paration aux concours des Commissaires, Officiers et Sous-Officiers de Police"
   },
   {
     title: "Informatique",
     category: "Technologies & M\xE9tiers Num\xE9riques",
-    price: 5e4,
-    description: "Formation pratique aux outils num\xE9riques, bureautique et informatique"
+    price: 35e3,
+    registrationFee: 35e3,
+    monthlyFee: 25e3,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: "Bureautique avanc\xE9e, d\xE9veloppement web, outils num\xE9riques et cybers\xE9curit\xE9"
   }
 ];
 async function seedFormations() {
@@ -4096,15 +4140,19 @@ async function seedFormations() {
         data: {
           category: f.category,
           price: f.price,
+          registrationFee: f.registrationFee,
+          monthlyFee: f.monthlyFee,
+          hasPresentiel: f.hasPresentiel,
+          hasOnline: f.hasOnline,
           description: f.description
         }
       });
-      console.log(`[Formations] Mis \xE0 jour: ${f.title} (${f.category} - ${f.price} FCFA)`);
+      console.log(`[Formations] Mis \xE0 jour: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
     } else {
       await prisma3.course.create({
         data: f
       });
-      console.log(`[Formations] Cr\xE9\xE9: ${f.title} (${f.category} - ${f.price} FCFA)`);
+      console.log(`[Formations] Cr\xE9\xE9: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
     }
   }
 }

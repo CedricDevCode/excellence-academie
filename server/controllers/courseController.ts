@@ -36,17 +36,24 @@ export const getAllCourses = async (req: Request, res: Response) => {
 
 export const createCourse = async (req: Request, res: Response) => {
   try {
-    const { title, description, price, category } = req.body;
+    const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
     
-    if (!title || price === undefined) {
-      return res.status(400).json({ message: "Le titre et le prix sont obligatoires" });
+    if (!title) {
+      return res.status(400).json({ message: "Le titre est obligatoire" });
     }
+
+    const regFee = registrationFee !== undefined ? Number(registrationFee) : (price !== undefined ? Number(price) : 35000);
+    const mFee = monthlyFee !== undefined ? Number(monthlyFee) : 30000;
 
     const course = await prisma.course.create({
       data: {
         title: title.trim(),
         description: description ? description.trim() : null,
-        price: Number(price),
+        price: regFee,
+        registrationFee: regFee,
+        monthlyFee: mFee,
+        hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : true,
+        hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : true,
         category: category && category.trim() ? category.trim() : "Général",
       },
     });
@@ -66,14 +73,21 @@ export const updateCourse = async (req: Request, res: Response) => {
     if (!id) {
       return res.status(400).json({ message: "id de la formation requis" });
     }
-    const { title, description, price, category } = req.body;
+    const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
+
+    const regFee = registrationFee !== undefined ? Number(registrationFee) : (price !== undefined ? Number(price) : undefined);
+    const mFee = monthlyFee !== undefined ? Number(monthlyFee) : undefined;
 
     const course = await prisma.course.update({
       where: { id },
       data: {
         title: title !== undefined ? title.trim() : undefined,
         description: description !== undefined ? description.trim() : undefined,
-        price: price !== undefined ? Number(price) : undefined,
+        price: regFee !== undefined ? regFee : undefined,
+        registrationFee: regFee !== undefined ? regFee : undefined,
+        monthlyFee: mFee !== undefined ? mFee : undefined,
+        hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : undefined,
+        hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : undefined,
         category: category !== undefined ? (category ? category.trim() : "Général") : undefined,
       },
     });

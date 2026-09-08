@@ -6,50 +6,82 @@ export const DEFAULT_FORMATIONS = [
   {
     title: 'Magistrature',
     category: 'Concours Juridiques & Judiciaires',
-    price: 150000,
-    description: 'Préparation intensive au concours d\'accès à la Magistrature'
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 30000,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: 'Préparation intensive d\'excellence au concours direct et professionnel de la Magistrature'
   },
   {
     title: 'Greffe',
     category: 'Concours Juridiques & Judiciaires',
-    price: 120000,
-    description: 'Préparation complète au concours des greffiers et administrateurs des greffes'
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 30000,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: 'Préparation complète aux concours des greffiers et administrateurs des greffes'
   },
   {
     title: 'Avocature & Notariat',
     category: 'Concours Juridiques & Judiciaires',
-    price: 150000,
-    description: 'Préparation au CAPA, examen d\'avocat et concours de notariat'
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 30000,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: 'Préparation au certificat d\'aptitude (CAPA) et concours de notariat'
   },
   {
     title: 'ENA (Tous cycles)',
     category: 'Administration Publique',
-    price: 100000,
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 30000,
+    hasPresentiel: true,
+    hasOnline: true,
     description: 'Préparation aux cycles Moyen, Moyen Supérieur et Supérieur de l\'ENA'
   },
   {
     title: 'Fonction Publique',
     category: 'Administration Publique',
-    price: 80000,
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 30000,
+    hasPresentiel: true,
+    hasOnline: true,
     description: 'Concours directs et professionnels de la Fonction Publique'
   },
   {
     title: 'EPPJEJ & EPP',
     category: 'Administration Publique',
-    price: 100000,
-    description: 'Préparation aux concours de la protection judiciaire de l\'enfance et de la jeunesse'
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 30000,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: 'Protection judiciaire de l\'enfance, de la jeunesse et éducateurs'
   },
   {
     title: 'Police',
     category: 'Sécurité & Force Publique',
-    price: 120000,
-    description: 'Préparation aux concours des Officiers et Sous-Officiers de Police'
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 30000,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: 'Préparation aux concours des Commissaires, Officiers et Sous-Officiers de Police'
   },
   {
     title: 'Informatique',
     category: 'Technologies & Métiers Numériques',
-    price: 50000,
-    description: 'Formation pratique aux outils numériques, bureautique et informatique'
+    price: 35000,
+    registrationFee: 35000,
+    monthlyFee: 25000,
+    hasPresentiel: true,
+    hasOnline: true,
+    description: 'Bureautique avancée, développement web, outils numériques et cybersécurité'
   },
 ];
 
@@ -62,15 +94,19 @@ export async function seedFormations() {
         data: {
           category: f.category,
           price: f.price,
+          registrationFee: f.registrationFee,
+          monthlyFee: f.monthlyFee,
+          hasPresentiel: f.hasPresentiel,
+          hasOnline: f.hasOnline,
           description: f.description,
         }
       });
-      console.log(`[Formations] Mis à jour: ${f.title} (${f.category} - ${f.price} FCFA)`);
+      console.log(`[Formations] Mis à jour: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
     } else {
       await prisma.course.create({
         data: f
       });
-      console.log(`[Formations] Créé: ${f.title} (${f.category} - ${f.price} FCFA)`);
+      console.log(`[Formations] Créé: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
     }
   }
 }

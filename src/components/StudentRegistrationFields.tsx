@@ -170,32 +170,58 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
                   {cat}
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  {catCourses.map((c) => (
-                    <label
-                      key={c.id}
-                      className={`flex items-center justify-between gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${form.courseIds.includes(c.id) ? "border-[#0056B3] bg-blue-50/50" : "border-gray-200 hover:border-gray-300 bg-white"}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={form.courseIds.includes(c.id)}
-                          onChange={() => toggleCourse(c.id)}
-                          className="accent-[#0056B3] w-5 h-5 rounded"
-                        />
-                        <div>
-                          <span className="text-sm font-semibold text-gray-900 block">{c.title}</span>
-                          {c.description && (
-                            <span className="text-[11px] text-gray-500 line-clamp-1">{c.description}</span>
-                          )}
+                  {catCourses.map((c) => {
+                    const isSelected = form.courseIds.includes(c.id);
+                    const regFee = c.registrationFee !== undefined && c.registrationFee !== null ? Number(c.registrationFee) : (c.price ? Number(c.price) : 35000);
+                    const mFee = c.monthlyFee !== undefined && c.monthlyFee !== null ? Number(c.monthlyFee) : 30000;
+                    const hasPres = c.hasPresentiel !== false;
+                    const hasOnl = c.hasOnline !== false;
+
+                    return (
+                      <label
+                        key={c.id}
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 border-2 rounded-xl cursor-pointer transition-all ${isSelected ? "border-[#0056B3] bg-blue-50/50 shadow-sm" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                      >
+                        <div className="flex items-start sm:items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleCourse(c.id)}
+                            className="accent-[#0056B3] w-5 h-5 rounded mt-0.5 sm:mt-0 shrink-0"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-bold text-gray-900 block">{c.title}</span>
+                              <div className="flex items-center gap-1">
+                                {hasPres && (
+                                  <span className="inline-block text-[10px] font-semibold bg-blue-100/70 text-[#0056B3] px-1.5 py-0.5 rounded">
+                                    Présentiel
+                                  </span>
+                                )}
+                                {hasOnl && (
+                                  <span className="inline-block text-[10px] font-semibold bg-purple-100/70 text-purple-700 px-1.5 py-0.5 rounded">
+                                    En ligne
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {c.description && (
+                              <span className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{c.description}</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      {c.price !== undefined && Number(c.price) > 0 && (
-                        <span className="text-xs font-bold text-[#FF6B00] shrink-0 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
-                          {Number(c.price).toLocaleString('fr-FR')} F
-                        </span>
-                      )}
-                    </label>
-                  ))}
+
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 pl-8 sm:pl-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                          <span className="text-[11px] text-gray-500 font-medium">
+                            Inscription : <strong className="text-gray-900">{regFee.toLocaleString('fr-FR')} F</strong>
+                          </span>
+                          <span className="text-xs font-black text-[#FF6B00]">
+                            {mFee.toLocaleString('fr-FR')} F<span className="text-[10px] font-semibold text-gray-400">/mois</span>
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             );

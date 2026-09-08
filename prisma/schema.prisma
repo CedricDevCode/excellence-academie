@@ -49,18 +49,22 @@ model User {
 }
 
 model Course {
-  id            String         @id @default(uuid())
-  title         String
-  category      String?        @default("Général")
-  description   String?
-  price         Float
-  payments      Payment[]
-  subscriptions Subscription[]
-  events        CalendarEvent[]
-  evaluations   Evaluation[]
-  blogPosts     BlogPost[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id              String         @id @default(uuid())
+  title           String
+  category        String?        @default("Général")
+  description     String?
+  price           Float          @default(35000)
+  registrationFee Float?         @default(35000)
+  monthlyFee      Float?         @default(30000)
+  hasPresentiel   Boolean        @default(true)
+  hasOnline       Boolean        @default(true)
+  payments        Payment[]
+  subscriptions   Subscription[]
+  events          CalendarEvent[]
+  evaluations     Evaluation[]
+  blogPosts       BlogPost[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 }
 
 model Payment {

@@ -225,14 +225,14 @@ function Formations() {
   const [loading, setLoading] = useState(true);
 
   const defaultForms = [
-    { title: "Magistrature", category: "Concours Juridiques & Judiciaires", price: 150000 },
-    { title: "ENA (Tous cycles)", category: "Administration Publique", price: 100000 },
-    { title: "Greffe", category: "Concours Juridiques & Judiciaires", price: 120000 },
-    { title: "Police", category: "Sécurité & Force Publique", price: 120000 },
-    { title: "Avocature & Notariat", category: "Concours Juridiques & Judiciaires", price: 150000 },
-    { title: "Fonction Publique", category: "Administration Publique", price: 80000 },
-    { title: "EPPJEJ & EPP", category: "Administration Publique", price: 100000 },
-    { title: "Informatique", category: "Technologies & Métiers Numériques", price: 50000 },
+    { title: "Magistrature", category: "Concours Juridiques & Judiciaires", price: 35000, monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "ENA (Tous cycles)", category: "Administration Publique", price: 35000, monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Greffe", category: "Concours Juridiques & Judiciaires", price: 35000, monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Police", category: "Sécurité & Force Publique", price: 35000, monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Avocature & Notariat", category: "Concours Juridiques & Judiciaires", price: 35000, monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Fonction Publique", category: "Administration Publique", price: 35000, monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "EPPJEJ & EPP", category: "Administration Publique", price: 35000, monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Informatique", category: "Technologies & Métiers Numériques", price: 35000, monthlyFee: 25000, hasPresentiel: true, hasOnline: true },
   ];
 
   useEffect(() => {
@@ -271,30 +271,46 @@ function Formations() {
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          {displayCourses.map((f, i) => (
-            <div key={f.id || i} className="bg-white p-3.5 rounded-xl border border-gray-200/80 shadow-xs flex items-center justify-between gap-3 hover:border-[#002855]/40 hover:shadow-sm transition-all group">
-              <div className="flex items-center gap-3">
-                <div className="text-[#FF6B00] group-hover:scale-110 transition-transform">
-                  {getIcon(f.title, f.category)}
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-gray-900 block group-hover:text-[#0056B3] transition-colors">
-                    {f.title}
-                  </span>
-                  {f.category && (
-                    <span className="text-[10px] text-gray-500 font-medium block truncate max-w-[140px]">
-                      {f.category}
+          {displayCourses.map((f, i) => {
+            const mFee = f.monthlyFee !== undefined && f.monthlyFee !== null ? Number(f.monthlyFee) : 30000;
+            return (
+              <div key={f.id || i} className="bg-white p-3.5 rounded-xl border border-gray-200/80 shadow-xs flex flex-col justify-between gap-2.5 hover:border-[#002855]/40 hover:shadow-sm transition-all group">
+                <div className="flex items-start gap-3">
+                  <div className="text-[#FF6B00] group-hover:scale-110 transition-transform mt-0.5">
+                    {getIcon(f.title, f.category)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-bold text-gray-900 block group-hover:text-[#0056B3] transition-colors truncate">
+                      {f.title}
                     </span>
-                  )}
+                    {f.category && (
+                      <span className="text-[10px] text-gray-500 font-medium block truncate">
+                        {f.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-[11px]">
+                  <div className="flex items-center gap-1">
+                    {f.hasPresentiel !== false && (
+                      <span className="text-[9px] font-bold text-[#0056B3] bg-blue-50 px-1 py-0.2 rounded">
+                        Présentiel
+                      </span>
+                    )}
+                    {f.hasOnline !== false && (
+                      <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1 py-0.2 rounded">
+                        En ligne
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-black text-[#FF6B00]">
+                    {mFee.toLocaleString('fr-FR')} F<span className="text-[9px] font-normal text-gray-400">/m</span>
+                  </span>
                 </div>
               </div>
-              {f.price !== undefined && Number(f.price) > 0 && (
-                <span className="text-[10px] font-bold text-[#FF6B00] bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100 shrink-0">
-                  {Number(f.price).toLocaleString('fr-FR')} F
-                </span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
