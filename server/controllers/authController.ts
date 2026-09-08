@@ -262,19 +262,36 @@ export const confirmPayment = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    console.log(`[AUTH] Tentative de connexion pour : ${email}`);
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe requis' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: cleanEmail,
+          mode: 'insensitive'
+        }
+      }
+    });
+
     if (!user || !user.password) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      console.log(`[AUTH] Utilisateur non trouvé : ${cleanEmail}`);
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      console.log(`[AUTH] Mot de passe invalide pour : ${cleanEmail}`);
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     setAuthCookie(res, user.id, user.role);
 
+    console.log(`[AUTH] Connexion réussie : ${cleanEmail} (${user.role})`);
     res.json({
       message: 'Logged in successfully',
       user: {
@@ -284,9 +301,9 @@ export const login = async (req: Request, res: Response) => {
         role: user.role
       }
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Failed to login' });
+  } catch (error: any) {
+    console.error('Login error:', error?.message || error);
+    res.status(500).json({ error: 'Erreur serveur lors de la connexion', details: error?.message });
   }
 };
 
