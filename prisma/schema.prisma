@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STUDENT
+  TEACHER
+  ACCOUNTANT
+  SECRETARY
+  PARENT
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String?
+  name          String?
+  telephone     String?
+  pays          String?
+  ville         String?
+  image         String?
+  hourlyRate    Float?
+  role          Role           @default(STUDENT)
+  isActive      Boolean        @default(true)
+  matricule     String?        @unique
+  payments      Payment[]
+  notifications Notification[]
+  expenses      Expense[]      @relation("TeacherExpenses")
+  sessions      TeacherSession[]
+  subscriptions Subscription[]
+  receipts      Receipt[]
+  events        CalendarEvent[] @relation("TeacherEvents")
+  evaluations   Evaluation[]    @relation("TeacherEvaluations")
+  studentEvals  Evaluation[]    @relation("StudentEvaluations")
+  contracts     Contract[]
+  shopOrders    ShopOrder[]
+  reviews       Review[]
+  blogPosts     BlogPost[]
+  blogComments  BlogComment[]
+  blogSubmissions BlogSubmission[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Course {
+  id            String         @id @default(uuid())
+  title         String
+  description   String?
+  price         Float
+  payments      Payment[]
+  subscriptions Subscription[]
+  events        CalendarEvent[]
+  evaluations   Evaluation[]
+  blogPosts     BlogPost[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Payment {
+  id                 String   @id @default(uuid())
+  amount             Float
+  status             String   @default("PENDING")
+  geniusPayReference String?
+  receiptNumber      String?  @unique
+  user               User     @relation(fields: [userId], references: [id])
+  userId             String
+  course             Course?  @relation(fields: [courseId], references: [id])
+  courseId           String?
+  receipt            Receipt?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  user             User      @relation(fields: [userId], references: [id])
+  userId           String
+  course           Course    @relation(fields: [courseId], references: [id])
+  courseId         String
+  amount           Float
+  status           String    @default("ACTIVE")
+  nextPayment      DateTime
+  formule          String?
+  coursParticuliers Boolean?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Expense {
+  id             String   @id @default(uuid())
+  amount         Float
+  description    String
+  category       String?
+  ville          String?
+  status         String   @default("PENDING")
+  paymentMethod  String?
+  teacher        User?    @relation("TeacherExpenses", fields: [teacherId], references: [id])
+  teacherId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Receipt {
+  id        String   @id @default(uuid())
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  paymentId String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  url       String?
+  content   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model City {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  country   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Testimonial {
+  id        String   @id @default(uuid())
+  name      String
+  course    String
+  message   String
+  rating    Int      @default(5)
+  images    String[] @default([])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum EventType {
+  COURSE
+  EXAM
+  EVENT
+}
+
+model CalendarEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime?
+  location    String?
+  type        EventType @default(COURSE)
+  color       String?
+  course      Course?   @relation(fields: [courseId], references: [id])
+  courseId    String?
+  teacher     User?     @relation("TeacherEvents", fields: [teacherId], references: [id])
+  teacherId   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Evaluation {
+  id          String   @id @default(uuid())
+  title       String
+  score       Float?
+  maxScore    Float?
+  comments    String?
+  student     User     @relation("StudentEvaluations", fields: [studentId], references: [id])
+  studentId   String
+  course      Course?  @relation(fields: [courseId], references: [id])
+  courseId    String?
+  teacher     User?   @relation("TeacherEvaluations", fields: [teacherId], references: [id])
+  teacherId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Contract {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  paymentId     String?
+  signatureData String
+  signedAt      DateTime @default(now())
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TeacherSession {
+  id          String   @id @default(uuid())
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  teacherId   String
+  date        DateTime
+  startTime   String?
+  endTime     String?
+  hours       Float
+  description String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  price         Float
+  originalPrice Float?
+  type          String   @default("DOCUMENT")
+  imageUrl      String?
+  isActive      Boolean  @default(true)
+  stock         Int?     
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  orderItems    ShopOrderItem[]
+  banners       ShopBanner[]
+  reviews       Review[]
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  orderId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId])
+}
+
+model ShopBanner {
+  id              String   @id @default(uuid())
+  title           String
+  subtitle        String?
+  description     String?
+  imageUrl        String?
+  backgroundColor String   @default("from-[#FF6B00] to-[#e65c00]")
+  badgeText       String?  @default("Promotion")
+  featured        Boolean  @default(false)
+  displayOrder    Int      @default(0)
+  isActive        Boolean  @default(true)
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId       String?
+  startDate       DateTime?
+  endDate         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ShopOrder {
+  id                 String   @id @default(uuid())
+  user               User?    @relation(fields: [userId], references: [id])
+  userId             String?
+  customerName       String
+  customerEmail      String
+  customerPhone      String
+  city               String
+  adresse            String?
+  whatsapp           String?
+  totalAmount        Float
+  status             String   @default("PENDING") 
+  geniusPayReference String?  @unique
+  paymentMethod      String?
+  items              ShopOrderItem[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ShopOrderItem {
+  id          String    @id @default(uuid())
+  order       ShopOrder @relation(fields: [orderId], references: [id])
+  orderId     String
+  product     Product   @relation(fields: [productId], references: [id])
+  productId   String
+  quantity    Int
+  priceAtTime Float
+}
+
+model BlogTag {
+  id    String       @id @default(uuid())
+  name  String       @unique
+  posts BlogPostTag[]
+}
+
+model BlogPostTag {
+  postId String
+  tagId  String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([postId, tagId])
+}
+
+model BlogPost {
+  id          String         @id @default(uuid())
+  slug        String         @unique
+  title       String
+  excerpt     String?
+  content     String
+  coverImage  String?
+  published   Boolean        @default(false)
+  author      User           @relation(fields: [authorId], references: [id])
+  authorId    String
+  course      Course?        @relation(fields: [courseId], references: [id])
+  courseId    String?
+  tags        BlogPostTag[]
+  comments    BlogComment[]
+  exercises   BlogExercise[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model BlogComment {
+  id        String   @id @default(uuid())
+  content   String
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BlogExercise {
+  id          String           @id @default(uuid())
+  title       String
+  description String?
+  fileUrl     String?
+  post        BlogPost         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId      String
+  submissions BlogSubmission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model BlogSubmission {
+  id         String       @id @default(uuid())
+  content    String?
+  fileUrl    String?
+  grade      Float?
+  feedback   String?
+  student    User         @relation(fields: [studentId], references: [id])
+  studentId  String
+  exercise   BlogExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  exerciseId String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  @@unique([exerciseId, studentId])
+}
