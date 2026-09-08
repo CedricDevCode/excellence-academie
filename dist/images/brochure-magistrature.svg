@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <!-- Background Gradient -->
+  <defs>
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#002855;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#004080;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8F4F8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B3E5FC;stop-opacity:0.8" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main Background -->
+  <rect width="800" height="600" fill="url(#grad3)"/>
+  
+  <!-- Document Sheet -->
+  <rect x="80" y="80" width="280" height="440" fill="white" rx="8"/>
+  <rect x="100" y="100" width="240" height="110" fill="url(#grad4)" rx="4"/>
+  
+  <!-- Title in Document -->
+  <text x="220" y="140" font-size="28" font-weight="bold" text-anchor="middle" fill="#002855">Magistrature</text>
+  <text x="220" y="170" font-size="13" text-anchor="middle" fill="#004080">Guide Complet de Formation</text>
+  
+  <!-- Content Lines -->
+  <line x1="120" y1="190" x2="300" y2="190" stroke="#ddd" stroke-width="2"/>
+  <rect x="110" y="220" width="200" height="8" fill="#002855" rx="2"/>
+  <rect x="110" y="240" width="200" height="6" fill="#004080" rx="2"/>
+  <rect x="110" y="260" width="180" height="6" fill="#0066CC" rx="2"/>
+  
+  <!-- Text blocks -->
+  <text x="120" y="300" font-size="11" fill="#555">✓ Procédures judiciaires</text>
+  <text x="120" y="325" font-size="11" fill="#555">✓ Cas pratiques réels</text>
+  <text x="120" y="350" font-size="11" fill="#555">✓ Droit constitutionnel</text>
+  <text x="120" y="375" font-size="11" fill="#555">✓ Jurisprudence actuelle</text>
+  
+  <!-- Badge -->
+  <circle cx="340" cy="120" r="45" fill="#E8F4F8" opacity="0.95"/>
+  <text x="340" y="120" font-size="12" font-weight="bold" text-anchor="middle" fill="#002855">EXPERT</text>
+  <text x="340" y="145" font-size="10" font-weight="bold" text-anchor="middle" fill="#004080">Certifiée</text>
+  
+  <!-- Decorative Elements -->
+  <rect x="420" y="100" width="4" height="280" fill="#E8F4F8" opacity="0.4"/>
+  <circle cx="450" cy="150" r="20" fill="#B3E5FC" opacity="0.25"/>
+  <circle cx="500" cy="300" r="30" fill="#002855" opacity="0.12"/>
+  
+  <!-- Additional scales decoration -->
+  <line x1="100" y1="410" x2="300" y2="410" stroke="#E8F4F8" stroke-width="2" opacity="0.5"/>
+  <text x="220" y="430" font-size="12" font-weight="bold" text-anchor="middle" fill="white">Conforme aux normes officielles</text>
+</svg>
