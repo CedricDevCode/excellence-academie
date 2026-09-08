@@ -4,7 +4,21 @@ import prisma from '../utils/prisma';
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
-    const users = await prisma.user.findMany();
+    const users = await prisma.user.findMany({
+      include: {
+        subscriptions: {
+          include: {
+            course: true,
+          }
+        },
+        payments: {
+          include: {
+            course: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);

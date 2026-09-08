@@ -28,7 +28,21 @@ import { fileURLToPath as fileURLToPath2 } from "url";
 import bcrypt from "bcrypt";
 var getUsers = async (req, res) => {
   try {
-    const users = await prisma_default.user.findMany();
+    const users = await prisma_default.user.findMany({
+      include: {
+        subscriptions: {
+          include: {
+            course: true
+          }
+        },
+        payments: {
+          include: {
+            course: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
     res.json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
