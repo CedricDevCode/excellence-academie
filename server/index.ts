@@ -24,6 +24,7 @@ import shopRoutes from './routes/shopRoutes';
 import bannerRoutes from './routes/bannerRoutes';
 import blogRoutes from './routes/blogRoutes';
 import { seedFormations } from './seed-courses';
+import { ensureSessionTables } from './controllers/sessionController';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -145,6 +146,13 @@ app.use((req, res, next) => {
 
 async function initDatabaseDefaults() {
   try {
+    console.log('🔄 Établissement de la connexion Prisma...');
+    await prisma.$connect();
+    console.log('✅ Connexion Prisma active.');
+
+    // Initialize custom session tables safely
+    await ensureSessionTables();
+
     const adminExists = await prisma.user.findUnique({
       where: { email: 'admin@excellence.ci' }
     });

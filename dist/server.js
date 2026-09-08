@@ -1,9 +1,22 @@
 // server/env.ts
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 var __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+var candidatePaths = [
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(__dirname, ".env"),
+  path.resolve(__dirname, "..", ".env"),
+  path.resolve(__dirname, "../..", ".env")
+];
+for (const envPath of candidatePaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
+dotenv.config();
 
 // server/index.ts
 import express from "express";
@@ -13,14 +26,23 @@ import bcrypt3 from "bcrypt";
 
 // server/utils/prisma.ts
 import { PrismaClient } from "@prisma/client";
-var prisma = new PrismaClient();
+var databaseUrl = process.env.DATABASE_URL;
+var prisma = new PrismaClient(
+  databaseUrl ? {
+    datasources: {
+      db: {
+        url: databaseUrl
+      }
+    }
+  } : void 0
+);
 var prisma_default = prisma;
 
 // server/routes/userRoutes.ts
 import { Router } from "express";
 import multer from "multer";
 import path2 from "path";
-import fs from "fs";
+import fs2 from "fs";
 import crypto from "crypto";
 import { fileURLToPath as fileURLToPath2 } from "url";
 
@@ -187,7 +209,7 @@ var requireRole = (roles) => {
 // server/routes/userRoutes.ts
 var __dirname2 = path2.dirname(fileURLToPath2(import.meta.url));
 var userUploadsDir = path2.join(__dirname2, "..", "uploads", "users");
-fs.mkdirSync(userUploadsDir, { recursive: true });
+fs2.mkdirSync(userUploadsDir, { recursive: true });
 var upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, userUploadsDir),
@@ -1665,7 +1687,7 @@ var receiptRoutes_default = router7;
 import { Router as Router8 } from "express";
 import multer2 from "multer";
 import path4 from "path";
-import fs2 from "fs";
+import fs3 from "fs";
 import crypto3 from "crypto";
 import { fileURLToPath as fileURLToPath4 } from "url";
 
@@ -1793,7 +1815,7 @@ var deleteTestimonial = async (req, res) => {
 // server/routes/testimonialRoutes.ts
 var __dirname4 = path4.dirname(fileURLToPath4(import.meta.url));
 var uploadsDir = path4.join(__dirname4, "..", "uploads", "testimonials");
-fs2.mkdirSync(uploadsDir, { recursive: true });
+fs3.mkdirSync(uploadsDir, { recursive: true });
 var upload2 = multer2({
   storage: multer2.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
@@ -2155,7 +2177,9 @@ import multer3 from "multer";
 
 // server/controllers/sessionController.ts
 import crypto4 from "crypto";
-async function ensureTable() {
+var tablesInitialized = false;
+async function ensureSessionTables() {
+  if (tablesInitialized) return;
   try {
     await prisma_default.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "CourseSession" (
@@ -2178,15 +2202,9 @@ async function ensureTable() {
         "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
-  } catch (e) {
-  }
-  try {
     await prisma_default.$executeRawUnsafe(`
       ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "hourlyRate" REAL
     `);
-  } catch (e) {
-  }
-  try {
     await prisma_default.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "SessionFile" (
         id TEXT PRIMARY KEY,
@@ -2197,14 +2215,11 @@ async function ensureTable() {
         "uploadedAt" TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
+    tablesInitialized = true;
   } catch (e) {
-  }
-  try {
-    await prisma_default.$executeRawUnsafe(`DROP TABLE IF EXISTS "TeacherSession"`);
-  } catch (e) {
+    console.warn("[SessionTables] Notice during init:", e?.message || e);
   }
 }
-ensureTable();
 function computeHours(startTime, endTime) {
   const [sh, sm] = startTime.split(":").map(Number);
   const [eh, em] = endTime.split(":").map(Number);
@@ -2994,7 +3009,7 @@ import { Router as Router15 } from "express";
 // server/utils/contractPdf.ts
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import path5 from "path";
-import fs3 from "fs";
+import fs4 from "fs";
 import { fileURLToPath as fileURLToPath5 } from "url";
 var __dirname5 = path5.dirname(fileURLToPath5(import.meta.url));
 function base64ToBytes(base64) {
@@ -3002,7 +3017,7 @@ function base64ToBytes(base64) {
 }
 async function generateSignedContractPdf(signatureDataUrl, studentName) {
   const pdfPath = path5.resolve(__dirname5, "..", "..", "public", "doc", "contrat_exacademy.pdf");
-  const pdfBytes = fs3.readFileSync(pdfPath);
+  const pdfBytes = fs4.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const base64Data = signatureDataUrl.split(",")[1];
   const signatureBytes = base64ToBytes(base64Data);
@@ -3150,7 +3165,7 @@ var contractRoutes_default = router15;
 import { Router as Router16 } from "express";
 import multer4 from "multer";
 import path7 from "path";
-import fs4 from "fs";
+import fs5 from "fs";
 import crypto5 from "crypto";
 import { fileURLToPath as fileURLToPath7 } from "url";
 
@@ -3465,7 +3480,7 @@ var updateOrderStatus = async (req, res) => {
 // server/routes/shopRoutes.ts
 var __dirname7 = path7.dirname(fileURLToPath7(import.meta.url));
 var uploadsDir2 = path7.join(__dirname7, "..", "uploads", "products");
-fs4.mkdirSync(uploadsDir2, { recursive: true });
+fs5.mkdirSync(uploadsDir2, { recursive: true });
 var upload4 = multer4({
   storage: multer4.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir2),
@@ -3654,7 +3669,7 @@ var bannerRoutes_default = router17;
 import { Router as Router18 } from "express";
 import multer5 from "multer";
 import path9 from "path";
-import fs5 from "fs";
+import fs6 from "fs";
 import crypto6 from "crypto";
 import { fileURLToPath as fileURLToPath9 } from "url";
 
@@ -3981,7 +3996,7 @@ var evaluateSubmission = async (req, res) => {
 // server/routes/blogRoutes.ts
 var __dirname9 = path9.dirname(fileURLToPath9(import.meta.url));
 var blogUploadsDir = path9.join(__dirname9, "..", "uploads", "blog");
-fs5.mkdirSync(blogUploadsDir, { recursive: true });
+fs6.mkdirSync(blogUploadsDir, { recursive: true });
 var upload5 = multer5({
   storage: multer5.diskStorage({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
@@ -4105,7 +4120,7 @@ if (process.argv[1]?.includes("seed-courses")) {
 
 // server/index.ts
 import path10 from "path";
-import fs6 from "fs";
+import fs7 from "fs";
 import { fileURLToPath as fileURLToPath10 } from "url";
 var __dirname10 = path10.dirname(fileURLToPath10(import.meta.url));
 var app = express();
@@ -4183,19 +4198,19 @@ var projectRoot = process.cwd();
 var rootUploads = path10.resolve(projectRoot, "uploads");
 var serverUploads = path10.resolve(projectRoot, "server", "uploads");
 for (const sub of ["products", "testimonials", "blog", "users", "sessions"]) {
-  fs6.mkdirSync(path10.join(rootUploads, sub), { recursive: true });
+  fs7.mkdirSync(path10.join(rootUploads, sub), { recursive: true });
 }
 var candidateDistPaths = [
   path10.resolve(projectRoot, "dist"),
   path10.resolve(__dirname10, "..", "dist"),
   path10.resolve(__dirname10, "dist")
 ];
-var distPath = candidateDistPaths.find((p) => fs6.existsSync(p)) || candidateDistPaths[0];
+var distPath = candidateDistPaths.find((p) => fs7.existsSync(p)) || candidateDistPaths[0];
 app.use(express.static(distPath));
-if (fs6.existsSync(rootUploads)) {
+if (fs7.existsSync(rootUploads)) {
   app.use("/uploads", express.static(rootUploads));
 }
-if (fs6.existsSync(serverUploads)) {
+if (fs7.existsSync(serverUploads)) {
   app.use("/uploads", express.static(serverUploads));
 }
 app.use("/uploads", express.static(path10.join(__dirname10, "uploads")));
@@ -4203,13 +4218,17 @@ app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (req.path.startsWith("/api/")) return next();
   const indexPath = path10.join(distPath, "index.html");
-  if (fs6.existsSync(indexPath)) {
+  if (fs7.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
   next();
 });
 async function initDatabaseDefaults() {
   try {
+    console.log("\u{1F504} \xC9tablissement de la connexion Prisma...");
+    await prisma.$connect();
+    console.log("\u2705 Connexion Prisma active.");
+    await ensureSessionTables();
     const adminExists = await prisma.user.findUnique({
       where: { email: "admin@excellence.ci" }
     });

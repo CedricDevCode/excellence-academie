@@ -4,7 +4,10 @@ import { sendNotification } from './notificationController';
 import prisma from '../utils/prisma';
 import { GENIUSPAY_API_BASE, GENIUSPAY_ENVIRONMENT, geniusPayHeaders } from '../utils/geniuspay';
 
-async function ensureTable() {
+let tablesInitialized = false;
+
+export async function ensureSessionTables() {
+  if (tablesInitialized) return;
   try {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "CourseSession" (
@@ -27,17 +30,11 @@ async function ensureTable() {
         "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
-  } catch (e) {
-    // Table may already exist
-  }
-  try {
+
     await prisma.$executeRawUnsafe(`
       ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "hourlyRate" REAL
     `);
-  } catch (e) {
-    // Column may already exist
-  }
-  try {
+
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "SessionFile" (
         id TEXT PRIMARY KEY,
@@ -48,18 +45,12 @@ async function ensureTable() {
         "uploadedAt" TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
-  } catch (e) {
-    // Table may already exist
-  }
-  try {
-    // Drop old TeacherSession table if it exists (migration)
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "TeacherSession"`);
-  } catch (e) {
-    // ignore
+
+    tablesInitialized = true;
+  } catch (e: any) {
+    console.warn('[SessionTables] Notice during init:', e?.message || e);
   }
 }
-
-ensureTable();
 
 function computeHours(startTime: string, endTime: string): number {
   const [sh, sm] = startTime.split(':').map(Number);
