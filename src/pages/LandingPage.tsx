@@ -6,7 +6,7 @@ import {
   Trophy, Star, ArrowRight, Quote, CreditCard,
   Upload, X as XIcon, Image as ImageIcon, Loader2, AlertCircle
 } from "lucide-react";
-import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPublicBanners } from '../utils/api';
+import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPublicBanners, fetchCourses } from '../utils/api';
 import { Link } from 'react-router-dom';
 
 interface BannerItem {
@@ -221,28 +221,78 @@ function Atouts() {
 
 function Formations() {
   const { ref, inView } = useInView();
-  const forms = [
-    { icon: <Gavel size={18} />, title: "Magistrature" },
-    { icon: <Briefcase size={18} />, title: "ENA (Tous cycles)" },
-    { icon: <BookOpen size={18} />, title: "Greffe" },
-    { icon: <Shield size={18} />, title: "Police" },
-    { icon: <Scale size={18} />, title: "Avocature & Notariat" },
-    { icon: <Building2 size={18} />, title: "Fonction Publique" },
-    { icon: <Users size={18} />, title: "EPPJEJ & EPP" },
-    { icon: <Award size={18} />, title: "Informatique" },
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const defaultForms = [
+    { title: "Magistrature", category: "Concours Juridiques & Judiciaires", price: 150000 },
+    { title: "ENA (Tous cycles)", category: "Administration Publique", price: 100000 },
+    { title: "Greffe", category: "Concours Juridiques & Judiciaires", price: 120000 },
+    { title: "Police", category: "Sécurité & Force Publique", price: 120000 },
+    { title: "Avocature & Notariat", category: "Concours Juridiques & Judiciaires", price: 150000 },
+    { title: "Fonction Publique", category: "Administration Publique", price: 80000 },
+    { title: "EPPJEJ & EPP", category: "Administration Publique", price: 100000 },
+    { title: "Informatique", category: "Technologies & Métiers Numériques", price: 50000 },
   ];
+
+  useEffect(() => {
+    fetchCourses()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCourses(data);
+        } else {
+          setCourses(defaultForms);
+        }
+      })
+      .catch(() => setCourses(defaultForms))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const displayCourses = courses.length > 0 ? courses : defaultForms;
+
+  const getIcon = (title: string = '', category: string = '') => {
+    const t = (title + ' ' + category).toLowerCase();
+    if (t.includes('magistr') || t.includes('greff')) return <Gavel size={18} />;
+    if (t.includes('ena') || t.includes('fonction') || t.includes('epp')) return <Building2 size={18} />;
+    if (t.includes('police') || t.includes('sécurité') || t.includes('securite')) return <Shield size={18} />;
+    if (t.includes('avocat') || t.includes('notari') || t.includes('droit')) return <Scale size={18} />;
+    if (t.includes('info') || t.includes('numériqu') || t.includes('techno')) return <Award size={18} />;
+    return <BookOpen size={18} />;
+  };
+
   return (
     <section id="formations" className="py-12 bg-gray-50 border-y border-gray-100">
       <div ref={ref} className={`max-w-7xl mx-auto px-4 transition-all duration-700 ${inView ? 'opacity-100' : 'opacity-0'}`}>
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-[#002855]">Nos Formations</h2>
-          <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2"></div>
+          <h2 className="text-2xl font-bold text-[#002855]">Nos Formations & Concours</h2>
+          <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2 mb-3"></div>
+          <p className="text-xs text-gray-600 max-w-xl mx-auto">
+            Découvrez nos cycles préparatoires d'excellence encadrés par des magistrats, hauts fonctionnaires et experts du domaine.
+          </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {forms.map((f, i) => (
-            <div key={i} className="bg-white p-3 rounded border border-gray-100 flex items-center gap-3 hover:border-[#002855]/30 transition-colors">
-              <div className="text-[#FF6B00]">{f.icon}</div>
-              <span className="text-xs font-bold text-gray-800">{f.title}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {displayCourses.map((f, i) => (
+            <div key={f.id || i} className="bg-white p-3.5 rounded-xl border border-gray-200/80 shadow-xs flex items-center justify-between gap-3 hover:border-[#002855]/40 hover:shadow-sm transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="text-[#FF6B00] group-hover:scale-110 transition-transform">
+                  {getIcon(f.title, f.category)}
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-gray-900 block group-hover:text-[#0056B3] transition-colors">
+                    {f.title}
+                  </span>
+                  {f.category && (
+                    <span className="text-[10px] text-gray-500 font-medium block truncate max-w-[140px]">
+                      {f.category}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {f.price !== undefined && Number(f.price) > 0 && (
+                <span className="text-[10px] font-bold text-[#FF6B00] bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100 shrink-0">
+                  {Number(f.price).toLocaleString('fr-FR')} F
+                </span>
+              )}
             </div>
           ))}
         </div>

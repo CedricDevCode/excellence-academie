@@ -329,7 +329,7 @@ export const fetchPublicBanners = async () => {
   return res.json();
 };
 
-export const createCourse = async (data: { title: string; description?: string; price: number }) => {
+export const createCourse = async (data: { title: string; category?: string; description?: string; price: number }) => {
   const res = await authFetch(`${API_BASE_URL}/courses`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -338,7 +338,7 @@ export const createCourse = async (data: { title: string; description?: string; 
   return res.json();
 };
 
-export const updateCourse = async (id: string, data: { title?: string; description?: string; price?: number }) => {
+export const updateCourse = async (id: string, data: { title?: string; category?: string; description?: string; price?: number }) => {
   const res = await authFetch(`${API_BASE_URL}/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),

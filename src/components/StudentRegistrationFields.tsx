@@ -23,7 +23,7 @@ interface StudentPersonalFieldsProps {
 
 interface StudentProgramFieldsProps {
   form: StudentFormState;
-  courses: { id: string; title: string }[];
+  courses: { id: string; title: string; category?: string; price?: number; description?: string }[];
   onChange: (field: keyof StudentFormState, value: any) => void;
 }
 
@@ -159,23 +159,47 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
   return (
     <div className="space-y-5">
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Concours visé(s) *</label>
-        <p className="text-xs text-gray-500 mb-3">Sélectionnez un ou plusieurs concours</p>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {courses.map((c) => (
-            <label
-              key={c.id}
-              className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${form.courseIds.includes(c.id) ? "border-[#0056B3] bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
-            >
-              <input
-                type="checkbox"
-                checked={form.courseIds.includes(c.id)}
-                onChange={() => toggleCourse(c.id)}
-                className="accent-[#0056B3] w-5 h-5"
-              />
-              <span className="text-sm font-semibold text-gray-900">{c.title}</span>
-            </label>
-          ))}
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Formation(s) et Concours visé(s) *</label>
+        <p className="text-xs text-gray-500 mb-3">Sélectionnez une ou plusieurs formations dispensées par notre académie</p>
+        <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+          {Array.from(new Set(courses.map(c => c.category || 'Autres formations'))).map(cat => {
+            const catCourses = courses.filter(c => (c.category || 'Autres formations') === cat);
+            return (
+              <div key={cat} className="space-y-2">
+                <div className="text-xs font-bold uppercase tracking-wider text-[#0056B3] bg-blue-50/60 px-2.5 py-1 rounded-md inline-block">
+                  {cat}
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {catCourses.map((c) => (
+                    <label
+                      key={c.id}
+                      className={`flex items-center justify-between gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${form.courseIds.includes(c.id) ? "border-[#0056B3] bg-blue-50/50" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={form.courseIds.includes(c.id)}
+                          onChange={() => toggleCourse(c.id)}
+                          className="accent-[#0056B3] w-5 h-5 rounded"
+                        />
+                        <div>
+                          <span className="text-sm font-semibold text-gray-900 block">{c.title}</span>
+                          {c.description && (
+                            <span className="text-[11px] text-gray-500 line-clamp-1">{c.description}</span>
+                          )}
+                        </div>
+                      </div>
+                      {c.price !== undefined && Number(c.price) > 0 && (
+                        <span className="text-xs font-bold text-[#FF6B00] shrink-0 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-100">
+                          {Number(c.price).toLocaleString('fr-FR')} F
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

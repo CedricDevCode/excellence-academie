@@ -23,6 +23,7 @@ import contractRoutes from './routes/contractRoutes';
 import shopRoutes from './routes/shopRoutes';
 import bannerRoutes from './routes/bannerRoutes';
 import blogRoutes from './routes/blogRoutes';
+import { seedFormations } from './seed-courses';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -146,8 +147,15 @@ async function initDatabaseDefaults() {
       }
       console.log('✅ Compte Administrateur créé : admin@excellence.ci (mdp: password123)');
     }
+
+    const courseCount = await prisma.course.count();
+    if (courseCount === 0) {
+      console.log('🔄 Initialisation des formations par défaut...');
+      await seedFormations();
+      console.log('✅ Formations par défaut créées avec succès');
+    }
   } catch (err) {
-    console.error('Erreur initialisation admin :', err);
+    console.error('Erreur initialisation admin / formations :', err);
   }
 }
 

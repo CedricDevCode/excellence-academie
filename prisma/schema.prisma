@@ -51,6 +51,7 @@ model User {
 model Course {
   id            String         @id @default(uuid())
   title         String
+  category      String?        @default("Général")
   description   String?
   price         Float
   payments      Payment[]

@@ -9,19 +9,34 @@ const asString = (value: string | string[] | undefined): string | undefined => {
 
 export const getAllCourses = async (req: Request, res: Response) => {
   try {
+    const { category } = req.query;
+    const where: any = {};
+    if (category && typeof category === 'string' && category.trim() !== '') {
+      where.category = category.trim();
+    }
+
     const courses = await prisma.course.findMany({
-      orderBy: { title: 'asc' },
+      where,
+      orderBy: [{ category: 'asc' }, { title: 'asc' }],
+      include: {
+        _count: {
+          select: {
+            subscriptions: true,
+            payments: true,
+          }
+        }
+      }
     });
     res.json(courses);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la récupération des concours" });
+    res.status(500).json({ message: "Erreur lors de la récupération des formations" });
   }
 };
 
 export const createCourse = async (req: Request, res: Response) => {
   try {
-    const { title, description, price } = req.body;
+    const { title, description, price, category } = req.body;
     
     if (!title || price === undefined) {
       return res.status(400).json({ message: "Le titre et le prix sont obligatoires" });
@@ -29,15 +44,16 @@ export const createCourse = async (req: Request, res: Response) => {
 
     const course = await prisma.course.create({
       data: {
-        title,
-        description,
+        title: title.trim(),
+        description: description ? description.trim() : null,
         price: Number(price),
+        category: category && category.trim() ? category.trim() : "Général",
       },
     });
     res.status(201).json(course);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la création du concours" });
+    res.status(500).json({ message: "Erreur lors de la création de la formation" });
   }
 };
 
@@ -48,22 +64,23 @@ export const updateCourse = async (req: Request, res: Response) => {
     const id = asString(rawId);
 
     if (!id) {
-      return res.status(400).json({ message: "id du concours requis" });
+      return res.status(400).json({ message: "id de la formation requis" });
     }
-    const { title, description, price } = req.body;
+    const { title, description, price, category } = req.body;
 
     const course = await prisma.course.update({
       where: { id },
       data: {
-        title,
-        description,
+        title: title !== undefined ? title.trim() : undefined,
+        description: description !== undefined ? description.trim() : undefined,
         price: price !== undefined ? Number(price) : undefined,
+        category: category !== undefined ? (category ? category.trim() : "Général") : undefined,
       },
     });
     res.json(course);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la mise à jour du concours" });
+    res.status(500).json({ message: "Erreur lors de la mise à jour de la formation" });
   }
 };
 
@@ -73,13 +90,13 @@ export const deleteCourse = async (req: Request, res: Response) => {
     const id = asString(rawId);
 
     if (!id) {
-      return res.status(400).json({ message: "id du concours requis" });
+      return res.status(400).json({ message: "id de la formation requis" });
     }
 
     await prisma.course.delete({ where: { id } });
-    res.json({ message: "Concours supprimé avec succès" });
+    res.json({ message: "Formation supprimée avec succès" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la suppression du concours" });
+    res.status(500).json({ message: "Erreur lors de la suppression de la formation" });
   }
 };

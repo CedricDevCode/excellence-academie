@@ -1716,32 +1716,47 @@ var asString = (value) => {
 };
 var getAllCourses = async (req, res) => {
   try {
+    const { category } = req.query;
+    const where = {};
+    if (category && typeof category === "string" && category.trim() !== "") {
+      where.category = category.trim();
+    }
     const courses = await prisma_default.course.findMany({
-      orderBy: { title: "asc" }
+      where,
+      orderBy: [{ category: "asc" }, { title: "asc" }],
+      include: {
+        _count: {
+          select: {
+            subscriptions: true,
+            payments: true
+          }
+        }
+      }
     });
     res.json(courses);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration des concours" });
+    res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration des formations" });
   }
 };
 var createCourse = async (req, res) => {
   try {
-    const { title, description, price } = req.body;
+    const { title, description, price, category } = req.body;
     if (!title || price === void 0) {
       return res.status(400).json({ message: "Le titre et le prix sont obligatoires" });
     }
     const course = await prisma_default.course.create({
       data: {
-        title,
-        description,
-        price: Number(price)
+        title: title.trim(),
+        description: description ? description.trim() : null,
+        price: Number(price),
+        category: category && category.trim() ? category.trim() : "G\xE9n\xE9ral"
       }
     });
     res.status(201).json(course);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la cr\xE9ation du concours" });
+    res.status(500).json({ message: "Erreur lors de la cr\xE9ation de la formation" });
   }
 };
 var updateCourse = async (req, res) => {
@@ -1749,21 +1764,22 @@ var updateCourse = async (req, res) => {
     const rawId = req.params.id;
     const id = asString(rawId);
     if (!id) {
-      return res.status(400).json({ message: "id du concours requis" });
+      return res.status(400).json({ message: "id de la formation requis" });
     }
-    const { title, description, price } = req.body;
+    const { title, description, price, category } = req.body;
     const course = await prisma_default.course.update({
       where: { id },
       data: {
-        title,
-        description,
-        price: price !== void 0 ? Number(price) : void 0
+        title: title !== void 0 ? title.trim() : void 0,
+        description: description !== void 0 ? description.trim() : void 0,
+        price: price !== void 0 ? Number(price) : void 0,
+        category: category !== void 0 ? category ? category.trim() : "G\xE9n\xE9ral" : void 0
       }
     });
     res.json(course);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la mise \xE0 jour du concours" });
+    res.status(500).json({ message: "Erreur lors de la mise \xE0 jour de la formation" });
   }
 };
 var deleteCourse = async (req, res) => {
@@ -1771,13 +1787,13 @@ var deleteCourse = async (req, res) => {
     const rawId = req.params.id;
     const id = asString(rawId);
     if (!id) {
-      return res.status(400).json({ message: "id du concours requis" });
+      return res.status(400).json({ message: "id de la formation requis" });
     }
     await prisma_default.course.delete({ where: { id } });
-    res.json({ message: "Concours supprim\xE9 avec succ\xE8s" });
+    res.json({ message: "Formation supprim\xE9e avec succ\xE8s" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Erreur lors de la suppression du concours" });
+    res.status(500).json({ message: "Erreur lors de la suppression de la formation" });
   }
 };
 
@@ -3889,6 +3905,90 @@ router18.get("/exercises/:id/submissions", requireRole(["ADMIN", "TEACHER", "SEC
 router18.put("/submissions/:id/evaluate", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), evaluateSubmission);
 var blogRoutes_default = router18;
 
+// server/seed-courses.ts
+import { PrismaClient as PrismaClient3 } from "@prisma/client";
+var prisma3 = new PrismaClient3();
+var DEFAULT_FORMATIONS = [
+  {
+    title: "Magistrature",
+    category: "Concours Juridiques & Judiciaires",
+    price: 15e4,
+    description: "Pr\xE9paration intensive au concours d'acc\xE8s \xE0 la Magistrature"
+  },
+  {
+    title: "Greffe",
+    category: "Concours Juridiques & Judiciaires",
+    price: 12e4,
+    description: "Pr\xE9paration compl\xE8te au concours des greffiers et administrateurs des greffes"
+  },
+  {
+    title: "Avocature & Notariat",
+    category: "Concours Juridiques & Judiciaires",
+    price: 15e4,
+    description: "Pr\xE9paration au CAPA, examen d'avocat et concours de notariat"
+  },
+  {
+    title: "ENA (Tous cycles)",
+    category: "Administration Publique",
+    price: 1e5,
+    description: "Pr\xE9paration aux cycles Moyen, Moyen Sup\xE9rieur et Sup\xE9rieur de l'ENA"
+  },
+  {
+    title: "Fonction Publique",
+    category: "Administration Publique",
+    price: 8e4,
+    description: "Concours directs et professionnels de la Fonction Publique"
+  },
+  {
+    title: "EPPJEJ & EPP",
+    category: "Administration Publique",
+    price: 1e5,
+    description: "Pr\xE9paration aux concours de la protection judiciaire de l'enfance et de la jeunesse"
+  },
+  {
+    title: "Police",
+    category: "S\xE9curit\xE9 & Force Publique",
+    price: 12e4,
+    description: "Pr\xE9paration aux concours des Officiers et Sous-Officiers de Police"
+  },
+  {
+    title: "Informatique",
+    category: "Technologies & M\xE9tiers Num\xE9riques",
+    price: 5e4,
+    description: "Formation pratique aux outils num\xE9riques, bureautique et informatique"
+  }
+];
+async function seedFormations() {
+  for (const f of DEFAULT_FORMATIONS) {
+    const existing = await prisma3.course.findFirst({ where: { title: f.title } });
+    if (existing) {
+      await prisma3.course.update({
+        where: { id: existing.id },
+        data: {
+          category: f.category,
+          price: f.price,
+          description: f.description
+        }
+      });
+      console.log(`[Formations] Mis \xE0 jour: ${f.title} (${f.category} - ${f.price} FCFA)`);
+    } else {
+      await prisma3.course.create({
+        data: f
+      });
+      console.log(`[Formations] Cr\xE9\xE9: ${f.title} (${f.category} - ${f.price} FCFA)`);
+    }
+  }
+}
+if (process.argv[1]?.includes("seed-courses")) {
+  seedFormations().then(() => {
+    console.log("\u2705 Seeding des formations termin\xE9");
+    return prisma3.$disconnect();
+  }).catch((err) => {
+    console.error(err);
+    return prisma3.$disconnect();
+  });
+}
+
 // server/index.ts
 import path10 from "path";
 import fs6 from "fs";
@@ -3998,8 +4098,14 @@ async function initDatabaseDefaults() {
       }
       console.log("\u2705 Compte Administrateur cr\xE9\xE9 : admin@excellence.ci (mdp: password123)");
     }
+    const courseCount = await prisma.course.count();
+    if (courseCount === 0) {
+      console.log("\u{1F504} Initialisation des formations par d\xE9faut...");
+      await seedFormations();
+      console.log("\u2705 Formations par d\xE9faut cr\xE9\xE9es avec succ\xE8s");
+    }
   } catch (err) {
-    console.error("Erreur initialisation admin :", err);
+    console.error("Erreur initialisation admin / formations :", err);
   }
 }
 app.listen(port, () => {

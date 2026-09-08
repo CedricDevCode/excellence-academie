@@ -79,6 +79,7 @@ const NAV_GROUPS = [
     category: "Administration",
     items: [
       { icon: <Home size={18} />, label: "Tableau de bord", id: "dashboard" },
+      { icon: <GraduationCap size={18} />, label: "Formations", id: "courses" },
       { icon: <Users size={18} />, label: "Étudiants", id: "students" },
       { icon: <Clock size={18} />, label: "Séances", id: "sessions" },
       { icon: <FileText size={18} />, label: "Contrats", id: "contracts" },
@@ -1777,65 +1778,174 @@ function NotifsView() {
   );
 }
 
-// ─── Concours View ───────────────────────────────────────────────────
-function ConcoursView() {
+// ─── Formations & Concours View ───────────────────────────────────────────
+const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; badge: string }> = {
+  'Concours Juridiques & Judiciaires': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-800' },
+  'Administration Publique': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-800' },
+  'Sécurité & Force Publique': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', badge: 'bg-amber-100 text-amber-800' },
+  'Technologies & Métiers Numériques': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-800' },
+};
+
+const DEFAULT_CATEGORY_COLOR = { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', badge: 'bg-gray-100 text-gray-800' };
+
+function FormationsView() {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  
+  // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ id: '', title: '', description: '', price: '', location: '' });
+  const [form, setForm] = useState({ id: '', title: '', category: 'Concours Juridiques & Judiciaires', description: '', price: '' });
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { toast, confirm } = useToast();
 
-  const onlinePrice = formatPrice(calcRegistrationPrice('', 'en_ligne', '', false));
-  const presentielPrice = formatPrice(calcRegistrationPrice("Côte d'Ivoire", 'presentiel', "Abidjan (Cocody Palmeraie)", false));
+  // Delete Confirmation Modal state
+  const [courseToDelete, setCourseToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const loadCourses = () => {
+  const { toast } = useToast();
+
+  const CATEGORY_PRESETS = [
+    'Concours Juridiques & Judiciaires',
+    'Administration Publique',
+    'Sécurité & Force Publique',
+    'Technologies & Métiers Numériques',
+    'Santé & Paramédical',
+    'Éducation & Enseignement',
+    'Finances & Gestion',
+  ];
+
+  const loadCourses = async () => {
     setLoading(true);
-    fetchCourses().then(setCourses).catch(console.error).finally(() => setLoading(false));
+    try {
+      const data = await fetchCourses();
+      setCourses(data || []);
+    } catch (err) {
+      console.error('Erreur lors du chargement des formations :', err);
+      toast('error', 'Erreur lors du chargement des formations');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { loadCourses(); }, []);
+  useEffect(() => {
+    loadCourses();
+  }, []);
+
+  // Compute unique categories from existing courses + presets
+  const availableCategories = useMemo(() => {
+    const fromCourses = courses.map(c => c.category || 'Général').filter(Boolean);
+    const combined = Array.from(new Set([...CATEGORY_PRESETS, ...fromCourses]));
+    return combined;
+  }, [courses]);
+
+  // Filtered courses
+  const filteredCourses = useMemo(() => {
+    return courses.filter(c => {
+      const matchesCategory = selectedCategory === 'ALL' || (c.category || 'Général') === selectedCategory;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q ||
+        (c.title || '').toLowerCase().includes(q) ||
+        (c.description || '').toLowerCase().includes(q) ||
+        (c.category || '').toLowerCase().includes(q);
+      return matchesCategory && matchesSearch;
+    });
+  }, [courses, selectedCategory, searchQuery]);
+
+  // Stats calculation
+  const totalStudentsEnrolled = useMemo(() => {
+    return courses.reduce((acc, c) => acc + (c._count?.subscriptions || c._count?.payments || 0), 0);
+  }, [courses]);
+
+  const averagePrice = useMemo(() => {
+    if (!courses.length) return 0;
+    const sum = courses.reduce((acc, c) => acc + (Number(c.price) || 0), 0);
+    return Math.round(sum / courses.length);
+  }, [courses]);
+
+  const handleOpenAdd = () => {
+    setForm({ id: '', title: '', category: CATEGORY_PRESETS[0], description: '', price: '' });
+    setIsCustomCategory(false);
+    setCustomCategory('');
+    setShowModal(true);
+  };
+
+  const handleEdit = (c: any) => {
+    const isPreset = CATEGORY_PRESETS.includes(c.category);
+    setForm({
+      id: c.id,
+      title: c.title || '',
+      category: isPreset ? c.category : 'CUSTOM',
+      description: c.description || '',
+      price: c.price !== undefined ? String(c.price) : '',
+    });
+    if (!isPreset && c.category) {
+      setIsCustomCategory(true);
+      setCustomCategory(c.category);
+    } else {
+      setIsCustomCategory(false);
+      setCustomCategory('');
+    }
+    setShowModal(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.title.trim()) {
+      toast('error', 'Le titre de la formation est obligatoire');
+      return;
+    }
+    if (!form.price || isNaN(Number(form.price)) || Number(form.price) < 0) {
+      toast('error', 'Veuillez saisir un prix valide en FCFA');
+      return;
+    }
+
+    const finalCategory = isCustomCategory
+      ? (customCategory.trim() || 'Général')
+      : form.category;
+
     setSubmitting(true);
     try {
-      const data = {
-        title: form.title,
-        description: `${form.location ? `Lieu: ${form.location}\n` : ''}${form.description}`,
+      const payload = {
+        title: form.title.trim(),
+        category: finalCategory,
+        description: form.description.trim() || undefined,
         price: Number(form.price),
       };
+
       if (form.id) {
-        await updateCourse(form.id, data);
+        await updateCourse(form.id, payload);
+        toast('success', 'Formation modifiée avec succès');
       } else {
-        await createCourse(data);
+        await createCourse(payload);
+        toast('success', 'Nouvelle formation ajoutée avec succès');
       }
+
       await loadCourses();
       setShowModal(false);
-      setForm({ id: '', title: '', description: '', price: '', location: '' });
-      toast('success', form.id ? 'Concours modifié avec succès' : 'Concours ajouté avec succès');
-    } catch (err) {
-      console.error('Erreur lors de la création/modification du cours :', err);
-      toast('error', 'Erreur lors de l\'enregistrement du concours');
+    } catch (err: any) {
+      console.error('Erreur enregistrement formation :', err);
+      toast('error', err.message || 'Erreur lors de l\'enregistrement de la formation');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEdit = (c: any) => {
-    setForm({ id: c.id, title: c.title, description: c.description || '', price: c.price.toString(), location: '' });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    const ok = await confirm('Voulez-vous vraiment supprimer ce concours ?');
-    if (!ok) return;
+  const confirmDelete = async () => {
+    if (!courseToDelete) return;
+    setDeleting(true);
     try {
-      await deleteCourse(id);
-      loadCourses();
-      toast('success', 'Concours supprimé avec succès');
-    } catch (err) {
-      toast('error', 'Erreur lors de la suppression');
+      await deleteCourse(courseToDelete.id);
+      toast('success', `La formation "${courseToDelete.title}" a été supprimée`);
+      setCourseToDelete(null);
+      await loadCourses();
+    } catch (err: any) {
+      console.error('Erreur suppression formation :', err);
+      toast('error', err.message || 'Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1843,89 +1953,417 @@ function ConcoursView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-black text-gray-900 flex items-center gap-2">
-          <BookOpen size={18} className="text-[#0056B3]" /> Gestion des Concours
-        </h2>
-        <button onClick={() => { setForm({ id: '', title: '', description: '', price: '', location: '' }); setShowModal(true); }} className="flex items-center gap-2 bg-[#0056B3] text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003375]">
-          <Plus size={16} /> Ajouter un concours
+      {/* Top Banner & Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="p-2 rounded-xl bg-blue-50 text-[#0056B3]">
+              <GraduationCap size={22} />
+            </span>
+            <h2 className="text-xl font-black text-gray-900">Gestion des Formations & Concours</h2>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Gérez le catalogue des filières dispensées par Excellence Académie, leurs catégories et tarifs officiels.
+          </p>
+        </div>
+        <button
+          onClick={handleOpenAdd}
+          className="flex items-center justify-center gap-2 bg-[#0056B3] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm"
+        >
+          <Plus size={18} />
+          <span>Ajouter une formation</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {courses.map(c => (
-          <div key={c.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative group">
-            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => handleEdit(c)} className="w-8 h-8 bg-blue-50 text-[#0056B3] rounded-full flex items-center justify-center hover:bg-blue-100"><Edit size={14} /></button>
-              <button onClick={() => handleDelete(c.id)} className="w-8 h-8 bg-red-50 text-red-500 rounded-full flex items-center justify-center hover:bg-red-100"><Trash2 size={14} /></button>
-            </div>
-            <div className="w-12 h-12 bg-gray-100 text-gray-600 rounded-xl flex items-center justify-center mb-4"><Award size={24} /></div>
-            <h3 className="font-black text-gray-900 mb-1">{c.title}</h3>
-            <p className="text-gray-500 text-sm mb-2 line-clamp-2 min-h-10">{c.description || 'Aucune description'}</p>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-gray-500">Montant inscription</span>
-              <span className="font-black text-[#FF6B00]">{Number(c.price).toLocaleString('fr-FR')} FCFA</span>
+      {/* KPI Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0056B3] flex items-center justify-center font-bold">
+            <BookOpen size={24} />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Formations</div>
+            <div className="text-2xl font-black text-gray-900">{courses.length}</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+            <Award size={24} />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories</div>
+            <div className="text-2xl font-black text-gray-900">
+              {new Set(courses.map(c => c.category || 'Général')).size}
             </div>
           </div>
-        ))}
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#FF6B00] flex items-center justify-center font-bold">
+            <DollarSign size={24} />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tarif Moyen</div>
+            <div className="text-2xl font-black text-[#FF6B00]">{averagePrice.toLocaleString('fr-FR')} <span className="text-xs text-gray-600">F</span></div>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <Users size={24} />
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inscrits Associés</div>
+            <div className="text-2xl font-black text-gray-900">{totalStudentsEnrolled}</div>
+          </div>
+        </div>
       </div>
 
+      {/* Filter and Search Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="relative flex-1">
+            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Rechercher une formation par nom, mot-clé ou catégorie..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-[#0056B3] focus:outline-none transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-bold text-gray-500">
+              {filteredCourses.length} formation{filteredCourses.length > 1 ? 's' : ''} trouvée{filteredCourses.length > 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar">
+          <button
+            onClick={() => setSelectedCategory('ALL')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+              selectedCategory === 'ALL'
+                ? 'bg-[#0056B3] text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Toutes ({courses.length})
+          </button>
+          {availableCategories.map(cat => {
+            const count = courses.filter(c => (c.category || 'Général') === cat).length;
+            if (count === 0 && selectedCategory !== cat) return null;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                  selectedCategory === cat
+                    ? 'bg-[#0056B3] text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {cat} ({count})
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Courses Cards Grid */}
+      {filteredCourses.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
+          <div className="w-16 h-16 bg-blue-50 text-[#0056B3] rounded-full flex items-center justify-center mx-auto mb-3">
+            <GraduationCap size={32} />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-1">Aucune formation correspondante</h3>
+          <p className="text-sm text-gray-500 max-w-md mx-auto mb-4">
+            {searchQuery || selectedCategory !== 'ALL'
+              ? 'Aucune formation ne correspond à vos critères de recherche. Essayez de réinitialiser vos filtres.'
+              : 'Aucune formation n\'est encore configurée. Ajoutez votre première formation dès maintenant.'}
+          </p>
+          {(searchQuery || selectedCategory !== 'ALL') ? (
+            <button
+              onClick={() => { setSearchQuery(''); setSelectedCategory('ALL'); }}
+              className="text-xs font-bold text-[#0056B3] hover:underline"
+            >
+              Réinitialiser les filtres
+            </button>
+          ) : (
+            <button
+              onClick={handleOpenAdd}
+              className="bg-[#0056B3] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#003d80]"
+            >
+              Ajouter une formation
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {filteredCourses.map(c => {
+            const cat = c.category || 'Général';
+            const style = CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR;
+            const studentsCount = c._count?.subscriptions || c._count?.payments || 0;
+
+            return (
+              <div
+                key={c.id}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all flex flex-col justify-between group relative"
+              >
+                {/* Header with category and actions */}
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <span className={`inline-block px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wide uppercase ${style.badge}`}>
+                      {cat}
+                    </span>
+                    <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleEdit(c)}
+                        className="w-8 h-8 rounded-lg bg-blue-50 text-[#0056B3] flex items-center justify-center hover:bg-blue-100 transition-colors"
+                        title="Modifier cette formation"
+                      >
+                        <Edit size={15} />
+                      </button>
+                      <button
+                        onClick={() => setCourseToDelete(c)}
+                        className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors"
+                        title="Supprimer cette formation"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Title & Description */}
+                  <h3 className="font-black text-gray-900 text-base mb-1.5 leading-snug group-hover:text-[#0056B3] transition-colors">
+                    {c.title}
+                  </h3>
+                  <p className="text-gray-500 text-xs leading-relaxed line-clamp-3 mb-4 min-h-[3.25rem]">
+                    {c.description || "Aucune description détaillée renseignée."}
+                  </p>
+                </div>
+
+                {/* Footer with Price & Info */}
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <Users size={14} className="text-gray-400" />
+                    <span>{studentsCount} inscrit{studentsCount > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-gray-500 uppercase font-semibold block leading-tight">Tarif</span>
+                    <span className="font-black text-[#FF6B00] text-base">
+                      {Number(c.price || 0).toLocaleString('fr-FR')} <span className="text-xs font-bold">FCFA</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* MODAL: Ajouter / Modifier une formation */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 bg-gray-50 shrink-0">
-              <h3 className="font-black text-gray-900 text-lg">{form.id ? 'Modifier' : 'Ajouter'} un concours</h3>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-gray-100 bg-gray-50/70 shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-50 text-[#0056B3]">
+                  <GraduationCap size={20} />
+                </span>
+                <div>
+                  <h3 className="font-black text-gray-900 text-base">
+                    {form.id ? 'Modifier la formation' : 'Ajouter une nouvelle formation'}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    {form.id ? 'Mettez à jour les informations et tarifs de la filière' : 'Définissez une nouvelle filière de concours ou de cours'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X size={20} />
+              </button>
             </div>
+
             <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Titre du concours</label>
-                <input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                {/* Titre */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Titre de la formation / Concours *
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={form.title}
+                    onChange={e => setForm({ ...form, title: e.target.value })}
+                    placeholder="Ex: Magistrature, ENA, Police, Greffe..."
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
+                  />
+                </div>
+
+                {/* Catégorie */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Catégorie de la formation *
+                  </label>
+                  <select
+                    value={isCustomCategory ? 'CUSTOM' : form.category}
+                    onChange={e => {
+                      if (e.target.value === 'CUSTOM') {
+                        setIsCustomCategory(true);
+                      } else {
+                        setIsCustomCategory(false);
+                        setForm({ ...form, category: e.target.value });
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none bg-white transition-colors"
+                  >
+                    {CATEGORY_PRESETS.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                    <option value="CUSTOM">+ Autre catégorie personnalisée...</option>
+                  </select>
+
+                  {isCustomCategory && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        required
+                        value={customCategory}
+                        onChange={e => setCustomCategory(e.target.value)}
+                        placeholder="Nom de la nouvelle catégorie..."
+                        className="w-full px-4 py-2 border-2 border-[#0056B3]/40 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none bg-blue-50/20"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Prix */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Prix de la formation (FCFA) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      required
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={form.price}
+                      onChange={e => setForm({ ...form, price: e.target.value })}
+                      placeholder="Ex: 150000"
+                      className="w-full pl-4 pr-16 py-2.5 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:border-[#0056B3] focus:outline-none transition-colors"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">
+                      FCFA
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Tarif standard applicable pour l'inscription ou le forfait de cette formation.
+                  </p>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Description & Programme
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    placeholder="Détails sur les modules dispensés, durée, conditions d'accès, prérequis..."
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none resize-none transition-colors"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Montant inscription (FCFA)</label>
-                <input required type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
-                <p className="text-xs text-gray-500 mt-2">Utilisez le tarif d'inscription réel : en ligne, présentiel Abidjan ou présentiel intérieur pays.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Type d'inscription</label>
-                <select
-                  value={form.location}
-                  onChange={e => {
-                    const locationValue = e.target.value;
-                    setForm(prev => ({
-                      ...prev,
-                      location: locationValue,
-                      price: locationValue === 'En ligne' ? onlinePrice : locationValue.startsWith('Présentiel') ? presentielPrice : prev.price,
-                    }));
-                  }}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none"
+
+              {/* Modal footer */}
+              <div className="p-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-gray-200 rounded-xl transition-colors"
                 >
-                  <option value="">Sélectionnez un type</option>
-                  <option value="En ligne">En ligne</option>
-                  <option value="Présentiel - Abidjan">Présentiel - Abidjan</option>
-                  <option value="Présentiel - Intérieur pays">Présentiel - Intérieur pays</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-2">Tarifs connus : En ligne {onlinePrice} FCFA, Présentiel Abidjan {presentielPrice} FCFA, Présentiel intérieur pays {presentielPrice} FCFA.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
-                <textarea rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none resize-none" />
-              </div>
-              </div>
-              <div className="p-6 pt-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 font-semibold text-sm">Annuler</button>
-                <button type="submit" disabled={submitting} className="bg-[#0056B3] text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-[#003375]">
-                  {submitting ? '...' : 'Enregistrer'}
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center gap-2 bg-[#0056B3] text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>{form.id ? 'Mettre à jour' : 'Enregistrer la formation'}</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* MODAL: Confirmation de suppression */}
+      {courseToDelete && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                <AlertCircle size={26} />
+              </div>
+              <div>
+                <h3 className="font-black text-gray-900 text-base">Confirmer la suppression</h3>
+                <p className="text-xs text-gray-500">Cette action est irréversible</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              Êtes-vous sûr de vouloir supprimer définitivement la formation{' '}
+              <strong className="text-gray-900">« {courseToDelete.title} »</strong> ({Number(courseToDelete.price || 0).toLocaleString('fr-FR')} FCFA) ?
+              Elle sera retirée des formulaires d'inscription et du catalogue du site.
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setCourseToDelete(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
+              >
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                <span>Supprimer définitivement</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// Alias for backward compatibility
+const ConcoursView = FormationsView;
 
 // ─── Users View ─────────────────────────────────────────────────────
 function UsersView() {
@@ -2765,11 +3203,12 @@ function LoadingSpinner() {
 // ─── Tab Title Map ───────────────────────────────────────────────────
 const TAB_TITLES: Record<string, string> = {
   dashboard: "Tableau de bord",
+  courses: "Gestion des formations",
   students: "Gestion des étudiants",
   payments: "Gestion des paiements",
   contracts: "Contrats signés",
   compta: "Comptabilité",
-  // concours: "Concours",
+  sessions: "Séances de cours",
   notifs: "Notifications",
   reports: "Rapports",
   settings: "Paramètres",
@@ -2986,6 +3425,7 @@ export default function AdminDashboard() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView apiStats={apiStats} />;
+      case 'courses': return <FormationsView />;
       case 'students': return <StudentsView />;
       case 'payments': return <PaymentsView />;
       case 'contracts': return <ContractsView />;
