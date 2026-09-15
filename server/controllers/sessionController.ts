@@ -91,14 +91,16 @@ export const createSession = async (req: Request, res: Response) => {
     const id = crypto.randomUUID();
     const now = new Date();
 
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "CourseSession"
+    const courseIdVal = courseId || null;
+    const typeVal = type || 'PRESENTIEL';
+    const locationVal = location || null;
+    const descriptionVal = description || null;
+    const dateVal = new Date(date);
+    await prisma.$executeRaw`INSERT INTO "CourseSession"
        (id, "teacherId", "courseId", "weekLabel", "weekStart", "weekEnd", date, "startTime", "endTime", hours, type, location, description, status, "notified", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SCHEDULED', false, $14, $14)`,
-      id, teacherId, courseId || null, weekLabel, weekStart, weekEnd,
-      new Date(date), startTime, endTime, hours, type || 'PRESENTIEL',
-      location || null, description || null, now
-    );
+       VALUES (${id}, ${teacherId}, ${courseIdVal}, ${weekLabel}, ${weekStart}, ${weekEnd},
+               ${dateVal}, ${startTime}, ${endTime}, ${hours}, ${typeVal},
+               ${locationVal}, ${descriptionVal}, 'SCHEDULED', false, ${now}, ${now})`;
 
     // Get teacher info for response
     const teacher = await prisma.user.findUnique({
@@ -108,12 +110,10 @@ export const createSession = async (req: Request, res: Response) => {
 
     // Notify students if requested
     if (notifyStudents && courseId) {
-      const subscriptions: any[] = await prisma.$queryRawUnsafe(
-        `SELECT u.id FROM "User" u
-         INNER JOIN "Subscription" s ON u.id = s."userId"
-         WHERE s."courseId" = $1 AND s.status = 'ACTIVE'`,
-        courseId
-      );
+      const subscriptions: any[] = await prisma.$queryRaw`
+        SELECT u.id FROM "User" u
+        INNER JOIN "Subscription" s ON u.id = s."userId"
+        WHERE s."courseId" = ${courseId} AND s.status = 'ACTIVE'`;
       const typeLabel = type === 'ONLINE' ? 'En ligne' : 'Présentiel';
       const dateFormatted = new Date(date).toLocaleDateString('fr-FR');
       for (const sub of subscriptions) {
@@ -257,7 +257,7 @@ export const updateSession = async (req: Request, res: Response) => {
 export const deleteSession = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await prisma.$executeRawUnsafe('DELETE FROM "CourseSession" WHERE id = $1', id);
+    await prisma.$executeRaw`DELETE FROM "CourseSession" WHERE id = ${id}`;
     res.json({ success: true });
   } catch (error) {
     console.error('Delete session error:', error);
@@ -270,9 +270,7 @@ export const completeSession = async (req: Request, res: Response) => {
     const { id } = req.params;
     const teacherId = req.user.id;
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "CourseSession" WHERE id = $1`, id
-    );
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM "CourseSession" WHERE id = ${id}`;
     if (!rows.length) {
       return res.status(404).json({ error: 'Séance introuvable' });
     }
@@ -284,9 +282,7 @@ export const completeSession = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Seules les séances planifiées peuvent être marquées comme terminées' });
     }
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE "CourseSession" SET status = 'COMPLETED', "updatedAt" = NOW() WHERE id = $1`, id
-    );
+    await prisma.$executeRaw`UPDATE "CourseSession" SET status = 'COMPLETED', "updatedAt" = NOW() WHERE id = ${id}`;
 
     res.json({ success: true, status: 'COMPLETED' });
   } catch (error) {
@@ -299,9 +295,7 @@ export const validateSession = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "CourseSession" WHERE id = $1`, id
-    );
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM "CourseSession" WHERE id = ${id}`;
     if (!rows.length) {
       return res.status(404).json({ error: 'Séance introuvable' });
     }
@@ -310,9 +304,7 @@ export const validateSession = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Seules les séances terminées peuvent être validées' });
     }
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE "CourseSession" SET status = 'VALIDATED', "updatedAt" = NOW() WHERE id = $1`, id
-    );
+    await prisma.$executeRaw`UPDATE "CourseSession" SET status = 'VALIDATED', "updatedAt" = NOW() WHERE id = ${id}`;
 
     res.json({ success: true, status: 'VALIDATED' });
   } catch (error) {
@@ -330,9 +322,7 @@ export const uploadSessionFile = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "CourseSession" WHERE id = $1`, id
-    );
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM "CourseSession" WHERE id = ${id}`;
     if (!rows.length) {
       return res.status(404).json({ error: 'Séance introuvable' });
     }
@@ -341,11 +331,8 @@ export const uploadSessionFile = async (req: Request, res: Response) => {
     const base64 = file.buffer.toString('base64');
     const mimeType = file.mimetype;
 
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "fileData", "uploadedAt")
-       VALUES ($1, $2, $3, $4, $5, NOW())`,
-      fileId, id, file.originalname, mimeType, base64
-    );
+    await prisma.$executeRaw`INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "fileData", "uploadedAt")
+       VALUES (${fileId}, ${id}, ${file.originalname}, ${mimeType}, ${base64}, NOW())`;
 
     res.status(201).json({
       id: fileId,
@@ -362,9 +349,7 @@ export const uploadSessionFile = async (req: Request, res: Response) => {
 export const getSessionFiles = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id, "sessionId", "fileName", "fileType", "uploadedAt" FROM "SessionFile" WHERE "sessionId" = $1 ORDER BY "uploadedAt" DESC`, id
-    );
+    const rows: any[] = await prisma.$queryRaw`SELECT id, "sessionId", "fileName", "fileType", "uploadedAt" FROM "SessionFile" WHERE "sessionId" = ${id} ORDER BY "uploadedAt" DESC`;
     const files = rows.map((r: any) => ({
       id: r.id,
       sessionId: r.sessionId,
@@ -382,9 +367,7 @@ export const getSessionFiles = async (req: Request, res: Response) => {
 export const downloadSessionFile = async (req: Request, res: Response) => {
   try {
     const { fileId } = req.params;
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "SessionFile" WHERE id = $1`, fileId
-    );
+    const rows: any[] = await prisma.$queryRaw`SELECT * FROM "SessionFile" WHERE id = ${fileId}`;
     if (!rows.length) {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
@@ -409,16 +392,14 @@ export const getMonthlySalaryReport = async (req: Request, res: Response) => {
     const startDate = new Date(y, m, 1);
     const endDate = new Date(y, m + 1, 0, 23, 59, 59, 999);
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT s.*, u.id as teacher_id, u.name as teacher_name, u.email as teacher_email, u."hourlyRate",
+    const rows: any[] = await prisma.$queryRaw`
+      SELECT s.*, u.id as teacher_id, u.name as teacher_name, u.email as teacher_email, u."hourlyRate",
               c.id as course_id, c.title as course_title
        FROM "CourseSession" s
        LEFT JOIN "User" u ON s."teacherId" = u.id
        LEFT JOIN "Course" c ON s."courseId" = c.id
-       WHERE s.date >= $1 AND s.date <= $2 AND (s.status = 'VALIDATED' OR s.status = 'SCHEDULED' OR s.status = 'COMPLETED')
-       ORDER BY s."teacherId", s.date ASC`,
-      startDate, endDate
-    );
+       WHERE s.date >= ${startDate} AND s.date <= ${endDate} AND (s.status = 'VALIDATED' OR s.status = 'SCHEDULED' OR s.status = 'COMPLETED')
+       ORDER BY s."teacherId", s.date ASC`;
 
     const defaultRate = 5000;
     const teacherMap: Record<string, any> = {};
@@ -599,11 +580,8 @@ export const payTeacherSalary = async (req: Request, res: Response) => {
     const startDate = new Date(y, m, 1);
     const endDate = new Date(y, m + 1, 0, 23, 59, 59, 999);
 
-    await prisma.$executeRawUnsafe(
-      `UPDATE "CourseSession" SET status = 'PAID', "updatedAt" = NOW()
-       WHERE "teacherId" = $1 AND date >= $2 AND date <= $3 AND status IN ('VALIDATED', 'COMPLETED', 'SCHEDULED')`,
-      teacherId, startDate, endDate
-    );
+    await prisma.$executeRaw`UPDATE "CourseSession" SET status = 'PAID', "updatedAt" = NOW()
+       WHERE "teacherId" = ${teacherId} AND date >= ${startDate} AND date <= ${endDate} AND status IN ('VALIDATED', 'COMPLETED', 'SCHEDULED')`;
 
     res.status(201).json(expense);
   } catch (error) {
@@ -619,10 +597,7 @@ export const getStudentSessions = async (req: Request, res: Response) => {
     const { startDate, endDate } = req.query;
 
     // Get student's active course subscriptions
-    const subscriptions: any[] = await prisma.$queryRawUnsafe(
-      `SELECT "courseId" FROM "Subscription" WHERE "userId" = $1 AND status = 'ACTIVE'`,
-      userId
-    );
+    const subscriptions: any[] = await prisma.$queryRaw`SELECT "courseId" FROM "Subscription" WHERE "userId" = ${userId} AND status = 'ACTIVE'`;
     const courseIds = subscriptions.map((s: any) => s.courseId);
     if (courseIds.length === 0) {
       return res.json({ weeks: [], total: 0 });

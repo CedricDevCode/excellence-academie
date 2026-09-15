@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../utils/prisma';
 
-const prisma = new PrismaClient();
+const isProduction = process.env.NODE_ENV === 'production';
+const safeError = (err: any) => isProduction ? undefined : err?.message;
 
 // Get all active banners
 export const getActiveBanners = async (req: Request, res: Response) => {
@@ -35,7 +36,7 @@ export const getActiveBanners = async (req: Request, res: Response) => {
     });
     res.json(banners);
   } catch (error: any) {
-    res.status(500).json({ message: 'Erreur lors du chargement des bannières', error: error.message });
+    res.status(500).json({ message: 'Erreur lors du chargement des bannières', error: safeError(error) });
   }
 };
 
@@ -61,7 +62,7 @@ export const getAllBanners = async (req: Request, res: Response) => {
     });
     res.json(banners);
   } catch (error: any) {
-    res.status(500).json({ message: 'Erreur lors du chargement des bannières', error: error.message });
+    res.status(500).json({ message: 'Erreur lors du chargement des bannières', error: safeError(error) });
   }
 };
 
@@ -78,7 +79,7 @@ export const getBannerById = async (req: Request, res: Response) => {
     if (!banner) return res.status(404).json({ message: 'Bannière non trouvée' });
     res.json(banner);
   } catch (error: any) {
-    res.status(500).json({ message: 'Erreur', error: error.message });
+    res.status(500).json({ message: 'Erreur', error: safeError(error) });
   }
 };
 
@@ -111,7 +112,7 @@ export const createBanner = async (req: Request, res: Response) => {
 
     res.status(201).json(banner);
   } catch (error: any) {
-    res.status(500).json({ message: 'Erreur lors de la création', error: error.message });
+    res.status(500).json({ message: 'Erreur lors de la création', error: safeError(error) });
   }
 };
 
@@ -144,7 +145,7 @@ export const updateBanner = async (req: Request, res: Response) => {
 
     res.json(banner);
   } catch (error: any) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour', error: error.message });
+    res.status(500).json({ message: 'Erreur lors de la mise à jour', error: safeError(error) });
   }
 };
 
@@ -157,6 +158,6 @@ export const deleteBanner = async (req: Request, res: Response) => {
     });
     res.json({ message: 'Bannière supprimée avec succès' });
   } catch (error: any) {
-    res.status(500).json({ message: 'Erreur lors de la suppression', error: error.message });
+    res.status(500).json({ message: 'Erreur lors de la suppression', error: safeError(error) });
   }
 };

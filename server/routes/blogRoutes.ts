@@ -50,10 +50,9 @@ router.put('/:id', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), updateBlogPos
 router.delete('/:id', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), deleteBlogPost);
 router.post('/:id/attachments', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), upload.single('file'), uploadPostAttachment);
 
-// Comments
 router.get('/:postId/comments', getComments);
-router.post('/:postId/comments', createComment);
-router.delete('/comments/:id', deleteComment);
+router.post('/:postId/comments', requireRole(['ADMIN', 'TEACHER', 'SECRETARY', 'STUDENT']), createComment);
+router.delete('/comments/:id', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), deleteComment);
 
 // Exercises
 router.post('/:postId/exercises', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), createExercise);

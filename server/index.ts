@@ -1,6 +1,7 @@
 import './env';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 import { prisma } from './utils/prisma';
@@ -28,12 +29,24 @@ import { ensureSessionTables } from './controllers/sessionController';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const port = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
 
-const defaultOrigins = ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:5174'];
+// ─── Vérification critique des variables d'environnement ──────────────────────
+if (!process.env.JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET est manquant dans les variables d\'environnement.');
+  process.exit(1);
+}
+
+// ─── Origines CORS autorisées ─────────────────────────────────────────────────
+const defaultOrigins = isProduction
+  ? [] // En prod, uniquement les origines explicitement configurées
+  : ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:5174'];
+
 const envOrigins = process.env.CORS_ORIGINS?.split(',').map(s => s.trim()).filter(Boolean) || [];
 const frontendUrl = process.env.FRONTEND_URL?.trim();
 const allowedOrigins = Array.from(new Set([
@@ -42,17 +55,42 @@ const allowedOrigins = Array.from(new Set([
   ...(frontendUrl ? [frontendUrl] : [])
 ]));
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      return callback(null, true);
-    }
-    // Allow requests in production if coming from custom domain
-    return callback(null, true);
+// ─── Security Headers (Helmet) ────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // nécessaire pour Vite en dev
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'", ...(frontendUrl ? [frontendUrl] : [])],
+    },
   },
-  credentials: true
+  crossOriginEmbedderPolicy: false, // nécessaire pour PDFs / iframes
 }));
 
+// ─── CORS strict ──────────────────────────────────────────────────────────────
+app.use(cors({
+  origin: (origin, callback) => {
+    // Requêtes sans origine (curl, mobile apps, Postman en dev)
+    if (!origin) {
+      if (!isProduction) return callback(null, true);
+      // En production, bloquer les requêtes sans origine si elles ne sont pas du serveur lui-même
+      return callback(null, true); // servers-to-server OK
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`[CORS] Origine bloquée: ${origin}`);
+    return callback(new Error(`CORS: Origine non autorisée: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
+
+// ─── Webhook GeniusPay — doit être avant express.json() ───────────────────────
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req, _res, next) => {
   if (Buffer.isBuffer(req.body)) {
     (req as any).rawBody = req.body.toString('utf8');
@@ -62,10 +100,14 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req
   }
   next();
 });
-app.use(express.json({ limit: '50mb' }));
+
+// ─── Body parsers ─────────────────────────────────────────────────────────────
+// Limite à 2mb par défaut — évite les attaques DoS par payload surdimensionné
+// Les routes nécessitant plus (ex: signature de contrat) gèrent leur propre limite
+app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
-// Routes
+// ─── Routes API ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -84,8 +126,25 @@ app.use('/api/contracts', contractRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/blog', blogRoutes);
-// Health check endpoint with database diagnostics
+
+// ─── Health Check ─────────────────────────────────────────────────────────────
+// Protégé par un header secret optionnel en production
 app.get('/api/health', async (req, res) => {
+  // En production, on peut sécuriser avec un header secret
+  const healthSecret = process.env.HEALTH_SECRET;
+  if (isProduction && healthSecret) {
+    const provided = req.headers['x-health-secret'];
+    if (provided !== healthSecret) {
+      // Retourner un statut minimal sans révéler d'infos sensibles
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        return res.status(200).json({ status: 'ok' });
+      } catch {
+        return res.status(503).json({ status: 'error' });
+      }
+    }
+  }
+
   try {
     await prisma.$queryRaw`SELECT 1`;
     const userCount = await prisma.user.count();
@@ -95,20 +154,22 @@ app.get('/api/health', async (req, res) => {
       database: 'connected',
       userCount,
       courseCount,
-      message: 'Backend et base de données opérationnels'
+      message: 'Backend et base de données opérationnels',
     });
   } catch (err: any) {
     console.error('Health check DB error:', err);
+    // Ne pas exposer les détails d'erreur DB en production
     res.status(500).json({
       status: 'error',
       database: 'disconnected',
-      error: err?.message || String(err),
-      hint: 'Vérifiez la variable DATABASE_URL dans votre fichier .env et lancez "npx prisma db push"'
+      message: isProduction
+        ? 'Erreur de connexion à la base de données'
+        : err?.message || String(err),
     });
   }
 });
 
-// Ensure uploads directories exist
+// ─── Répertoires d'uploads ────────────────────────────────────────────────────
 const projectRoot = process.cwd();
 const rootUploads = path.resolve(projectRoot, 'uploads');
 const serverUploads = path.resolve(projectRoot, 'server', 'uploads');
@@ -116,11 +177,11 @@ for (const sub of ['products', 'testimonials', 'blog', 'users', 'sessions']) {
   fs.mkdirSync(path.join(rootUploads, sub), { recursive: true });
 }
 
-// Serve static files (client bundle & uploads)
+// ─── Fichiers statiques ────────────────────────────────────────────────────────
 const candidateDistPaths = [
   path.resolve(projectRoot, 'dist'),
   path.resolve(__dirname, '..', 'dist'),
-  path.resolve(__dirname, 'dist')
+  path.resolve(__dirname, 'dist'),
 ];
 const distPath = candidateDistPaths.find(p => fs.existsSync(p)) || candidateDistPaths[0];
 
@@ -133,7 +194,7 @@ if (fs.existsSync(serverUploads)) {
 }
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Client-side routing fallback : serve index.html for all non-API routes
+// ─── Fallback SPA ─────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api/')) return next();
@@ -144,21 +205,33 @@ app.use((req, res, next) => {
   next();
 });
 
+// ─── Initialisation de la base de données ────────────────────────────────────
 async function initDatabaseDefaults() {
   try {
     console.log('🔄 Établissement de la connexion Prisma...');
     await prisma.$connect();
     console.log('✅ Connexion Prisma active.');
 
-    // Initialize custom session tables safely
+    // Initialiser les tables de sessions personnalisées en toute sécurité
     await ensureSessionTables();
 
     const adminExists = await prisma.user.findUnique({
-      where: { email: 'admin@excellence.ci' }
+      where: { email: 'admin@excellence.ci' },
     });
+
     if (!adminExists) {
       console.log('🔄 Initialisation des comptes par défaut en cours...');
-      const password = await bcrypt.hash('password123', 10);
+      // Générer un mot de passe aléatoire fort pour le compte admin initial
+      const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
+      if (!initialPassword) {
+        console.warn(
+          '⚠️  ADMIN_INITIAL_PASSWORD non défini dans .env. ' +
+          'Le compte admin ne sera PAS créé automatiquement. ' +
+          'Ajoutez ADMIN_INITIAL_PASSWORD dans votre .env puis redémarrez.'
+        );
+        return;
+      }
+      const password = await bcrypt.hash(initialPassword, 12);
       const defaultUsers = [
         { email: 'admin@excellence.ci', name: 'Administrateur', role: 'ADMIN' as const, password },
         { email: 'accountant@excellence.ci', name: 'Comptable', role: 'ACCOUNTANT' as const, password },
@@ -172,7 +245,8 @@ async function initDatabaseDefaults() {
           create: u,
         });
       }
-      console.log('✅ Compte Administrateur créé : admin@excellence.ci (mdp: password123)');
+      // Ne PAS logger le mot de passe
+      console.log('✅ Comptes par défaut créés. Mot de passe : voir ADMIN_INITIAL_PASSWORD dans .env');
     }
 
     const courseCount = await prisma.course.count();
@@ -186,20 +260,17 @@ async function initDatabaseDefaults() {
   }
 }
 
+// ─── Démarrage du serveur ─────────────────────────────────────────────────────
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`🚀 Serveur démarré sur le port ${port} [${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}]`);
   initDatabaseDefaults();
 
-  // 🌟 Neon PostgreSQL Keep-Alive:
-  // Sur Neon, les bases de données entrent en veille (suspend) après 5 minutes d'inactivité.
-  // Ce ping léger SELECT 1 toutes les 3 minutes (180s) maintient la base éveillée 24h/24 !
+  // 🌟 Neon PostgreSQL Keep-Alive (ping toutes les 3 minutes)
   setInterval(async () => {
     try {
       await prisma.$queryRaw`SELECT 1`;
-      // console.log('[Neon Keep-Alive] Ping DB OK');
     } catch (err: any) {
-      console.warn('⚠️ [Neon Keep-Alive] Ping réveil Neon :', err?.message || err);
+      console.warn('⚠️ [Neon Keep-Alive] Ping DB :', err?.message || err);
     }
   }, 180 * 1000);
 });
-

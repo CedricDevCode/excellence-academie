@@ -1,31 +1,76 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import prisma from '../utils/prisma';
-import { setAuthCookie } from '../utils/jwt';
+import { setAuthCookie, clearAuthCookie } from '../utils/jwt';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { calcRegistrationPrice, calcMonthlyAmount, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { sendNotification, sendNotificationToRole } from './notificationController';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Masque un email pour les logs (RGPD) : ex: "user@example.com" → "us**@e***.com" */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  const [domainName, ...tld] = domain.split('.');
+  const maskedLocal = local.slice(0, 2) + '**';
+  const maskedDomain = domainName.slice(0, 1) + '***';
+  return `${maskedLocal}@${maskedDomain}.${tld.join('.')}`;
+}
+
+/** Retry avec gestion du cold-start Neon DB */
+async function retryWithNeonWakeup<T>(fn: () => Promise<T>, retries = 2, delayMs = 2000): Promise<T> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      const isConnError =
+        msg.includes("Can't reach database") ||
+        msg.includes('P1001') ||
+        msg.includes('timeout') ||
+        msg.includes('Connection terminated') ||
+        msg.includes('ETIMEDOUT');
+      if (isConnError && attempt < retries) {
+        console.log(`[Neon DB] Base en cours de réveil... tentative ${attempt + 1}/${retries}`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  return fn();
+}
+
+// ─── Inscription simple (sans paiement) ───────────────────────────────────────
+
 export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, name, nom, prenom, role, telephone, pays, ville } = req.body;
 
-    if (!password) {
-      return res.status(400).json({ error: 'Le mot de passe est requis' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et mot de passe sont requis' });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    // Validation minimale du mot de passe
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
       return res.status(400).json({ error: 'Cet email est déjà utilisé' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const fullName = name || [prenom, nom].filter(Boolean).join(' ') || email;
+    const hashedPassword = await bcrypt.hash(password, 12); // bcrypt cost 12 (plus sécurisé que 10)
+    const fullName = name || [prenom, nom].filter(Boolean).join(' ') || cleanEmail;
 
     const user = await prisma.user.create({
       data: {
-        email,
+        email: cleanEmail,
         password: hashedPassword,
         name: fullName,
         telephone,
@@ -33,7 +78,7 @@ export const register = async (req: Request, res: Response) => {
         ville,
         role: role || 'STUDENT',
         isActive: true,
-      }
+      },
     });
 
     if (user.role === 'STUDENT') {
@@ -44,39 +89,62 @@ export const register = async (req: Request, res: Response) => {
     setAuthCookie(res, user.id, user.role);
 
     try {
-      await sendNotification(user.id, "Bienvenue chez Excellence Académie !", "Votre compte a été créé avec succès. Accédez dès à présent à vos cours, emplois du temps et ressources.");
-      await sendNotificationToRole("ADMIN", "Nouvelle inscription", `L'étudiant(e) ${user.name} (${user.email}) vient de s'inscrire sur la plateforme.`);
+      await sendNotification(
+        user.id,
+        'Bienvenue chez Excellence Académie !',
+        'Votre compte a été créé avec succès. Accédez dès à présent à vos cours, emplois du temps et ressources.'
+      );
+      await sendNotificationToRole(
+        'ADMIN',
+        'Nouvelle inscription',
+        `Un nouvel étudiant vient de s'inscrire sur la plateforme.`
+      );
     } catch (err) {
       console.error('Notification error on registration:', err);
     }
 
-    res.status(201).json({ message: 'User registered successfully', userId: user.id });
+    res.status(201).json({ message: 'Compte créé avec succès', userId: user.id });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Failed to register' });
+    res.status(500).json({ error: 'Erreur lors de la création du compte' });
   }
 };
 
-// Register + Pay: initialize GeniusPay payment, redirect to checkout
+// ─── Inscription + Paiement GeniusPay ─────────────────────────────────────────
+// SÉCURITÉ : On ne stocke PLUS le password_hash dans les métadonnées GeniusPay.
+// On crée un enregistrement temporaire `PendingRegistration` en base,
+// et on ne passe que le `token` (UUID) dans les métadonnées.
+
 export const registerAndPay = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, paymentMethod, geniusPhone, dateNaissance } = req.body;
+    const {
+      email, password, name, nom, prenom, telephone, pays, ville,
+      courseIds, mode, coursParticuliers, paymentMethod, geniusPhone, dateNaissance,
+    } = req.body;
 
     if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
       return res.status(400).json({ error: 'Email, mot de passe et au moins un concours sont requis' });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
       return res.status(400).json({ error: 'Cet email est déjà utilisé' });
     }
 
+    // Vérifier que les formations existent
     const courses = await prisma.course.findMany({ where: { id: { in: courseIds } } });
     if (courses.length !== courseIds.length) {
       return res.status(404).json({ error: 'Une ou plusieurs formations introuvables' });
     }
 
-    const isDiaspora = pays && pays.trim().toLowerCase() !== "côte d'ivoire" && pays.trim().toLowerCase() !== "cote d'ivoire";
+    const isDiaspora =
+      pays && pays.trim().toLowerCase() !== "côte d'ivoire" && pays.trim().toLowerCase() !== "cote d'ivoire";
     const effectiveMode = isDiaspora ? 'en_ligne' : (mode || 'presentiel');
     const cParticuliers = coursParticuliers === true;
 
@@ -84,38 +152,48 @@ export const registerAndPay = async (req: Request, res: Response) => {
     const monthlyAmount = calcMonthlyAmount(pays || '', effectiveMode, cParticuliers, courseIds.length);
     const amount = registrationAmount + monthlyAmount;
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const fullName = name || [prenom, nom].filter(Boolean).join(' ') || email;
+    // Hash du mot de passe avec coût 12
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const fullName = name || [prenom, nom].filter(Boolean).join(' ') || cleanEmail;
     const paymentPhone = geniusPhone || telephone || '';
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    // Stocker les données d'inscription temporairement en base (expire dans 24h)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const pending = await prisma.pendingRegistration.create({
+      data: {
+        email: cleanEmail,
+        passwordHash: hashedPassword,
+        name: fullName,
+        telephone: telephone || '',
+        pays: pays || '',
+        ville: ville || '',
+        courseIds,
+        mode: effectiveMode,
+        coursParticuliers: cParticuliers,
+        monthlyAmount,
+        dateNaissance: dateNaissance || '',
+        geniusPhone: paymentPhone,
+        expiresAt,
+      },
+    });
 
     const courseTitles = courses.map((c: any) => c.title).join(', ');
     const label = cParticuliers ? 'Cours particuliers' : `Inscription (${effectiveMode})`;
 
+    // On passe uniquement le token (UUID) dans les métadonnées — JAMAIS le hash du mot de passe
     const geniusPayBody: Record<string, any> = {
       amount,
-        description: `Inscription + 1er mois: ${fullName} - ${courseTitles} (${label})`,
+      description: `Inscription + 1er mois: ${fullName} - ${courseTitles} (${label})`,
       customer: {
         name: fullName,
         phone: paymentPhone,
-        email,
+        email: cleanEmail,
         country: COUNTRY_TO_ISO2[pays || ''] || 'CI',
       },
       metadata: {
         action: 'register',
-        email,
-        password_hash: hashedPassword,
-        name: fullName,
-        telephone: telephone || '',
-        genius_phone: paymentPhone,
-        pays: pays || '',
-        ville: ville || '',
-        course_ids: courseIds,
-        mode: effectiveMode,
-        cours_particuliers: cParticuliers,
-        monthly_amount: monthlyAmount,
-        payment_method: paymentMethod || '',
-        date_naissance: dateNaissance || '',
+        pending_token: pending.token, // Token sécurisé uniquement — pas de données sensibles
       },
       success_url: `${frontendUrl}/payment/success`,
       error_url: `${frontendUrl}/payment/error`,
@@ -134,12 +212,15 @@ export const registerAndPay = async (req: Request, res: Response) => {
 
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
+      // Nettoyer l'entrée pending si le paiement n'a pas pu être initié
+      await prisma.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {});
       return res.status(502).json({ error: 'Le service de paiement est temporairement indisponible' });
     }
 
-    const usedUrl = paymentMethod && METHOD_TO_GP[paymentMethod]
-      ? gpData.payment_url || gpData.checkout_url
-      : gpData.checkout_url || gpData.payment_url;
+    const usedUrl =
+      paymentMethod && METHOD_TO_GP[paymentMethod]
+        ? gpData.payment_url || gpData.checkout_url
+        : gpData.checkout_url || gpData.payment_url;
 
     res.status(200).json({
       success: true,
@@ -148,11 +229,13 @@ export const registerAndPay = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Register and pay error:', error?.message || error);
-    res.status(500).json({ error: 'Erreur lors de l\'initialisation du paiement' });
+    res.status(500).json({ error: "Erreur lors de l'initialisation du paiement" });
   }
 };
 
-// Confirm payment: check GeniusPay status, create user + payment on success
+// ─── Confirmation du paiement ──────────────────────────────────────────────────
+// Récupère les données depuis PendingRegistration via le token sécurisé
+
 export const confirmPayment = async (req: Request, res: Response) => {
   try {
     const { reference } = req.body;
@@ -165,7 +248,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
       headers: {
         'X-API-Key': process.env.GENIUSPAY_API_KEY || '',
         'X-API-Secret': process.env.GENIUSPAY_SECRET_KEY || '',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       signal: AbortSignal.timeout(15000),
     });
@@ -174,26 +257,45 @@ export const confirmPayment = async (req: Request, res: Response) => {
     if (!gpData) {
       return res.status(404).json({ error: 'Transaction introuvable' });
     }
+
     const metadata = gpData.metadata || {};
 
     if (gpData.status === 'completed' || gpData.status === 'success') {
-      const { email, password_hash, name: fullName, telephone, pays, ville, course_ids, mode, cours_particuliers, monthly_amount } = metadata;
+      const pendingToken = metadata.pending_token;
 
-      if (!email || !password_hash) {
-        return res.status(400).json({ error: 'Données de registration manquantes' });
+      if (!pendingToken) {
+        return res.status(400).json({ error: 'Token d\'inscription manquant dans les métadonnées' });
       }
 
-      let user = await prisma.user.findUnique({ where: { email } });
+      // Récupérer les données depuis la base de données via le token sécurisé
+      const pending = await prisma.pendingRegistration.findUnique({
+        where: { token: pendingToken },
+      });
+
+      if (!pending) {
+        // Le paiement est validé mais les données d'inscription ont expiré ou ont déjà été traitées
+        return res.status(400).json({
+          error: 'Données d\'inscription expirées ou déjà traitées. Contactez le support.',
+        });
+      }
+
+      // Vérifier que le token n'est pas expiré
+      if (new Date() > pending.expiresAt) {
+        await prisma.pendingRegistration.delete({ where: { id: pending.id } });
+        return res.status(400).json({ error: 'Session d\'inscription expirée. Veuillez recommencer.' });
+      }
+
+      let user = await prisma.user.findUnique({ where: { email: pending.email } });
 
       if (!user) {
         user = await prisma.user.create({
           data: {
-            email,
-            password: password_hash,
-            name: fullName || email,
-            telephone: telephone || '',
-            pays: pays || '',
-            ville: ville || '',
+            email: pending.email,
+            password: pending.passwordHash,
+            name: pending.name || pending.email,
+            telephone: pending.telephone || '',
+            pays: pending.pays || '',
+            ville: pending.ville || '',
             role: 'STUDENT',
             isActive: true,
           },
@@ -205,12 +307,11 @@ export const confirmPayment = async (req: Request, res: Response) => {
         await prisma.user.update({ where: { id: user.id }, data: { matricule } });
       }
 
-      const courseIdList: string[] = course_ids ? (Array.isArray(course_ids) ? course_ids : [course_ids]) : [];
-      const cParticuliers = cours_particuliers === true || cours_particuliers === 'true';
-      const cMode = mode || 'presentiel';
-
-      const inscriptionAmount = calcRegistrationPrice(pays || '', cMode, ville || '', cParticuliers);
-      const monthlyAmt = monthly_amount ? parseFloat(monthly_amount) : calcMonthlyAmount(pays || '', cMode, cParticuliers, courseIdList.length);
+      const courseIdList: string[] = Array.isArray(pending.courseIds) ? pending.courseIds : [];
+      const monthlyAmt = pending.monthlyAmount ?? 0;
+      const inscriptionAmount = calcRegistrationPrice(
+        pending.pays || '', pending.mode || 'presentiel', pending.ville || '', pending.coursParticuliers
+      );
       const totalAmount = inscriptionAmount + monthlyAmt;
 
       const existingPayment = await prisma.payment.findFirst({
@@ -219,7 +320,12 @@ export const confirmPayment = async (req: Request, res: Response) => {
 
       if (!existingPayment) {
         const payment = await prisma.payment.create({
-          data: { amount: gpData.amount || totalAmount, userId: user.id, status: 'SUCCESS', geniusPayReference: reference },
+          data: {
+            amount: gpData.amount || totalAmount,
+            userId: user.id,
+            status: 'SUCCESS',
+            geniusPayReference: reference,
+          },
         });
         const receiptNumber = generateReceiptNumber();
         await prisma.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
@@ -229,7 +335,6 @@ export const confirmPayment = async (req: Request, res: Response) => {
         const existingSub = await prisma.subscription.findFirst({
           where: { userId: user.id, courseId: cId },
         });
-
         if (!existingSub) {
           const nextPayment = new Date();
           nextPayment.setMonth(nextPayment.getMonth() + 1);
@@ -240,16 +345,27 @@ export const confirmPayment = async (req: Request, res: Response) => {
               amount: monthlyAmt,
               status: 'ACTIVE',
               nextPayment,
-              formule: cMode,
-              coursParticuliers: cParticuliers,
+              formule: pending.mode || 'presentiel',
+              coursParticuliers: pending.coursParticuliers,
             },
           });
         }
       }
 
+      // Supprimer le pending registration — données sensibles nettoyées
+      await prisma.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {});
+
       try {
-        await sendNotification(user.id, "Inscription et paiement validés", `Votre paiement de ${totalAmount.toLocaleString('fr-FR')} FCFA a été reçu et validé avec succès. Bienvenue dans votre parcours de formation !`);
-        await sendNotificationToRole("ADMIN", "Paiement inscription reçu", `L'étudiant(e) ${user.name} a finalisé son inscription et payé ${totalAmount.toLocaleString('fr-FR')} FCFA.`);
+        await sendNotification(
+          user.id,
+          'Inscription et paiement validés',
+          `Votre paiement de ${totalAmount.toLocaleString('fr-FR')} FCFA a été reçu. Bienvenue !`
+        );
+        await sendNotificationToRole(
+          'ADMIN',
+          'Paiement inscription reçu',
+          `Un nouvel étudiant a finalisé son inscription et payé ${totalAmount.toLocaleString('fr-FR')} FCFA.`
+        );
       } catch (err) {
         console.error('Notification error on payment confirmation:', err);
       }
@@ -266,7 +382,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
     res.json({
       success: false,
       status: gpData.status,
-      message: 'Le paiement n\'a pas abouti',
+      message: "Le paiement n'a pas abouti",
     });
   } catch (error: any) {
     console.error('Confirm payment error:', error?.message || error);
@@ -274,134 +390,109 @@ export const confirmPayment = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Connexion ────────────────────────────────────────────────────────────────
+
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-    console.log(`[AUTH] Tentative de connexion pour : ${email}`);
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email et mot de passe requis' });
     }
 
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Format de données invalide' });
+    }
+
     const cleanEmail = email.trim().toLowerCase();
 
-    // Helper to retry query if Neon database is cold-starting
-    const retryWithNeonWakeup = async <T>(fn: () => Promise<T>, retries = 2, delayMs = 2000): Promise<T> => {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          return await fn();
-        } catch (err: any) {
-          const msg = err?.message || String(err);
-          const isSleepOrConn = msg.includes("Can't reach database") ||
-            msg.includes("P1001") ||
-            msg.includes("timeout") ||
-            msg.includes("Connection terminated") ||
-            msg.includes("ETIMEDOUT");
-          if (isSleepOrConn && attempt < retries) {
-            console.log(`[Neon DB] Base en cours de réveil... tentative ${attempt + 1}/${retries} dans ${delayMs}ms`);
-            await new Promise((r) => setTimeout(r, delayMs));
-            continue;
-          }
-          throw err;
-        }
-      }
-      return fn();
-    };
-
-    // 1. Query user with fallback if insensitive query fails and retry on Neon wake-up
+    // Recherche de l'utilisateur avec retry Neon
     let user = null;
     try {
-      user = await retryWithNeonWakeup(async () => {
-        return await prisma.user.findFirst({
-          where: {
-            email: {
-              equals: cleanEmail,
-              mode: 'insensitive'
-            }
-          }
-        });
-      });
+      user = await retryWithNeonWakeup(() =>
+        prisma.user.findFirst({
+          where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+        })
+      );
     } catch (dbErr: any) {
-      console.warn('[AUTH] Requête insensitive échouée, essai avec findUnique:', dbErr?.message);
+      // Fallback si la requête insensitive échoue
       try {
-        user = await retryWithNeonWakeup(async () => {
-          return await prisma.user.findUnique({
-            where: { email: cleanEmail }
-          });
-        });
+        user = await retryWithNeonWakeup(() =>
+          prisma.user.findUnique({ where: { email: cleanEmail } })
+        );
       } catch (innerErr: any) {
         console.error('[AUTH] Erreur base de données critique :', innerErr?.message || innerErr);
         return res.status(500).json({
           error: 'Erreur serveur lors de la connexion',
-          details: `Connexion à la base de données impossible : ${innerErr?.message || 'Base non joignable'}. Vérifiez que Neon n'est pas en veille et que DATABASE_URL est correct.`
+          details: 'Connexion à la base de données impossible.',
         });
       }
     }
 
-    // 2. Auto-create default admin account on the fly if missing
-    if (!user && cleanEmail === 'admin@excellence.ci') {
-      try {
-        const hashedPassword = await bcrypt.hash('password123', 10);
-        user = await prisma.user.create({
-          data: {
-            email: 'admin@excellence.ci',
-            name: 'Administrateur',
-            role: 'ADMIN',
-            password: hashedPassword,
-            isActive: true,
-          }
-        });
-        console.log('[AUTH] Compte Administrateur auto-initialisé avec succès (admin@excellence.ci / password123)');
-      } catch (createErr: any) {
-        console.error('[AUTH] Erreur création admin par défaut :', createErr?.message);
-      }
-    }
-
+    // Message d'erreur identique dans les deux cas (timing attack prevention)
     if (!user || !user.password) {
-      console.log(`[AUTH] Utilisateur non trouvé : ${cleanEmail}`);
+      // Effectuer une comparaison factice pour éviter les timing attacks
+      await bcrypt.compare(password, '$2b$12$invalid.hash.to.prevent.timing.attacks.xxxxxxxx');
+      console.log(`[AUTH] Tentative échouée pour : ${maskEmail(cleanEmail)}`);
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log(`[AUTH] Mot de passe invalide pour : ${cleanEmail}`);
+      console.log(`[AUTH] Mot de passe invalide pour : ${maskEmail(cleanEmail)}`);
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Compte désactivé. Contactez l\'administration.' });
     }
 
     setAuthCookie(res, user.id, user.role);
 
-    console.log(`[AUTH] Connexion réussie : ${cleanEmail} (${user.role})`);
+    console.log(`[AUTH] Connexion réussie : ${maskEmail(cleanEmail)} (${user.role})`);
     res.json({
-      message: 'Logged in successfully',
+      message: 'Connexion réussie',
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (error: any) {
     console.error('Login error:', error?.message || error);
-    res.status(500).json({
-      error: 'Erreur serveur lors de la connexion',
-      details: error?.message || 'Erreur interne inattendue'
-    });
+    res.status(500).json({ error: 'Erreur serveur lors de la connexion' });
   }
 };
 
+// ─── Déconnexion ──────────────────────────────────────────────────────────────
+
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie('token');
-  res.json({ message: 'Logged out successfully' });
+  clearAuthCookie(res);
+  res.json({ message: 'Déconnexion réussie' });
 };
+
+// ─── Profil courant ───────────────────────────────────────────────────────────
 
 export const getMe = async (req: Request, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, email: true, name: true, role: true, image: true, telephone: true, ville: true, pays: true, isActive: true, matricule: true }
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        image: true,
+        telephone: true,
+        ville: true,
+        pays: true,
+        isActive: true,
+        matricule: true,
+      },
     });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch user profile' });
+    res.status(500).json({ error: 'Erreur lors de la récupération du profil' });
   }
 };

@@ -371,3 +371,24 @@ model BlogSubmission {
   updatedAt  DateTime     @updatedAt
   @@unique([exerciseId, studentId])
 }
+
+/// Stockage temporaire des données d'inscription avant confirmation du paiement.
+/// Remplace l'envoi du password_hash dans les métadonnées GeniusPay.
+model PendingRegistration {
+  id              String   @id @default(uuid())
+  token           String   @unique @default(uuid())
+  email           String
+  passwordHash    String
+  name            String?
+  telephone       String?
+  pays            String?
+  ville           String?
+  courseIds       String[] @default([])
+  mode            String?
+  coursParticuliers Boolean @default(false)
+  monthlyAmount   Float?
+  dateNaissance   String?
+  geniusPhone     String?
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+}

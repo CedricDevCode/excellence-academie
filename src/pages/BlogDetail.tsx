@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import DOMPurify from 'dompurify';
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Calendar, User, Tag, ArrowLeft, MessageSquare, BookOpen, Loader2, Trash2, Send, FileUp, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { fetchBlogPostBySlug, createComment, deleteComment, createExercise, deleteExercise, submitExercise, deleteBlogPost } from "../utils/api";
@@ -135,7 +136,7 @@ export default function BlogDetail() {
         <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">{post.title}</h1>
         {post.excerpt && <p className="text-lg text-gray-500 mb-6">{post.excerpt}</p>}
 
-        <div className="prose prose-lg max-w-none mb-12 text-gray-700 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: post.content }} />
+        <div className="prose prose-lg max-w-none mb-12 text-gray-700 leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} />
 
         {/* ─── Exercises ─────────────────────────── */}
         {post.exercises?.length > 0 && (

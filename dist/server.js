@@ -21,6 +21,7 @@ dotenv.config();
 // server/index.ts
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import bcrypt3 from "bcrypt";
 
@@ -48,27 +49,79 @@ import { fileURLToPath as fileURLToPath2 } from "url";
 
 // server/controllers/userController.ts
 import bcrypt from "bcrypt";
+var USER_SAFE_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  telephone: true,
+  pays: true,
+  ville: true,
+  image: true,
+  isActive: true,
+  matricule: true,
+  hourlyRate: true,
+  createdAt: true,
+  updatedAt: true
+};
 var getUsers = async (req, res) => {
   try {
-    const users = await prisma_default.user.findMany({
-      include: {
-        subscriptions: {
-          include: {
-            course: true
+    const page = Math.max(1, parseInt(req.query.page || "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || "50")));
+    const skip = (page - 1) * limit;
+    const search = req.query.search?.trim();
+    const role = req.query.role;
+    const where = {};
+    if (role) where.role = role;
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { matricule: { contains: search, mode: "insensitive" } }
+      ];
+    }
+    const [users, total] = await Promise.all([
+      prisma_default.user.findMany({
+        where,
+        select: {
+          ...USER_SAFE_SELECT,
+          subscriptions: {
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+              nextPayment: true,
+              course: { select: { id: true, title: true } }
+            }
+          },
+          payments: {
+            select: {
+              id: true,
+              amount: true,
+              status: true,
+              createdAt: true,
+              course: { select: { id: true, title: true } }
+            }
           }
         },
-        payments: {
-          include: {
-            course: true
-          }
-        }
-      },
-      orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      prisma_default.user.count({ where })
+    ]);
+    res.json({
+      users,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
     });
-    res.json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
-    res.status(500).json({ error: "Failed to fetch users" });
+    res.status(500).json({ error: "Erreur lors de la r\xE9cup\xE9ration des utilisateurs" });
   }
 };
 var createUser = async (req, res) => {
@@ -77,27 +130,32 @@ var createUser = async (req, res) => {
     if (!email || !password || !role) {
       return res.status(400).json({ error: "Email, mot de passe et r\xF4le sont requis" });
     }
-    const existingUser = await prisma_default.user.findUnique({ where: { email } });
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = await prisma_default.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
       return res.status(400).json({ error: "Cet email est d\xE9j\xE0 utilis\xE9" });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const fullName = name || [prenom, nom].filter(Boolean).join(" ").trim() || email;
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const fullName = name || [prenom, nom].filter(Boolean).join(" ").trim() || cleanEmail;
     const user = await prisma_default.user.create({
       data: {
-        email,
+        email: cleanEmail,
         password: hashedPassword,
         name: fullName,
         role: role || "TEACHER",
         telephone,
         ville,
         hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null
-      }
+      },
+      select: USER_SAFE_SELECT
     });
     res.status(201).json(user);
   } catch (error) {
     console.error("Error creating user:", error);
-    res.status(500).json({ error: "Failed to create user" });
+    res.status(500).json({ error: "Erreur lors de la cr\xE9ation de l'utilisateur" });
   }
 };
 var updateUser = async (req, res) => {
@@ -108,7 +166,7 @@ var updateUser = async (req, res) => {
       return res.status(400).json({ error: "ID utilisateur requis" });
     }
     const updateData = {};
-    if (email !== void 0) updateData.email = email;
+    if (email !== void 0) updateData.email = email.trim().toLowerCase();
     if (role !== void 0) updateData.role = role;
     if (telephone !== void 0) updateData.telephone = telephone;
     if (pays !== void 0) updateData.pays = pays;
@@ -122,16 +180,20 @@ var updateUser = async (req, res) => {
       updateData.name = [prenom, nom].filter(Boolean).join(" ").trim();
     }
     if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
+      if (typeof password !== "string" || password.length < 8) {
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+      }
+      updateData.password = await bcrypt.hash(password, 12);
     }
     const user = await prisma_default.user.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      select: USER_SAFE_SELECT
     });
     res.json(user);
   } catch (error) {
     console.error("Error updating user:", error);
-    res.status(500).json({ error: "Failed to update user" });
+    res.status(500).json({ error: "Erreur lors de la mise \xE0 jour de l'utilisateur" });
   }
 };
 var updateMyProfile = async (req, res) => {
@@ -143,16 +205,31 @@ var updateMyProfile = async (req, res) => {
     if (ville !== void 0) updateData.ville = ville;
     if (pays !== void 0) updateData.pays = pays;
     if (image !== void 0) updateData.image = image;
-    if (password) updateData.password = await bcrypt.hash(password, 10);
+    if (password) {
+      if (typeof password !== "string" || password.length < 8) {
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+      }
+      updateData.password = await bcrypt.hash(password, 12);
+    }
     const user = await prisma_default.user.update({
       where: { id: req.user.id },
       data: updateData,
-      select: { id: true, email: true, name: true, role: true, telephone: true, ville: true, pays: true, image: true, isActive: true }
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        telephone: true,
+        ville: true,
+        pays: true,
+        image: true,
+        isActive: true
+      }
     });
     res.json(user);
   } catch (error) {
     console.error("Error updating profile:", error);
-    res.status(500).json({ error: "Failed to update profile" });
+    res.status(500).json({ error: "Erreur lors de la mise \xE0 jour du profil" });
   }
 };
 var deleteUser = async (req, res) => {
@@ -160,6 +237,9 @@ var deleteUser = async (req, res) => {
     const id = req.params.id;
     if (!id) {
       return res.status(400).json({ error: "ID utilisateur requis" });
+    }
+    if (id === req.user?.id) {
+      return res.status(400).json({ error: "Vous ne pouvez pas supprimer votre propre compte." });
     }
     await prisma_default.$transaction([
       prisma_default.receipt.deleteMany({ where: { userId: id } }),
@@ -173,7 +253,7 @@ var deleteUser = async (req, res) => {
     res.json({ message: "Utilisateur supprim\xE9 avec succ\xE8s" });
   } catch (error) {
     console.error("Error deleting user:", error);
-    res.status(500).json({ error: "Failed to delete user" });
+    res.status(500).json({ error: "Erreur lors de la suppression de l'utilisateur" });
   }
 };
 
@@ -182,25 +262,48 @@ import jwt from "jsonwebtoken";
 var authenticateToken = async (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
-    return res.status(401).json({ error: "Access denied. No token provided." });
+    return res.status(401).json({ error: "Acc\xE8s refus\xE9. Authentification requise." });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret");
-    const user = await prisma_default.user.findUnique({ where: { id: decoded.userId } });
+    const secret = process.env.JWT_SECRET;
+    const decoded = jwt.verify(token, secret);
+    const user = await prisma_default.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        matricule: true
+      }
+    });
     if (!user) {
-      return res.status(401).json({ error: "User not found" });
+      return res.status(401).json({ error: "Utilisateur introuvable ou supprim\xE9." });
+    }
+    if (!user.isActive) {
+      return res.status(403).json({ error: "Compte d\xE9sactiv\xE9. Contactez l'administration." });
     }
     req.user = user;
     next();
   } catch (error) {
-    res.status(403).json({ error: "Invalid token." });
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ error: "Session expir\xE9e. Veuillez vous reconnecter." });
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(403).json({ error: "Token invalide." });
+    }
+    return res.status(500).json({ error: "Erreur d'authentification." });
   }
 };
 var authMiddleware = authenticateToken;
 var requireRole = (roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: "Forbidden: Insufficient role permissions" });
+    if (!req.user) {
+      return res.status(401).json({ error: "Non authentifi\xE9." });
+    }
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Acc\xE8s refus\xE9 : permissions insuffisantes." });
     }
     next();
   };
@@ -214,11 +317,20 @@ var upload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, userUploadsDir),
     filename: (_req, file, cb) => {
-      const ext = path2.extname(file.originalname);
+      const ext = path2.extname(file.originalname).toLowerCase();
       cb(null, `${crypto.randomUUID()}${ext}`);
     }
   }),
-  limits: { fileSize: 5 * 1024 * 1024 }
+  limits: { fileSize: 5 * 1024 * 1024 },
+  // 5 MB
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Format invalide. Seules les images (JPEG, PNG, WebP, GIF) sont autoris\xE9es."));
+    }
+  }
 });
 var router = Router();
 router.use(authenticateToken);
@@ -649,7 +761,10 @@ var initPayment = async (req, res) => {
       return res.status(400).json({ error: "userId, courseId et formule sont requis" });
     }
     const amount = calcRegistrationPrice("", "presentiel", "", false);
-    const user = await prisma_default.user.findUnique({ where: { id: userId } });
+    const user = await prisma_default.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, telephone: true }
+    });
     if (!user) {
       return res.status(404).json({ error: "Utilisateur introuvable" });
     }
@@ -670,6 +785,7 @@ var initPayment = async (req, res) => {
         user_id: userId,
         course_id: courseId,
         formule
+        // Pas de données sensibles dans les métadonnées
       },
       success_url: successUrl || `${baseUrl}/payment/success`,
       error_url: errorUrl || `${baseUrl}/payment/error`
@@ -680,12 +796,13 @@ var initPayment = async (req, res) => {
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments`, {
       method: "POST",
       headers: geniusPayHeaders(),
-      body: JSON.stringify(geniusPayBody)
+      body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15e3)
     });
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
       return res.status(502).json({
-        error: "Le service de paiement est temporairement indisponible. Veuillez r\xE9essayer ou contacter l'administrateur."
+        error: "Le service de paiement est temporairement indisponible. Veuillez r\xE9essayer."
       });
     }
     const payment = await prisma_default.payment.create({
@@ -700,13 +817,7 @@ var initPayment = async (req, res) => {
     const nextPayment = /* @__PURE__ */ new Date();
     nextPayment.setMonth(nextPayment.getMonth() + 1);
     await prisma_default.subscription.create({
-      data: {
-        userId,
-        courseId,
-        amount,
-        status: "PENDING",
-        nextPayment
-      }
+      data: { userId, courseId, amount, status: "PENDING", nextPayment }
     });
     res.status(200).json({
       success: true,
@@ -727,7 +838,8 @@ var checkPaymentStatus = async (req, res) => {
       return res.status(400).json({ error: "R\xE9f\xE9rence requise" });
     }
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments/${reference}`, {
-      headers: geniusPayHeaders()
+      headers: geniusPayHeaders(),
+      signal: AbortSignal.timeout(15e3)
     });
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
@@ -748,7 +860,7 @@ var checkPaymentStatus = async (req, res) => {
           data: { isActive: true }
         });
       }
-    } else if (gpData.status === "failed" || gpData.status === "cancelled" || gpData.status === "expired") {
+    } else if (["failed", "cancelled", "expired"].includes(gpData.status)) {
       await prisma_default.payment.updateMany({
         where: { geniusPayReference: reference },
         data: { status: "FAILED" }
@@ -766,9 +878,8 @@ var checkPaymentStatus = async (req, res) => {
       fees: gpData.fees,
       netAmount: gpData.net_amount,
       paymentMethod: gpData.payment_method,
-      customer: gpData.customer,
-      metadata: gpData.metadata,
       environment: gpData.environment
+      // Ne pas exposer customer et metadata (données personnelles)
     });
   } catch (error) {
     console.error("GeniusPay status check error:", error);
@@ -780,24 +891,29 @@ var handleWebhook = async (req, res) => {
     const signature = req.headers["x-webhook-signature"];
     const timestamp = req.headers["x-webhook-timestamp"];
     const event = req.headers["x-webhook-event"];
-    const environment = req.headers["x-webhook-environment"];
+    const rawBody = req.rawBody;
     if (!GENIUSPAY_WEBHOOK_SECRET) {
       if (GENIUSPAY_ENVIRONMENT !== "sandbox") {
-        console.warn("GENIUSPAY_WEBHOOK_SECRET not configured. Skipping signature verification.");
+        console.error("[Webhook] GENIUSPAY_WEBHOOK_SECRET non configur\xE9. Webhook rejet\xE9 en production.");
+        return res.status(401).json({ error: "Configuration webhook manquante" });
       }
-    } else if (signature && timestamp) {
-      const rawBody = req.rawBody;
-      if (rawBody) {
-        const data = `${timestamp}.${rawBody}`;
-        const expectedSignature = crypto2.createHmac("sha256", GENIUSPAY_WEBHOOK_SECRET).update(data).digest("hex");
-        if (!crypto2.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature))) {
-          return res.status(401).json({ status: 401, detail: "Invalid signature" });
-        }
+      console.warn("[Webhook] Mode sandbox : v\xE9rification de signature d\xE9sactiv\xE9e");
+    } else {
+      if (!signature || !timestamp || !rawBody) {
+        console.warn("[Webhook] Signature, timestamp ou corps brut manquant. Rejet\xE9.");
+        return res.status(401).json({ error: "Donn\xE9es de signature manquantes" });
+      }
+      const data = `${timestamp}.${rawBody}`;
+      const expectedSignature = crypto2.createHmac("sha256", GENIUSPAY_WEBHOOK_SECRET).update(data).digest("hex");
+      if (expectedSignature.length !== signature.length || !crypto2.timingSafeEqual(Buffer.from(expectedSignature, "hex"), Buffer.from(signature, "hex"))) {
+        console.warn("[Webhook] Signature invalide. Rejet\xE9.");
+        return res.status(401).json({ error: "Signature invalide" });
       }
       const now = Math.floor(Date.now() / 1e3);
       const ts = parseInt(timestamp, 10);
-      if (ts && Math.abs(now - ts) > 300) {
-        return res.status(400).json({ status: 400, detail: "Timestamp too old" });
+      if (!ts || Math.abs(now - ts) > 300) {
+        console.warn("[Webhook] Timestamp trop ancien ou invalide. Rejet\xE9.");
+        return res.status(400).json({ error: "Timestamp expir\xE9" });
       }
     }
     const payload = req.body;
@@ -805,8 +921,6 @@ var handleWebhook = async (req, res) => {
       const data = payload.data || payload;
       const reference = data.reference;
       const metadata = data.metadata || {};
-      const userId = metadata.user_id;
-      const courseId = metadata.course_id;
       if (metadata.action === "shop_order") {
         const orderId = metadata.order_id;
         if (orderId) {
@@ -815,34 +929,35 @@ var handleWebhook = async (req, res) => {
             data: { status: "PAID" }
           });
           try {
-            const mailOptions = {
-              to: order.customerEmail,
-              subject: `Confirmation de paiement - Excellence Acad\xE9mie`,
-              html: `<p>Bonjour ${order.customerName},</p>
-                     <p>Nous avons bien re\xE7u le paiement de ${order.totalAmount} FCFA pour votre commande (Ref: ${order.id}).</p>
-                     <p>Nous la traiterons dans les plus brefs d\xE9lais.</p>
-                     <p>Merci de votre confiance !</p>
-                     <p>L'\xE9quipe Excellence Acad\xE9mie</p>`
-            };
-            await sendDirectEmail(mailOptions.to, mailOptions.subject, mailOptions.html);
+            await sendDirectEmail(
+              order.customerEmail,
+              `Confirmation de paiement - Excellence Acad\xE9mie`,
+              `<p>Bonjour ${order.customerName},</p>
+               <p>Nous avons bien re\xE7u le paiement de ${order.totalAmount} FCFA pour votre commande (Ref: ${order.id}).</p>
+               <p>Nous la traiterons dans les plus brefs d\xE9lais.</p>
+               <p>Merci de votre confiance !</p>
+               <p>L'\xE9quipe Excellence Acad\xE9mie</p>`
+            );
           } catch (err) {
-            console.error("Failed to send shop order payment confirmation email", err);
+            console.error("[Webhook] Erreur envoi email commande boutique:", err);
           }
-          console.log(`Webhook: Shop Order paid - ${orderId}`);
+          console.log(`[Webhook] Commande boutique pay\xE9e : ${orderId}`);
         }
-      } else if (!userId && metadata.action === "register") {
-        const { email, password_hash, name: fullName, telephone, pays, ville, course_ids, mode, cours_particuliers, monthly_amount } = metadata;
-        if (email && password_hash && course_ids) {
-          let user = await prisma_default.user.findUnique({ where: { email } });
+      } else if (metadata.action === "register" && metadata.pending_token) {
+        const pending = await prisma_default.pendingRegistration.findUnique({
+          where: { token: metadata.pending_token }
+        });
+        if (pending && /* @__PURE__ */ new Date() <= pending.expiresAt) {
+          let user = await prisma_default.user.findUnique({ where: { email: pending.email } });
           if (!user) {
             user = await prisma_default.user.create({
               data: {
-                email,
-                password: password_hash,
-                name: fullName || email,
-                telephone: telephone || "",
-                pays: pays || "",
-                ville: ville || "",
+                email: pending.email,
+                password: pending.passwordHash,
+                name: pending.name || pending.email,
+                telephone: pending.telephone || "",
+                pays: pending.pays || "",
+                ville: pending.ville || "",
                 role: "STUDENT",
                 isActive: true
               }
@@ -850,11 +965,11 @@ var handleWebhook = async (req, res) => {
             const matricule = await generateMatricule();
             await prisma_default.user.update({ where: { id: user.id }, data: { matricule } });
           }
-          const courseIdList = course_ids ? Array.isArray(course_ids) ? course_ids : [course_ids] : [courseId].filter(Boolean);
-          const cParticuliers = cours_particuliers === true || cours_particuliers === "true";
-          const cMode = mode || "presentiel";
-          const monthlyAmt = monthly_amount ? parseFloat(monthly_amount) : calcMonthlyAmount(pays || "", cMode, cParticuliers, courseIdList.length);
-          const existingPayment = await prisma_default.payment.findFirst({ where: { geniusPayReference: reference } });
+          const courseIdList = Array.isArray(pending.courseIds) ? pending.courseIds : [];
+          const monthlyAmt = pending.monthlyAmount ?? 0;
+          const existingPayment = await prisma_default.payment.findFirst({
+            where: { geniusPayReference: reference }
+          });
           if (!existingPayment) {
             const payment = await prisma_default.payment.create({
               data: { amount: data.amount || 0, userId: user.id, status: "SUCCESS", geniusPayReference: reference }
@@ -863,7 +978,9 @@ var handleWebhook = async (req, res) => {
             await prisma_default.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
           }
           for (const cId of courseIdList) {
-            const existingSub = await prisma_default.subscription.findFirst({ where: { userId: user.id, courseId: cId } });
+            const existingSub = await prisma_default.subscription.findFirst({
+              where: { userId: user.id, courseId: cId }
+            });
             if (!existingSub) {
               const np = /* @__PURE__ */ new Date();
               np.setMonth(np.getMonth() + 1);
@@ -874,13 +991,17 @@ var handleWebhook = async (req, res) => {
                   amount: monthlyAmt,
                   status: "ACTIVE",
                   nextPayment: np,
-                  formule: cMode,
-                  coursParticuliers: cParticuliers
+                  formule: pending.mode || "presentiel",
+                  coursParticuliers: pending.coursParticuliers
                 }
               });
             }
           }
-          console.log(`Webhook: User created from payment - ${email}`);
+          await prisma_default.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {
+          });
+          console.log(`[Webhook] Utilisateur cr\xE9\xE9 depuis paiement (token s\xE9curis\xE9)`);
+        } else {
+          console.warn("[Webhook] pending_token expir\xE9 ou introuvable:", metadata.pending_token);
         }
       } else if (metadata.type === "mensualite" && metadata.subscription_id) {
         const nbMonths = parseInt(metadata.months) || 1;
@@ -900,9 +1021,7 @@ var handleWebhook = async (req, res) => {
           const receiptNumber = generateReceiptNumber();
           await prisma_default.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
         }
-        const sub = await prisma_default.subscription.findUnique({
-          where: { id: metadata.subscription_id }
-        });
+        const sub = await prisma_default.subscription.findUnique({ where: { id: metadata.subscription_id } });
         if (sub) {
           const nextPayment = new Date(sub.nextPayment);
           nextPayment.setMonth(nextPayment.getMonth() + nbMonths);
@@ -918,32 +1037,36 @@ var handleWebhook = async (req, res) => {
             data: { status: "SUCCESS" }
           });
         }
+        const userId = metadata.user_id;
+        const courseId = metadata.course_id;
         if (userId && courseId) {
           await prisma_default.subscription.updateMany({
             where: { userId, courseId, status: "PENDING" },
             data: { status: "ACTIVE" }
           });
-          await prisma_default.user.update({
-            where: { id: userId },
-            data: { isActive: true }
-          });
+          await prisma_default.user.update({ where: { id: userId }, data: { isActive: true } });
         }
       }
-      console.log(`Webhook: Payment successful - reference: ${reference}`);
+      console.log(`[Webhook] Paiement r\xE9ussi - r\xE9f\xE9rence: ${reference}`);
     } else if (event === "payment.failed" || payload.event === "payment.failed") {
       const data = payload.data || payload;
       const reference = data.reference;
+      const metadata = data.metadata || {};
       if (reference) {
         await prisma_default.payment.updateMany({
           where: { geniusPayReference: reference },
           data: { status: "FAILED" }
         });
       }
-      console.log(`Webhook: Payment failed - reference: ${reference}`);
+      if (metadata.pending_token) {
+        await prisma_default.pendingRegistration.delete({ where: { token: metadata.pending_token } }).catch(() => {
+        });
+      }
+      console.log(`[Webhook] Paiement \xE9chou\xE9 - r\xE9f\xE9rence: ${reference}`);
     }
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error("Webhook handling error:", error);
+    console.error("[Webhook] Erreur de traitement:", error);
     res.status(200).json({ received: true });
   }
 };
@@ -951,8 +1074,8 @@ var handleWebhook = async (req, res) => {
 // server/routes/paymentRoutes.ts
 var router2 = Router2();
 router2.post("/webhook", handleWebhook);
-router2.get("/geniuspay/status/:reference", checkPaymentStatus);
 router2.use(authenticateToken);
+router2.get("/geniuspay/status/:reference", checkPaymentStatus);
 router2.get("/my-payments", getMyPayments);
 router2.get("/", requireRole(["ADMIN", "ACCOUNTANT"]), getPayments);
 router2.post("/initialize", initializePayment);
@@ -962,42 +1085,86 @@ var paymentRoutes_default = router2;
 
 // server/routes/authRoutes.ts
 import { Router as Router3 } from "express";
+import rateLimit from "express-rate-limit";
 
 // server/controllers/authController.ts
 import bcrypt2 from "bcrypt";
 
 // server/utils/jwt.ts
 import jwt2 from "jsonwebtoken";
-var JWT_SECRET = process.env.JWT_SECRET || "5a15b35f8e82b251380c15237e12c73b0bba9718318a1a030c24990792e60a65";
+var JWT_SECRET = process.env.JWT_SECRET;
+var TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 function signToken(userId, role) {
-  return jwt2.sign({ userId, role }, JWT_SECRET, { expiresIn: "24h" });
+  return jwt2.sign({ userId, role }, JWT_SECRET, { expiresIn: TOKEN_TTL_SECONDS });
 }
 function setAuthCookie(res, userId, role) {
   const token = signToken(userId, role);
   res.cookie("token", token, {
     httpOnly: true,
+    // Inaccessible via JavaScript côté client
     secure: process.env.NODE_ENV === "production",
-    maxAge: 24 * 60 * 60 * 1e3,
-    sameSite: "lax"
+    // HTTPS uniquement en production
+    sameSite: "strict",
+    // Protection CSRF stricte
+    maxAge: TOKEN_TTL_SECONDS * 1e3,
+    // Durée en millisecondes
+    path: "/"
+  });
+}
+function clearAuthCookie(res) {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/"
   });
 }
 
 // server/controllers/authController.ts
+function maskEmail(email) {
+  const [local, domain] = email.split("@");
+  if (!domain) return "***";
+  const [domainName, ...tld] = domain.split(".");
+  const maskedLocal = local.slice(0, 2) + "**";
+  const maskedDomain = domainName.slice(0, 1) + "***";
+  return `${maskedLocal}@${maskedDomain}.${tld.join(".")}`;
+}
+async function retryWithNeonWakeup(fn, retries = 2, delayMs = 2e3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = err?.message || String(err);
+      const isConnError = msg.includes("Can't reach database") || msg.includes("P1001") || msg.includes("timeout") || msg.includes("Connection terminated") || msg.includes("ETIMEDOUT");
+      if (isConnError && attempt < retries) {
+        console.log(`[Neon DB] Base en cours de r\xE9veil... tentative ${attempt + 1}/${retries}`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  return fn();
+}
 var register = async (req, res) => {
   try {
     const { email, password, name, nom, prenom, role, telephone, pays, ville } = req.body;
-    if (!password) {
-      return res.status(400).json({ error: "Le mot de passe est requis" });
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email et mot de passe sont requis" });
     }
-    const existingUser = await prisma_default.user.findUnique({ where: { email } });
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = await prisma_default.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
       return res.status(400).json({ error: "Cet email est d\xE9j\xE0 utilis\xE9" });
     }
-    const hashedPassword = await bcrypt2.hash(password, 10);
-    const fullName = name || [prenom, nom].filter(Boolean).join(" ") || email;
+    const hashedPassword = await bcrypt2.hash(password, 12);
+    const fullName = name || [prenom, nom].filter(Boolean).join(" ") || cleanEmail;
     const user = await prisma_default.user.create({
       data: {
-        email,
+        email: cleanEmail,
         password: hashedPassword,
         name: fullName,
         telephone,
@@ -1013,24 +1180,51 @@ var register = async (req, res) => {
     }
     setAuthCookie(res, user.id, user.role);
     try {
-      await sendNotification(user.id, "Bienvenue chez Excellence Acad\xE9mie !", "Votre compte a \xE9t\xE9 cr\xE9\xE9 avec succ\xE8s. Acc\xE9dez d\xE8s \xE0 pr\xE9sent \xE0 vos cours, emplois du temps et ressources.");
-      await sendNotificationToRole("ADMIN", "Nouvelle inscription", `L'\xE9tudiant(e) ${user.name} (${user.email}) vient de s'inscrire sur la plateforme.`);
+      await sendNotification(
+        user.id,
+        "Bienvenue chez Excellence Acad\xE9mie !",
+        "Votre compte a \xE9t\xE9 cr\xE9\xE9 avec succ\xE8s. Acc\xE9dez d\xE8s \xE0 pr\xE9sent \xE0 vos cours, emplois du temps et ressources."
+      );
+      await sendNotificationToRole(
+        "ADMIN",
+        "Nouvelle inscription",
+        `Un nouvel \xE9tudiant vient de s'inscrire sur la plateforme.`
+      );
     } catch (err) {
       console.error("Notification error on registration:", err);
     }
-    res.status(201).json({ message: "User registered successfully", userId: user.id });
+    res.status(201).json({ message: "Compte cr\xE9\xE9 avec succ\xE8s", userId: user.id });
   } catch (error) {
     console.error("Registration error:", error);
-    res.status(500).json({ error: "Failed to register" });
+    res.status(500).json({ error: "Erreur lors de la cr\xE9ation du compte" });
   }
 };
 var registerAndPay = async (req, res) => {
   try {
-    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, paymentMethod, geniusPhone, dateNaissance } = req.body;
+    const {
+      email,
+      password,
+      name,
+      nom,
+      prenom,
+      telephone,
+      pays,
+      ville,
+      courseIds,
+      mode,
+      coursParticuliers,
+      paymentMethod,
+      geniusPhone,
+      dateNaissance
+    } = req.body;
     if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
       return res.status(400).json({ error: "Email, mot de passe et au moins un concours sont requis" });
     }
-    const existingUser = await prisma_default.user.findUnique({ where: { email } });
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = await prisma_default.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
       return res.status(400).json({ error: "Cet email est d\xE9j\xE0 utilis\xE9" });
     }
@@ -1044,10 +1238,28 @@ var registerAndPay = async (req, res) => {
     const registrationAmount = calcRegistrationPrice(pays || "", effectiveMode, ville || "", cParticuliers);
     const monthlyAmount = calcMonthlyAmount(pays || "", effectiveMode, cParticuliers, courseIds.length);
     const amount = registrationAmount + monthlyAmount;
-    const hashedPassword = await bcrypt2.hash(password, 10);
-    const fullName = name || [prenom, nom].filter(Boolean).join(" ") || email;
+    const hashedPassword = await bcrypt2.hash(password, 12);
+    const fullName = name || [prenom, nom].filter(Boolean).join(" ") || cleanEmail;
     const paymentPhone = geniusPhone || telephone || "";
     const frontendUrl2 = process.env.FRONTEND_URL || "http://localhost:5173";
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1e3);
+    const pending = await prisma_default.pendingRegistration.create({
+      data: {
+        email: cleanEmail,
+        passwordHash: hashedPassword,
+        name: fullName,
+        telephone: telephone || "",
+        pays: pays || "",
+        ville: ville || "",
+        courseIds,
+        mode: effectiveMode,
+        coursParticuliers: cParticuliers,
+        monthlyAmount,
+        dateNaissance: dateNaissance || "",
+        geniusPhone: paymentPhone,
+        expiresAt
+      }
+    });
     const courseTitles = courses.map((c) => c.title).join(", ");
     const label = cParticuliers ? "Cours particuliers" : `Inscription (${effectiveMode})`;
     const geniusPayBody = {
@@ -1056,24 +1268,13 @@ var registerAndPay = async (req, res) => {
       customer: {
         name: fullName,
         phone: paymentPhone,
-        email,
+        email: cleanEmail,
         country: COUNTRY_TO_ISO2[pays || ""] || "CI"
       },
       metadata: {
         action: "register",
-        email,
-        password_hash: hashedPassword,
-        name: fullName,
-        telephone: telephone || "",
-        genius_phone: paymentPhone,
-        pays: pays || "",
-        ville: ville || "",
-        course_ids: courseIds,
-        mode: effectiveMode,
-        cours_particuliers: cParticuliers,
-        monthly_amount: monthlyAmount,
-        payment_method: paymentMethod || "",
-        date_naissance: dateNaissance || ""
+        pending_token: pending.token
+        // Token sécurisé uniquement — pas de données sensibles
       },
       success_url: `${frontendUrl2}/payment/success`,
       error_url: `${frontendUrl2}/payment/error`
@@ -1089,6 +1290,8 @@ var registerAndPay = async (req, res) => {
     });
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
+      await prisma_default.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {
+      });
       return res.status(502).json({ error: "Le service de paiement est temporairement indisponible" });
     }
     const usedUrl = paymentMethod && METHOD_TO_GP[paymentMethod] ? gpData.payment_url || gpData.checkout_url : gpData.checkout_url || gpData.payment_url;
@@ -1112,7 +1315,7 @@ var confirmPayment = async (req, res) => {
       headers: {
         "X-API-Key": process.env.GENIUSPAY_API_KEY || "",
         "X-API-Secret": process.env.GENIUSPAY_SECRET_KEY || "",
-        "Accept": "application/json"
+        Accept: "application/json"
       },
       signal: AbortSignal.timeout(15e3)
     });
@@ -1122,20 +1325,32 @@ var confirmPayment = async (req, res) => {
     }
     const metadata = gpData.metadata || {};
     if (gpData.status === "completed" || gpData.status === "success") {
-      const { email, password_hash, name: fullName, telephone, pays, ville, course_ids, mode, cours_particuliers, monthly_amount } = metadata;
-      if (!email || !password_hash) {
-        return res.status(400).json({ error: "Donn\xE9es de registration manquantes" });
+      const pendingToken = metadata.pending_token;
+      if (!pendingToken) {
+        return res.status(400).json({ error: "Token d'inscription manquant dans les m\xE9tadonn\xE9es" });
       }
-      let user = await prisma_default.user.findUnique({ where: { email } });
+      const pending = await prisma_default.pendingRegistration.findUnique({
+        where: { token: pendingToken }
+      });
+      if (!pending) {
+        return res.status(400).json({
+          error: "Donn\xE9es d'inscription expir\xE9es ou d\xE9j\xE0 trait\xE9es. Contactez le support."
+        });
+      }
+      if (/* @__PURE__ */ new Date() > pending.expiresAt) {
+        await prisma_default.pendingRegistration.delete({ where: { id: pending.id } });
+        return res.status(400).json({ error: "Session d'inscription expir\xE9e. Veuillez recommencer." });
+      }
+      let user = await prisma_default.user.findUnique({ where: { email: pending.email } });
       if (!user) {
         user = await prisma_default.user.create({
           data: {
-            email,
-            password: password_hash,
-            name: fullName || email,
-            telephone: telephone || "",
-            pays: pays || "",
-            ville: ville || "",
+            email: pending.email,
+            password: pending.passwordHash,
+            name: pending.name || pending.email,
+            telephone: pending.telephone || "",
+            pays: pending.pays || "",
+            ville: pending.ville || "",
             role: "STUDENT",
             isActive: true
           }
@@ -1145,18 +1360,26 @@ var confirmPayment = async (req, res) => {
         const matricule = await generateMatricule();
         await prisma_default.user.update({ where: { id: user.id }, data: { matricule } });
       }
-      const courseIdList = course_ids ? Array.isArray(course_ids) ? course_ids : [course_ids] : [];
-      const cParticuliers = cours_particuliers === true || cours_particuliers === "true";
-      const cMode = mode || "presentiel";
-      const inscriptionAmount = calcRegistrationPrice(pays || "", cMode, ville || "", cParticuliers);
-      const monthlyAmt = monthly_amount ? parseFloat(monthly_amount) : calcMonthlyAmount(pays || "", cMode, cParticuliers, courseIdList.length);
+      const courseIdList = Array.isArray(pending.courseIds) ? pending.courseIds : [];
+      const monthlyAmt = pending.monthlyAmount ?? 0;
+      const inscriptionAmount = calcRegistrationPrice(
+        pending.pays || "",
+        pending.mode || "presentiel",
+        pending.ville || "",
+        pending.coursParticuliers
+      );
       const totalAmount = inscriptionAmount + monthlyAmt;
       const existingPayment = await prisma_default.payment.findFirst({
         where: { geniusPayReference: reference }
       });
       if (!existingPayment) {
         const payment = await prisma_default.payment.create({
-          data: { amount: gpData.amount || totalAmount, userId: user.id, status: "SUCCESS", geniusPayReference: reference }
+          data: {
+            amount: gpData.amount || totalAmount,
+            userId: user.id,
+            status: "SUCCESS",
+            geniusPayReference: reference
+          }
         });
         const receiptNumber = generateReceiptNumber();
         await prisma_default.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
@@ -1175,15 +1398,25 @@ var confirmPayment = async (req, res) => {
               amount: monthlyAmt,
               status: "ACTIVE",
               nextPayment,
-              formule: cMode,
-              coursParticuliers: cParticuliers
+              formule: pending.mode || "presentiel",
+              coursParticuliers: pending.coursParticuliers
             }
           });
         }
       }
+      await prisma_default.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {
+      });
       try {
-        await sendNotification(user.id, "Inscription et paiement valid\xE9s", `Votre paiement de ${totalAmount.toLocaleString("fr-FR")} FCFA a \xE9t\xE9 re\xE7u et valid\xE9 avec succ\xE8s. Bienvenue dans votre parcours de formation !`);
-        await sendNotificationToRole("ADMIN", "Paiement inscription re\xE7u", `L'\xE9tudiant(e) ${user.name} a finalis\xE9 son inscription et pay\xE9 ${totalAmount.toLocaleString("fr-FR")} FCFA.`);
+        await sendNotification(
+          user.id,
+          "Inscription et paiement valid\xE9s",
+          `Votre paiement de ${totalAmount.toLocaleString("fr-FR")} FCFA a \xE9t\xE9 re\xE7u. Bienvenue !`
+        );
+        await sendNotificationToRole(
+          "ADMIN",
+          "Paiement inscription re\xE7u",
+          `Un nouvel \xE9tudiant a finalis\xE9 son inscription et pay\xE9 ${totalAmount.toLocaleString("fr-FR")} FCFA.`
+        );
       } catch (err) {
         console.error("Notification error on payment confirmation:", err);
       }
@@ -1207,86 +1440,50 @@ var confirmPayment = async (req, res) => {
 var login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(`[AUTH] Tentative de connexion pour : ${email}`);
     if (!email || !password) {
       return res.status(400).json({ error: "Email et mot de passe requis" });
     }
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({ error: "Format de donn\xE9es invalide" });
+    }
     const cleanEmail = email.trim().toLowerCase();
-    const retryWithNeonWakeup = async (fn, retries = 2, delayMs = 2e3) => {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          return await fn();
-        } catch (err) {
-          const msg = err?.message || String(err);
-          const isSleepOrConn = msg.includes("Can't reach database") || msg.includes("P1001") || msg.includes("timeout") || msg.includes("Connection terminated") || msg.includes("ETIMEDOUT");
-          if (isSleepOrConn && attempt < retries) {
-            console.log(`[Neon DB] Base en cours de r\xE9veil... tentative ${attempt + 1}/${retries} dans ${delayMs}ms`);
-            await new Promise((r) => setTimeout(r, delayMs));
-            continue;
-          }
-          throw err;
-        }
-      }
-      return fn();
-    };
     let user = null;
     try {
-      user = await retryWithNeonWakeup(async () => {
-        return await prisma_default.user.findFirst({
-          where: {
-            email: {
-              equals: cleanEmail,
-              mode: "insensitive"
-            }
-          }
-        });
-      });
+      user = await retryWithNeonWakeup(
+        () => prisma_default.user.findFirst({
+          where: { email: { equals: cleanEmail, mode: "insensitive" } }
+        })
+      );
     } catch (dbErr) {
-      console.warn("[AUTH] Requ\xEAte insensitive \xE9chou\xE9e, essai avec findUnique:", dbErr?.message);
       try {
-        user = await retryWithNeonWakeup(async () => {
-          return await prisma_default.user.findUnique({
-            where: { email: cleanEmail }
-          });
-        });
+        user = await retryWithNeonWakeup(
+          () => prisma_default.user.findUnique({ where: { email: cleanEmail } })
+        );
       } catch (innerErr) {
         console.error("[AUTH] Erreur base de donn\xE9es critique :", innerErr?.message || innerErr);
         return res.status(500).json({
           error: "Erreur serveur lors de la connexion",
-          details: `Connexion \xE0 la base de donn\xE9es impossible : ${innerErr?.message || "Base non joignable"}. V\xE9rifiez que Neon n'est pas en veille et que DATABASE_URL est correct.`
+          details: "Connexion \xE0 la base de donn\xE9es impossible."
         });
-      }
-    }
-    if (!user && cleanEmail === "admin@excellence.ci") {
-      try {
-        const hashedPassword = await bcrypt2.hash("password123", 10);
-        user = await prisma_default.user.create({
-          data: {
-            email: "admin@excellence.ci",
-            name: "Administrateur",
-            role: "ADMIN",
-            password: hashedPassword,
-            isActive: true
-          }
-        });
-        console.log("[AUTH] Compte Administrateur auto-initialis\xE9 avec succ\xE8s (admin@excellence.ci / password123)");
-      } catch (createErr) {
-        console.error("[AUTH] Erreur cr\xE9ation admin par d\xE9faut :", createErr?.message);
       }
     }
     if (!user || !user.password) {
-      console.log(`[AUTH] Utilisateur non trouv\xE9 : ${cleanEmail}`);
+      await bcrypt2.compare(password, "$2b$12$invalid.hash.to.prevent.timing.attacks.xxxxxxxx");
+      console.log(`[AUTH] Tentative \xE9chou\xE9e pour : ${maskEmail(cleanEmail)}`);
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
     const isMatch = await bcrypt2.compare(password, user.password);
     if (!isMatch) {
-      console.log(`[AUTH] Mot de passe invalide pour : ${cleanEmail}`);
+      console.log(`[AUTH] Mot de passe invalide pour : ${maskEmail(cleanEmail)}`);
       return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     }
+    if (!user.isActive) {
+      return res.status(403).json({ error: "Compte d\xE9sactiv\xE9. Contactez l'administration." });
+    }
     setAuthCookie(res, user.id, user.role);
-    console.log(`[AUTH] Connexion r\xE9ussie : ${cleanEmail} (${user.role})`);
+    console.log(`[AUTH] Connexion r\xE9ussie : ${maskEmail(cleanEmail)} (${user.role})`);
     res.json({
-      message: "Logged in successfully",
+      message: "Connexion r\xE9ussie",
       user: {
         id: user.id,
         email: user.email,
@@ -1296,35 +1493,72 @@ var login = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error?.message || error);
-    res.status(500).json({
-      error: "Erreur serveur lors de la connexion",
-      details: error?.message || "Erreur interne inattendue"
-    });
+    res.status(500).json({ error: "Erreur serveur lors de la connexion" });
   }
 };
 var logout = (req, res) => {
-  res.clearCookie("token");
-  res.json({ message: "Logged out successfully" });
+  clearAuthCookie(res);
+  res.json({ message: "D\xE9connexion r\xE9ussie" });
 };
 var getMe = async (req, res) => {
   try {
     const user = await prisma_default.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, email: true, name: true, role: true, image: true, telephone: true, ville: true, pays: true, isActive: true, matricule: true }
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        image: true,
+        telephone: true,
+        ville: true,
+        pays: true,
+        isActive: true,
+        matricule: true
+      }
     });
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch user profile" });
+    res.status(500).json({ error: "Erreur lors de la r\xE9cup\xE9ration du profil" });
   }
 };
 
 // server/routes/authRoutes.ts
 var router3 = Router3();
-router3.post("/register", register);
-router3.post("/register-and-pay", registerAndPay);
-router3.post("/confirm-payment", confirmPayment);
-router3.post("/login", login);
+var loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1e3,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Trop de tentatives de connexion. Veuillez r\xE9essayer dans 15 minutes."
+  },
+  skipSuccessfulRequests: true
+  // Ne compte que les échecs
+});
+var registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1e3,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Trop d'inscriptions depuis cette adresse. Veuillez r\xE9essayer dans une heure."
+  }
+});
+var paymentInitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1e3,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Trop de tentatives de paiement. Veuillez r\xE9essayer dans une heure."
+  }
+});
+router3.post("/login", loginLimiter, login);
 router3.post("/logout", logout);
+router3.post("/register", registerLimiter, register);
+router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, registerAndPay);
+router3.post("/confirm-payment", confirmPayment);
 router3.get("/me", authenticateToken, getMe);
 var authRoutes_default = router3;
 
@@ -1336,7 +1570,7 @@ router4.get("/stream", streamNotifications);
 router4.get("/", getNotifications);
 router4.put("/read-all", markAllAsRead);
 router4.put("/:id/read", markAsRead);
-router4.post("/bulk", sendBulkNotification);
+router4.post("/bulk", requireRole(["ADMIN"]), sendBulkNotification);
 var notificationRoutes_default = router4;
 
 // server/routes/expenseRoutes.ts
@@ -2264,36 +2498,25 @@ var createSession = async (req, res) => {
     const { weekStart, weekEnd, weekLabel } = getWeekInfo(date);
     const id = crypto4.randomUUID();
     const now = /* @__PURE__ */ new Date();
-    await prisma_default.$executeRawUnsafe(
-      `INSERT INTO "CourseSession"
+    const courseIdVal = courseId || null;
+    const typeVal = type || "PRESENTIEL";
+    const locationVal = location || null;
+    const descriptionVal = description || null;
+    const dateVal = new Date(date);
+    await prisma_default.$executeRaw`INSERT INTO "CourseSession"
        (id, "teacherId", "courseId", "weekLabel", "weekStart", "weekEnd", date, "startTime", "endTime", hours, type, location, description, status, "notified", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'SCHEDULED', false, $14, $14)`,
-      id,
-      teacherId,
-      courseId || null,
-      weekLabel,
-      weekStart,
-      weekEnd,
-      new Date(date),
-      startTime,
-      endTime,
-      hours,
-      type || "PRESENTIEL",
-      location || null,
-      description || null,
-      now
-    );
+       VALUES (${id}, ${teacherId}, ${courseIdVal}, ${weekLabel}, ${weekStart}, ${weekEnd},
+               ${dateVal}, ${startTime}, ${endTime}, ${hours}, ${typeVal},
+               ${locationVal}, ${descriptionVal}, 'SCHEDULED', false, ${now}, ${now})`;
     const teacher = await prisma_default.user.findUnique({
       where: { id: teacherId },
       select: { id: true, name: true, email: true }
     });
     if (notifyStudents && courseId) {
-      const subscriptions = await prisma_default.$queryRawUnsafe(
-        `SELECT u.id FROM "User" u
-         INNER JOIN "Subscription" s ON u.id = s."userId"
-         WHERE s."courseId" = $1 AND s.status = 'ACTIVE'`,
-        courseId
-      );
+      const subscriptions = await prisma_default.$queryRaw`
+        SELECT u.id FROM "User" u
+        INNER JOIN "Subscription" s ON u.id = s."userId"
+        WHERE s."courseId" = ${courseId} AND s.status = 'ACTIVE'`;
       const typeLabel = type === "ONLINE" ? "En ligne" : "Pr\xE9sentiel";
       const dateFormatted = new Date(date).toLocaleDateString("fr-FR");
       for (const sub of subscriptions) {
@@ -2471,7 +2694,7 @@ var updateSession = async (req, res) => {
 var deleteSession = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma_default.$executeRawUnsafe('DELETE FROM "CourseSession" WHERE id = $1', id);
+    await prisma_default.$executeRaw`DELETE FROM "CourseSession" WHERE id = ${id}`;
     res.json({ success: true });
   } catch (error) {
     console.error("Delete session error:", error);
@@ -2482,10 +2705,7 @@ var completeSession = async (req, res) => {
   try {
     const { id } = req.params;
     const teacherId = req.user.id;
-    const rows = await prisma_default.$queryRawUnsafe(
-      `SELECT * FROM "CourseSession" WHERE id = $1`,
-      id
-    );
+    const rows = await prisma_default.$queryRaw`SELECT * FROM "CourseSession" WHERE id = ${id}`;
     if (!rows.length) {
       return res.status(404).json({ error: "S\xE9ance introuvable" });
     }
@@ -2496,10 +2716,7 @@ var completeSession = async (req, res) => {
     if (session.status !== "SCHEDULED") {
       return res.status(400).json({ error: "Seules les s\xE9ances planifi\xE9es peuvent \xEAtre marqu\xE9es comme termin\xE9es" });
     }
-    await prisma_default.$executeRawUnsafe(
-      `UPDATE "CourseSession" SET status = 'COMPLETED', "updatedAt" = NOW() WHERE id = $1`,
-      id
-    );
+    await prisma_default.$executeRaw`UPDATE "CourseSession" SET status = 'COMPLETED', "updatedAt" = NOW() WHERE id = ${id}`;
     res.json({ success: true, status: "COMPLETED" });
   } catch (error) {
     console.error("Complete session error:", error);
@@ -2509,10 +2726,7 @@ var completeSession = async (req, res) => {
 var validateSession = async (req, res) => {
   try {
     const { id } = req.params;
-    const rows = await prisma_default.$queryRawUnsafe(
-      `SELECT * FROM "CourseSession" WHERE id = $1`,
-      id
-    );
+    const rows = await prisma_default.$queryRaw`SELECT * FROM "CourseSession" WHERE id = ${id}`;
     if (!rows.length) {
       return res.status(404).json({ error: "S\xE9ance introuvable" });
     }
@@ -2520,10 +2734,7 @@ var validateSession = async (req, res) => {
     if (session.status !== "COMPLETED") {
       return res.status(400).json({ error: "Seules les s\xE9ances termin\xE9es peuvent \xEAtre valid\xE9es" });
     }
-    await prisma_default.$executeRawUnsafe(
-      `UPDATE "CourseSession" SET status = 'VALIDATED', "updatedAt" = NOW() WHERE id = $1`,
-      id
-    );
+    await prisma_default.$executeRaw`UPDATE "CourseSession" SET status = 'VALIDATED', "updatedAt" = NOW() WHERE id = ${id}`;
     res.json({ success: true, status: "VALIDATED" });
   } catch (error) {
     console.error("Validate session error:", error);
@@ -2537,25 +2748,15 @@ var uploadSessionFile = async (req, res) => {
     if (!file) {
       return res.status(400).json({ error: "Aucun fichier fourni" });
     }
-    const rows = await prisma_default.$queryRawUnsafe(
-      `SELECT * FROM "CourseSession" WHERE id = $1`,
-      id
-    );
+    const rows = await prisma_default.$queryRaw`SELECT * FROM "CourseSession" WHERE id = ${id}`;
     if (!rows.length) {
       return res.status(404).json({ error: "S\xE9ance introuvable" });
     }
     const fileId = crypto4.randomUUID();
     const base64 = file.buffer.toString("base64");
     const mimeType = file.mimetype;
-    await prisma_default.$executeRawUnsafe(
-      `INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "fileData", "uploadedAt")
-       VALUES ($1, $2, $3, $4, $5, NOW())`,
-      fileId,
-      id,
-      file.originalname,
-      mimeType,
-      base64
-    );
+    await prisma_default.$executeRaw`INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "fileData", "uploadedAt")
+       VALUES (${fileId}, ${id}, ${file.originalname}, ${mimeType}, ${base64}, NOW())`;
     res.status(201).json({
       id: fileId,
       sessionId: id,
@@ -2570,10 +2771,7 @@ var uploadSessionFile = async (req, res) => {
 var getSessionFiles = async (req, res) => {
   try {
     const { id } = req.params;
-    const rows = await prisma_default.$queryRawUnsafe(
-      `SELECT id, "sessionId", "fileName", "fileType", "uploadedAt" FROM "SessionFile" WHERE "sessionId" = $1 ORDER BY "uploadedAt" DESC`,
-      id
-    );
+    const rows = await prisma_default.$queryRaw`SELECT id, "sessionId", "fileName", "fileType", "uploadedAt" FROM "SessionFile" WHERE "sessionId" = ${id} ORDER BY "uploadedAt" DESC`;
     const files = rows.map((r) => ({
       id: r.id,
       sessionId: r.sessionId,
@@ -2590,10 +2788,7 @@ var getSessionFiles = async (req, res) => {
 var downloadSessionFile = async (req, res) => {
   try {
     const { fileId } = req.params;
-    const rows = await prisma_default.$queryRawUnsafe(
-      `SELECT * FROM "SessionFile" WHERE id = $1`,
-      fileId
-    );
+    const rows = await prisma_default.$queryRaw`SELECT * FROM "SessionFile" WHERE id = ${fileId}`;
     if (!rows.length) {
       return res.status(404).json({ error: "Fichier introuvable" });
     }
@@ -2615,17 +2810,14 @@ var getMonthlySalaryReport = async (req, res) => {
     const y = year !== void 0 ? parseInt(year) : now.getFullYear();
     const startDate = new Date(y, m, 1);
     const endDate = new Date(y, m + 1, 0, 23, 59, 59, 999);
-    const rows = await prisma_default.$queryRawUnsafe(
-      `SELECT s.*, u.id as teacher_id, u.name as teacher_name, u.email as teacher_email, u."hourlyRate",
+    const rows = await prisma_default.$queryRaw`
+      SELECT s.*, u.id as teacher_id, u.name as teacher_name, u.email as teacher_email, u."hourlyRate",
               c.id as course_id, c.title as course_title
        FROM "CourseSession" s
        LEFT JOIN "User" u ON s."teacherId" = u.id
        LEFT JOIN "Course" c ON s."courseId" = c.id
-       WHERE s.date >= $1 AND s.date <= $2 AND (s.status = 'VALIDATED' OR s.status = 'SCHEDULED' OR s.status = 'COMPLETED')
-       ORDER BY s."teacherId", s.date ASC`,
-      startDate,
-      endDate
-    );
+       WHERE s.date >= ${startDate} AND s.date <= ${endDate} AND (s.status = 'VALIDATED' OR s.status = 'SCHEDULED' OR s.status = 'COMPLETED')
+       ORDER BY s."teacherId", s.date ASC`;
     const defaultRate = 5e3;
     const teacherMap = {};
     for (const row of rows) {
@@ -2790,13 +2982,8 @@ var payTeacherSalary = async (req, res) => {
     const y = year !== void 0 ? parseInt(year) : (/* @__PURE__ */ new Date()).getFullYear();
     const startDate = new Date(y, m, 1);
     const endDate = new Date(y, m + 1, 0, 23, 59, 59, 999);
-    await prisma_default.$executeRawUnsafe(
-      `UPDATE "CourseSession" SET status = 'PAID', "updatedAt" = NOW()
-       WHERE "teacherId" = $1 AND date >= $2 AND date <= $3 AND status IN ('VALIDATED', 'COMPLETED', 'SCHEDULED')`,
-      teacherId,
-      startDate,
-      endDate
-    );
+    await prisma_default.$executeRaw`UPDATE "CourseSession" SET status = 'PAID', "updatedAt" = NOW()
+       WHERE "teacherId" = ${teacherId} AND date >= ${startDate} AND date <= ${endDate} AND status IN ('VALIDATED', 'COMPLETED', 'SCHEDULED')`;
     res.status(201).json(expense);
   } catch (error) {
     console.error("Pay teacher salary error:", error);
@@ -2807,10 +2994,7 @@ var getStudentSessions = async (req, res) => {
   try {
     const userId = req.user.id;
     const { startDate, endDate } = req.query;
-    const subscriptions = await prisma_default.$queryRawUnsafe(
-      `SELECT "courseId" FROM "Subscription" WHERE "userId" = $1 AND status = 'ACTIVE'`,
-      userId
-    );
+    const subscriptions = await prisma_default.$queryRaw`SELECT "courseId" FROM "Subscription" WHERE "userId" = ${userId} AND status = 'ACTIVE'`;
     const courseIds = subscriptions.map((s) => s.courseId);
     if (courseIds.length === 0) {
       return res.json({ weeks: [], total: 0 });
@@ -3497,11 +3681,20 @@ var upload4 = multer4({
   storage: multer4.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir2),
     filename: (_req, file, cb) => {
-      const ext = path7.extname(file.originalname);
+      const ext = path7.extname(file.originalname).toLowerCase();
       cb(null, `${crypto5.randomUUID()}${ext}`);
     }
   }),
-  limits: { fileSize: 5 * 1024 * 1024 }
+  limits: { fileSize: 5 * 1024 * 1024 },
+  // 5 MB
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Format invalide. Seules les images (JPEG, PNG, WebP, GIF) sont autoris\xE9es."));
+    }
+  }
 });
 var router16 = Router16();
 router16.get("/products", getProducts);
@@ -3523,12 +3716,12 @@ var shopRoutes_default = router16;
 import { Router as Router17 } from "express";
 
 // server/controllers/bannerController.ts
-import { PrismaClient as PrismaClient2 } from "@prisma/client";
-var prisma2 = new PrismaClient2();
+var isProduction = process.env.NODE_ENV === "production";
+var safeError = (err) => isProduction ? void 0 : err?.message;
 var getActiveBanners = async (req, res) => {
   try {
     const now = /* @__PURE__ */ new Date();
-    const banners = await prisma2.shopBanner.findMany({
+    const banners = await prisma_default.shopBanner.findMany({
       where: {
         isActive: true,
         OR: [
@@ -3556,12 +3749,12 @@ var getActiveBanners = async (req, res) => {
     });
     res.json(banners);
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors du chargement des banni\xE8res", error: error.message });
+    res.status(500).json({ message: "Erreur lors du chargement des banni\xE8res", error: safeError(error) });
   }
 };
 var getAllBanners = async (req, res) => {
   try {
-    const banners = await prisma2.shopBanner.findMany({
+    const banners = await prisma_default.shopBanner.findMany({
       include: {
         product: {
           select: {
@@ -3580,13 +3773,13 @@ var getAllBanners = async (req, res) => {
     });
     res.json(banners);
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors du chargement des banni\xE8res", error: error.message });
+    res.status(500).json({ message: "Erreur lors du chargement des banni\xE8res", error: safeError(error) });
   }
 };
 var getBannerById = async (req, res) => {
   try {
     const { id } = req.params;
-    const banner = await prisma2.shopBanner.findUnique({
+    const banner = await prisma_default.shopBanner.findUnique({
       where: { id },
       include: {
         product: true
@@ -3595,14 +3788,14 @@ var getBannerById = async (req, res) => {
     if (!banner) return res.status(404).json({ message: "Banni\xE8re non trouv\xE9e" });
     res.json(banner);
   } catch (error) {
-    res.status(500).json({ message: "Erreur", error: error.message });
+    res.status(500).json({ message: "Erreur", error: safeError(error) });
   }
 };
 var createBanner = async (req, res) => {
   try {
     const { title, subtitle, description, imageUrl, backgroundColor, badgeText, featured, displayOrder, isActive, productId, startDate, endDate } = req.body;
     if (!title) return res.status(400).json({ message: "Le titre est requis" });
-    const banner = await prisma2.shopBanner.create({
+    const banner = await prisma_default.shopBanner.create({
       data: {
         title,
         subtitle,
@@ -3623,14 +3816,14 @@ var createBanner = async (req, res) => {
     });
     res.status(201).json(banner);
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors de la cr\xE9ation", error: error.message });
+    res.status(500).json({ message: "Erreur lors de la cr\xE9ation", error: safeError(error) });
   }
 };
 var updateBanner = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, subtitle, description, imageUrl, backgroundColor, badgeText, featured, displayOrder, isActive, productId, startDate, endDate } = req.body;
-    const banner = await prisma2.shopBanner.update({
+    const banner = await prisma_default.shopBanner.update({
       where: { id },
       data: {
         title: title !== void 0 ? title : void 0,
@@ -3652,18 +3845,18 @@ var updateBanner = async (req, res) => {
     });
     res.json(banner);
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors de la mise \xE0 jour", error: error.message });
+    res.status(500).json({ message: "Erreur lors de la mise \xE0 jour", error: safeError(error) });
   }
 };
 var deleteBanner = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma2.shopBanner.delete({
+    await prisma_default.shopBanner.delete({
       where: { id }
     });
     res.json({ message: "Banni\xE8re supprim\xE9e avec succ\xE8s" });
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors de la suppression", error: error.message });
+    res.status(500).json({ message: "Erreur lors de la suppression", error: safeError(error) });
   }
 };
 
@@ -4035,8 +4228,8 @@ router18.put("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), updateBlogP
 router18.delete("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteBlogPost);
 router18.post("/:id/attachments", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), upload5.single("file"), uploadPostAttachment);
 router18.get("/:postId/comments", getComments);
-router18.post("/:postId/comments", createComment);
-router18.delete("/comments/:id", deleteComment);
+router18.post("/:postId/comments", requireRole(["ADMIN", "TEACHER", "SECRETARY", "STUDENT"]), createComment);
+router18.delete("/comments/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteComment);
 router18.post("/:postId/exercises", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), createExercise);
 router18.put("/exercises/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), updateExercise);
 router18.delete("/exercises/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteExercise);
@@ -4047,8 +4240,8 @@ router18.put("/submissions/:id/evaluate", requireRole(["ADMIN", "TEACHER", "SECR
 var blogRoutes_default = router18;
 
 // server/seed-courses.ts
-import { PrismaClient as PrismaClient3 } from "@prisma/client";
-var prisma3 = new PrismaClient3();
+import { PrismaClient as PrismaClient2 } from "@prisma/client";
+var prisma2 = new PrismaClient2();
 var DEFAULT_FORMATIONS = [
   {
     title: "Magistrature",
@@ -4133,9 +4326,9 @@ var DEFAULT_FORMATIONS = [
 ];
 async function seedFormations() {
   for (const f of DEFAULT_FORMATIONS) {
-    const existing = await prisma3.course.findFirst({ where: { title: f.title } });
+    const existing = await prisma2.course.findFirst({ where: { title: f.title } });
     if (existing) {
-      await prisma3.course.update({
+      await prisma2.course.update({
         where: { id: existing.id },
         data: {
           category: f.category,
@@ -4149,7 +4342,7 @@ async function seedFormations() {
       });
       console.log(`[Formations] Mis \xE0 jour: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
     } else {
-      await prisma3.course.create({
+      await prisma2.course.create({
         data: f
       });
       console.log(`[Formations] Cr\xE9\xE9: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
@@ -4159,10 +4352,10 @@ async function seedFormations() {
 if (process.argv[1]?.includes("seed-courses")) {
   seedFormations().then(() => {
     console.log("\u2705 Seeding des formations termin\xE9");
-    return prisma3.$disconnect();
+    return prisma2.$disconnect();
   }).catch((err) => {
     console.error(err);
-    return prisma3.$disconnect();
+    return prisma2.$disconnect();
   });
 }
 
@@ -4173,7 +4366,12 @@ import { fileURLToPath as fileURLToPath10 } from "url";
 var __dirname10 = path10.dirname(fileURLToPath10(import.meta.url));
 var app = express();
 var port = process.env.PORT || 3001;
-var defaultOrigins = ["http://localhost:5173", "http://localhost:4173", "http://localhost:5174"];
+var isProduction2 = process.env.NODE_ENV === "production";
+if (!process.env.JWT_SECRET) {
+  console.error("\u274C FATAL: JWT_SECRET est manquant dans les variables d'environnement.");
+  process.exit(1);
+}
+var defaultOrigins = isProduction2 ? [] : ["http://localhost:5173", "http://localhost:4173", "http://localhost:5174"];
 var envOrigins = process.env.CORS_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) || [];
 var frontendUrl = process.env.FRONTEND_URL?.trim();
 var allowedOrigins = Array.from(/* @__PURE__ */ new Set([
@@ -4181,14 +4379,36 @@ var allowedOrigins = Array.from(/* @__PURE__ */ new Set([
   ...envOrigins,
   ...frontendUrl ? [frontendUrl] : []
 ]));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      // nécessaire pour Vite en dev
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'", ...frontendUrl ? [frontendUrl] : []]
+    }
+  },
+  crossOriginEmbedderPolicy: false
+  // nécessaire pour PDFs / iframes
+}));
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+    if (!origin) {
+      if (!isProduction2) return callback(null, true);
       return callback(null, true);
     }
-    return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`[CORS] Origine bloqu\xE9e: ${origin}`);
+    return callback(new Error(`CORS: Origine non autoris\xE9e: ${origin}`));
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }), (req, _res, next) => {
   if (Buffer.isBuffer(req.body)) {
@@ -4200,7 +4420,7 @@ app.use("/api/payments/webhook", express.raw({ type: "application/json" }), (req
   }
   next();
 });
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use("/api/auth", authRoutes_default);
 app.use("/api/users", userRoutes_default);
@@ -4221,6 +4441,18 @@ app.use("/api/shop", shopRoutes_default);
 app.use("/api/banners", bannerRoutes_default);
 app.use("/api/blog", blogRoutes_default);
 app.get("/api/health", async (req, res) => {
+  const healthSecret = process.env.HEALTH_SECRET;
+  if (isProduction2 && healthSecret) {
+    const provided = req.headers["x-health-secret"];
+    if (provided !== healthSecret) {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        return res.status(200).json({ status: "ok" });
+      } catch {
+        return res.status(503).json({ status: "error" });
+      }
+    }
+  }
   try {
     await prisma.$queryRaw`SELECT 1`;
     const userCount = await prisma.user.count();
@@ -4237,8 +4469,7 @@ app.get("/api/health", async (req, res) => {
     res.status(500).json({
       status: "error",
       database: "disconnected",
-      error: err?.message || String(err),
-      hint: 'V\xE9rifiez la variable DATABASE_URL dans votre fichier .env et lancez "npx prisma db push"'
+      message: isProduction2 ? "Erreur de connexion \xE0 la base de donn\xE9es" : err?.message || String(err)
     });
   }
 });
@@ -4282,7 +4513,14 @@ async function initDatabaseDefaults() {
     });
     if (!adminExists) {
       console.log("\u{1F504} Initialisation des comptes par d\xE9faut en cours...");
-      const password = await bcrypt3.hash("password123", 10);
+      const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
+      if (!initialPassword) {
+        console.warn(
+          "\u26A0\uFE0F  ADMIN_INITIAL_PASSWORD non d\xE9fini dans .env. Le compte admin ne sera PAS cr\xE9\xE9 automatiquement. Ajoutez ADMIN_INITIAL_PASSWORD dans votre .env puis red\xE9marrez."
+        );
+        return;
+      }
+      const password = await bcrypt3.hash(initialPassword, 12);
       const defaultUsers = [
         { email: "admin@excellence.ci", name: "Administrateur", role: "ADMIN", password },
         { email: "accountant@excellence.ci", name: "Comptable", role: "ACCOUNTANT", password },
@@ -4296,7 +4534,7 @@ async function initDatabaseDefaults() {
           create: u
         });
       }
-      console.log("\u2705 Compte Administrateur cr\xE9\xE9 : admin@excellence.ci (mdp: password123)");
+      console.log("\u2705 Comptes par d\xE9faut cr\xE9\xE9s. Mot de passe : voir ADMIN_INITIAL_PASSWORD dans .env");
     }
     const courseCount = await prisma.course.count();
     if (courseCount === 0) {
@@ -4309,13 +4547,13 @@ async function initDatabaseDefaults() {
   }
 }
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(`\u{1F680} Serveur d\xE9marr\xE9 sur le port ${port} [${isProduction2 ? "PRODUCTION" : "D\xC9VELOPPEMENT"}]`);
   initDatabaseDefaults();
   setInterval(async () => {
     try {
       await prisma.$queryRaw`SELECT 1`;
     } catch (err) {
-      console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping r\xE9veil Neon :", err?.message || err);
+      console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping DB :", err?.message || err);
     }
   }, 180 * 1e3);
 });

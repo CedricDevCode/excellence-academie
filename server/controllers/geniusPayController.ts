@@ -6,6 +6,8 @@ import { GENIUSPAY_API_BASE, GENIUSPAY_ENVIRONMENT, GENIUSPAY_WEBHOOK_SECRET, ge
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { sendDirectEmail } from './notificationController';
 
+// ─── Initialisation de paiement ───────────────────────────────────────────────
+
 export const initPayment = async (req: Request, res: Response) => {
   try {
     const { userId, courseId, formule, successUrl, errorUrl, paymentMethod } = req.body;
@@ -15,7 +17,10 @@ export const initPayment = async (req: Request, res: Response) => {
     }
 
     const amount = calcRegistrationPrice('', 'presentiel', '', false);
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, telephone: true },
+    });
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
@@ -27,7 +32,7 @@ export const initPayment = async (req: Request, res: Response) => {
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-    const geniusPayBody = {
+    const geniusPayBody: Record<string, any> = {
       amount,
       description: `Inscription: ${user.name} - ${course.title} (${formule})`,
       customer: {
@@ -39,25 +44,27 @@ export const initPayment = async (req: Request, res: Response) => {
         user_id: userId,
         course_id: courseId,
         formule: formule,
+        // Pas de données sensibles dans les métadonnées
       },
       success_url: successUrl || `${baseUrl}/payment/success`,
       error_url: errorUrl || `${baseUrl}/payment/error`,
     };
 
     if (paymentMethod && METHOD_TO_GP[paymentMethod]) {
-      (geniusPayBody as Record<string, any>).payment_method = METHOD_TO_GP[paymentMethod];
+      geniusPayBody.payment_method = METHOD_TO_GP[paymentMethod];
     }
 
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments`, {
       method: 'POST',
       headers: geniusPayHeaders(),
       body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15000),
     });
 
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
       return res.status(502).json({
-        error: 'Le service de paiement est temporairement indisponible. Veuillez réessayer ou contacter l\'administrateur.',
+        error: "Le service de paiement est temporairement indisponible. Veuillez réessayer.",
       });
     }
 
@@ -75,29 +82,26 @@ export const initPayment = async (req: Request, res: Response) => {
     nextPayment.setMonth(nextPayment.getMonth() + 1);
 
     await prisma.subscription.create({
-      data: {
-        userId,
-        courseId,
-        amount,
-        status: 'PENDING',
-        nextPayment,
-      },
+      data: { userId, courseId, amount, status: 'PENDING', nextPayment },
     });
 
     res.status(200).json({
       success: true,
-      checkoutUrl: paymentMethod && METHOD_TO_GP[paymentMethod]
-        ? gpData.payment_url || gpData.checkout_url
-        : gpData.checkout_url || gpData.payment_url,
+      checkoutUrl:
+        paymentMethod && METHOD_TO_GP[paymentMethod]
+          ? gpData.payment_url || gpData.checkout_url
+          : gpData.checkout_url || gpData.payment_url,
       reference: gpData.reference,
       paymentId: payment.id,
       environment: gpData.environment,
     });
   } catch (error: any) {
     console.error('GeniusPay init error:', error);
-    res.status(500).json({ error: 'Erreur lors de l\'initialisation du paiement' });
+    res.status(500).json({ error: "Erreur lors de l'initialisation du paiement" });
   }
 };
+
+// ─── Vérification du statut d'un paiement ────────────────────────────────────
 
 export const checkPaymentStatus = async (req: Request, res: Response) => {
   try {
@@ -109,6 +113,7 @@ export const checkPaymentStatus = async (req: Request, res: Response) => {
 
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments/${reference}`, {
       headers: geniusPayHeaders(),
+      signal: AbortSignal.timeout(15000),
     });
 
     const gpData = await handleGeniusPayResponse(response);
@@ -131,7 +136,7 @@ export const checkPaymentStatus = async (req: Request, res: Response) => {
           data: { isActive: true },
         });
       }
-    } else if (gpData.status === 'failed' || gpData.status === 'cancelled' || gpData.status === 'expired') {
+    } else if (['failed', 'cancelled', 'expired'].includes(gpData.status)) {
       await prisma.payment.updateMany({
         where: { geniusPayReference: reference },
         data: { status: 'FAILED' },
@@ -150,9 +155,8 @@ export const checkPaymentStatus = async (req: Request, res: Response) => {
       fees: gpData.fees,
       netAmount: gpData.net_amount,
       paymentMethod: gpData.payment_method,
-      customer: gpData.customer,
-      metadata: gpData.metadata,
       environment: gpData.environment,
+      // Ne pas exposer customer et metadata (données personnelles)
     });
   } catch (error) {
     console.error('GeniusPay status check error:', error);
@@ -160,86 +164,106 @@ export const checkPaymentStatus = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Webhook GeniusPay ────────────────────────────────────────────────────────
+
 export const handleWebhook = async (req: Request, res: Response) => {
   try {
     const signature = req.headers['x-webhook-signature'] as string;
     const timestamp = req.headers['x-webhook-timestamp'] as string;
     const event = req.headers['x-webhook-event'] as string;
-    const environment = req.headers['x-webhook-environment'] as string;
 
+    const rawBody = (req as any).rawBody;
+
+    // ── Vérification de la signature HMAC ────────────────────────────────────
     if (!GENIUSPAY_WEBHOOK_SECRET) {
       if (GENIUSPAY_ENVIRONMENT !== 'sandbox') {
-        console.warn('GENIUSPAY_WEBHOOK_SECRET not configured. Skipping signature verification.');
+        // En production, un webhook secret est OBLIGATOIRE
+        console.error('[Webhook] GENIUSPAY_WEBHOOK_SECRET non configuré. Webhook rejeté en production.');
+        return res.status(401).json({ error: 'Configuration webhook manquante' });
       }
-    } else if (signature && timestamp) {
-      const rawBody = (req as any).rawBody;
-      if (rawBody) {
-        const data = `${timestamp}.${rawBody}`;
-        const expectedSignature = crypto
-          .createHmac('sha256', GENIUSPAY_WEBHOOK_SECRET)
-          .update(data)
-          .digest('hex');
-
-        if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature))) {
-          return res.status(401).json({ status: 401, detail: 'Invalid signature' });
-        }
+      // En sandbox uniquement, on accepte sans signature (pour les tests)
+      console.warn('[Webhook] Mode sandbox : vérification de signature désactivée');
+    } else {
+      // Vérification stricte : signature ET rawBody obligatoires
+      if (!signature || !timestamp || !rawBody) {
+        console.warn('[Webhook] Signature, timestamp ou corps brut manquant. Rejeté.');
+        return res.status(401).json({ error: 'Données de signature manquantes' });
       }
 
+      const data = `${timestamp}.${rawBody}`;
+      const expectedSignature = crypto
+        .createHmac('sha256', GENIUSPAY_WEBHOOK_SECRET)
+        .update(data)
+        .digest('hex');
+
+      // Comparaison en temps constant pour éviter les timing attacks
+      if (
+        expectedSignature.length !== signature.length ||
+        !crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(signature, 'hex'))
+      ) {
+        console.warn('[Webhook] Signature invalide. Rejeté.');
+        return res.status(401).json({ error: 'Signature invalide' });
+      }
+
+      // Vérification de la fraîcheur du timestamp (±5 minutes)
       const now = Math.floor(Date.now() / 1000);
       const ts = parseInt(timestamp, 10);
-      if (ts && Math.abs(now - ts) > 300) {
-        return res.status(400).json({ status: 400, detail: 'Timestamp too old' });
+      if (!ts || Math.abs(now - ts) > 300) {
+        console.warn('[Webhook] Timestamp trop ancien ou invalide. Rejeté.');
+        return res.status(400).json({ error: 'Timestamp expiré' });
       }
     }
 
     const payload = req.body;
 
+    // ── Traitement du succès de paiement ─────────────────────────────────────
     if (event === 'payment.success' || payload.event === 'payment.success') {
       const data = payload.data || payload;
       const reference = data.reference;
       const metadata = data.metadata || {};
-      const userId = metadata.user_id;
-      const courseId = metadata.course_id;
 
-      // If this is a shop order payment
+      // Commande boutique
       if (metadata.action === 'shop_order') {
         const orderId = metadata.order_id;
         if (orderId) {
           const order = await prisma.shopOrder.update({
             where: { id: orderId },
-            data: { status: 'PAID' }
+            data: { status: 'PAID' },
           });
-          
-          // Send payment confirmation email
           try {
-            const mailOptions = {
-              to: order.customerEmail,
-              subject: `Confirmation de paiement - Excellence Académie`,
-              html: `<p>Bonjour ${order.customerName},</p>
-                     <p>Nous avons bien reçu le paiement de ${order.totalAmount} FCFA pour votre commande (Ref: ${order.id}).</p>
-                     <p>Nous la traiterons dans les plus brefs délais.</p>
-                     <p>Merci de votre confiance !</p>
-                     <p>L'équipe Excellence Académie</p>`
-            };
-            await sendDirectEmail(mailOptions.to, mailOptions.subject, mailOptions.html);
+            await sendDirectEmail(
+              order.customerEmail,
+              `Confirmation de paiement - Excellence Académie`,
+              `<p>Bonjour ${order.customerName},</p>
+               <p>Nous avons bien reçu le paiement de ${order.totalAmount} FCFA pour votre commande (Ref: ${order.id}).</p>
+               <p>Nous la traiterons dans les plus brefs délais.</p>
+               <p>Merci de votre confiance !</p>
+               <p>L'équipe Excellence Académie</p>`
+            );
           } catch (err) {
-            console.error('Failed to send shop order payment confirmation email', err);
+            console.error('[Webhook] Erreur envoi email commande boutique:', err);
           }
-          console.log(`Webhook: Shop Order paid - ${orderId}`);
+          console.log(`[Webhook] Commande boutique payée : ${orderId}`);
         }
-      } else if (!userId && metadata.action === 'register') {
-        const { email, password_hash, name: fullName, telephone, pays, ville, course_ids, mode, cours_particuliers, monthly_amount } = metadata;
-        if (email && password_hash && course_ids) {
-          let user = await prisma.user.findUnique({ where: { email } });
+
+      // Inscription via token sécurisé PendingRegistration
+      } else if (metadata.action === 'register' && metadata.pending_token) {
+        const pending = await prisma.pendingRegistration.findUnique({
+          where: { token: metadata.pending_token },
+        });
+
+        if (pending && new Date() <= pending.expiresAt) {
+          let user = await prisma.user.findUnique({ where: { email: pending.email } });
+
           if (!user) {
             user = await prisma.user.create({
               data: {
-                email,
-                password: password_hash,
-                name: fullName || email,
-                telephone: telephone || '',
-                pays: pays || '',
-                ville: ville || '',
+                email: pending.email,
+                password: pending.passwordHash,
+                name: pending.name || pending.email,
+                telephone: pending.telephone || '',
+                pays: pending.pays || '',
+                ville: pending.ville || '',
                 role: 'STUDENT',
                 isActive: true,
               },
@@ -248,12 +272,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
             await prisma.user.update({ where: { id: user.id }, data: { matricule } });
           }
 
-          const courseIdList: string[] = course_ids ? (Array.isArray(course_ids) ? course_ids : [course_ids]) : [courseId].filter(Boolean);
-          const cParticuliers = cours_particuliers === true || cours_particuliers === 'true';
-          const cMode = mode || 'presentiel';
-          const monthlyAmt = monthly_amount ? parseFloat(monthly_amount) : calcMonthlyAmount(pays || '', cMode, cParticuliers, courseIdList.length);
+          const courseIdList: string[] = Array.isArray(pending.courseIds) ? pending.courseIds : [];
+          const monthlyAmt = pending.monthlyAmount ?? 0;
 
-          const existingPayment = await prisma.payment.findFirst({ where: { geniusPayReference: reference } });
+          const existingPayment = await prisma.payment.findFirst({
+            where: { geniusPayReference: reference },
+          });
           if (!existingPayment) {
             const payment = await prisma.payment.create({
               data: { amount: data.amount || 0, userId: user.id, status: 'SUCCESS', geniusPayReference: reference },
@@ -263,9 +287,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
           }
 
           for (const cId of courseIdList) {
-            const existingSub = await prisma.subscription.findFirst({ where: { userId: user.id, courseId: cId } });
+            const existingSub = await prisma.subscription.findFirst({
+              where: { userId: user.id, courseId: cId },
+            });
             if (!existingSub) {
-              const np = new Date(); np.setMonth(np.getMonth() + 1);
+              const np = new Date();
+              np.setMonth(np.getMonth() + 1);
               await prisma.subscription.create({
                 data: {
                   userId: user.id,
@@ -273,16 +300,22 @@ export const handleWebhook = async (req: Request, res: Response) => {
                   amount: monthlyAmt,
                   status: 'ACTIVE',
                   nextPayment: np,
-                  formule: cMode,
-                  coursParticuliers: cParticuliers,
+                  formule: pending.mode || 'presentiel',
+                  coursParticuliers: pending.coursParticuliers,
                 },
               });
             }
           }
-          console.log(`Webhook: User created from payment - ${email}`);
+
+          // Nettoyer les données sensibles
+          await prisma.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {});
+          console.log(`[Webhook] Utilisateur créé depuis paiement (token sécurisé)`);
+        } else {
+          console.warn('[Webhook] pending_token expiré ou introuvable:', metadata.pending_token);
         }
+
+      // Paiement mensuel
       } else if (metadata.type === 'mensualite' && metadata.subscription_id) {
-        // Monthly subscription payment
         const nbMonths = parseInt(metadata.months) || 1;
         const existingPayment = await prisma.payment.findFirst({
           where: { geniusPayReference: reference },
@@ -300,9 +333,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
           const receiptNumber = generateReceiptNumber();
           await prisma.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
         }
-        const sub = await prisma.subscription.findUnique({
-          where: { id: metadata.subscription_id },
-        });
+        const sub = await prisma.subscription.findUnique({ where: { id: metadata.subscription_id } });
         if (sub) {
           const nextPayment = new Date(sub.nextPayment);
           nextPayment.setMonth(nextPayment.getMonth() + nbMonths);
@@ -311,30 +342,33 @@ export const handleWebhook = async (req: Request, res: Response) => {
             data: { nextPayment, status: 'ACTIVE' },
           });
         }
+
+      // Flow legacy (utilisateur existant)
       } else {
-        // Legacy flow: user already exists
         if (reference) {
           await prisma.payment.updateMany({
             where: { geniusPayReference: reference },
             data: { status: 'SUCCESS' },
           });
         }
+        const userId = metadata.user_id;
+        const courseId = metadata.course_id;
         if (userId && courseId) {
           await prisma.subscription.updateMany({
             where: { userId, courseId, status: 'PENDING' },
             data: { status: 'ACTIVE' },
           });
-          await prisma.user.update({
-            where: { id: userId },
-            data: { isActive: true },
-          });
+          await prisma.user.update({ where: { id: userId }, data: { isActive: true } });
         }
       }
 
-      console.log(`Webhook: Payment successful - reference: ${reference}`);
+      console.log(`[Webhook] Paiement réussi - référence: ${reference}`);
+
+    // ── Paiement échoué ───────────────────────────────────────────────────────
     } else if (event === 'payment.failed' || payload.event === 'payment.failed') {
       const data = payload.data || payload;
       const reference = data.reference;
+      const metadata = data.metadata || {};
 
       if (reference) {
         await prisma.payment.updateMany({
@@ -343,12 +377,20 @@ export const handleWebhook = async (req: Request, res: Response) => {
         });
       }
 
-      console.log(`Webhook: Payment failed - reference: ${reference}`);
+      // Nettoyer le pending registration si présent
+      if (metadata.pending_token) {
+        await prisma.pendingRegistration
+          .delete({ where: { token: metadata.pending_token } })
+          .catch(() => {});
+      }
+
+      console.log(`[Webhook] Paiement échoué - référence: ${reference}`);
     }
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook handling error:', error);
+    console.error('[Webhook] Erreur de traitement:', error);
+    // Toujours répondre 200 pour éviter les rejeux automatiques GeniusPay
     res.status(200).json({ received: true });
   }
 };

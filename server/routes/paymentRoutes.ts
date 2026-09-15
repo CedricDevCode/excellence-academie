@@ -5,10 +5,14 @@ import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 
 const router = Router();
 
+// Webhook public — GeniusPay appelle cette route directement
 router.post('/webhook', handleWebhook);
-router.get('/geniuspay/status/:reference', checkPaymentStatus);
 
+// Toutes les autres routes requièrent une authentification
 router.use(authenticateToken);
+
+// Status de paiement — protégé (évite les mises à jour de statut non autorisées)
+router.get('/geniuspay/status/:reference', checkPaymentStatus);
 
 router.get('/my-payments', getMyPayments);
 router.get('/', requireRole(['ADMIN', 'ACCOUNTANT']), getPayments);

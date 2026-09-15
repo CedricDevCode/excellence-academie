@@ -4,7 +4,11 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  const password = await bcrypt.hash('password123', 10);
+  const rawPassword = process.env.SEED_PASSWORD || (process.env.NODE_ENV === 'production' ? null : 'password123');
+  if (!rawPassword) {
+    throw new Error("Sécurité : En production, vous devez définir la variable d'environnement SEED_PASSWORD.");
+  }
+  const password = await bcrypt.hash(rawPassword, 10);
 
   const users = [
     { email: 'admin@excellence.ci', name: 'Administrateur', role: 'ADMIN' },
