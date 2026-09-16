@@ -4,11 +4,13 @@ import { MapPin, Phone, Globe, ChevronRight, Send, MessageCircle } from 'lucide-
 import { motion } from 'framer-motion';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import { Container } from '../components/ui';
+import { useCookies } from './CookieConsent';
 
 export default function Footer() {
   const { ref, isInView } = useScrollAnimation();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const cookieCtx = useCookies();
 
   const handleNewsletter = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +88,22 @@ export default function Footer() {
                 <li><Link to="/shop" className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm"><ChevronRight size={12} className="text-accent-500" /> Boutique</Link></li>
                 <li><Link to="/blog" className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm"><ChevronRight size={12} className="text-accent-500" /> Blog</Link></li>
                 <li><a href="#tarifs" className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm"><ChevronRight size={12} className="text-accent-500" /> Nos Tarifs</a></li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="text-white font-bold mb-4 uppercase text-xs tracking-wider">Informations</h4>
+              <ul className="space-y-2.5">
+                <li><Link to="/mentions-legales" className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm"><ChevronRight size={12} className="text-accent-500" /> Mentions Légales</Link></li>
+                <li><Link to="/politique-de-confidentialite" className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm"><ChevronRight size={12} className="text-accent-500" /> Politique de Confidentialité</Link></li>
+                <li><Link to="/cgu" className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm"><ChevronRight size={12} className="text-accent-500" /> CGU</Link></li>
+                <li><Link to="/accessibilite" className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm"><ChevronRight size={12} className="text-accent-500" /> Accessibilité</Link></li>
+                <li>
+                  <button onClick={() => cookieCtx?.openSettings()} className="flex items-center gap-2 hover:text-accent-500 transition-colors text-sm text-left w-full">
+                    <ChevronRight size={12} className="text-accent-500" /> Paramètres Cookies
+                  </button>
+                </li>
               </ul>
             </div>
 

@@ -9,6 +9,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/Toast";
 import PwaInstallBanner from "./components/PwaInstallBanner";
 import PushAutoSubscribe from "./components/PushAutoSubscribe";
+import { CookieProvider } from "./components/CookieConsent";
 
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const StudentLogin = lazy(() => import("./pages/StudentLogin"));
@@ -31,6 +32,9 @@ const BlogList = lazy(() => import("./pages/BlogList"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const BlogEditor = lazy(() => import("./pages/BlogEditor"));
 const BlogSubmissions = lazy(() => import("./pages/BlogSubmissions"));
+const MentionsLegales = lazy(() => import("./pages/MentionsLegales"));
+const PolitiqueConfidentialite = lazy(() => import("./pages/PolitiqueConfidentialite"));
+const Accessibilite = lazy(() => import("./pages/Accessibilite"));
 
 function PageLoader() {
   return (
@@ -88,6 +92,9 @@ function AppRoutes() {
             <Route path="/blog/:slug" element={<PageTransition><BlogDetail /></PageTransition>} />
             <Route path="/blog/exercises/:exerciseId/submissions" element={<PageTransition><BlogSubmissions /></PageTransition>} />
             <Route path="/cgu" element={<PageTransition><CGU /></PageTransition>} />
+            <Route path="/mentions-legales" element={<PageTransition><MentionsLegales /></PageTransition>} />
+            <Route path="/politique-de-confidentialite" element={<PageTransition><PolitiqueConfidentialite /></PageTransition>} />
+            <Route path="/accessibilite" element={<PageTransition><Accessibilite /></PageTransition>} />
             <Route path="*" element={
               <PageTransition>
                 <div className="min-h-[70vh] flex items-center justify-center p-8">
@@ -113,12 +120,14 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <ToastProvider>
-        <AppRoutes />
-        <CartDrawer />
-        <PwaInstallBanner />
-        <PushAutoSubscribe />
-      </ToastProvider>
+      <CookieProvider>
+        <ToastProvider>
+          <AppRoutes />
+          <CartDrawer />
+          <PwaInstallBanner />
+          <PushAutoSubscribe />
+        </ToastProvider>
+      </CookieProvider>
     </BrowserRouter>
   );
 }
