@@ -1,8 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { FileText, CheckCircle, Loader2, Trash2, Check, AlertCircle, ChevronDown, Pen } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = "";
 
 interface ContractViewProps {
   onSign: (signatureData: string) => void;
@@ -14,231 +11,48 @@ interface ContractViewProps {
 export default function ContractView({ onSign, signatureData, studentName, readOnly }: ContractViewProps) {
   const [localSignature, setLocalSignature] = useState(signatureData || "");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [pdfError, setPdfError] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [padKey, setPadKey] = useState(0);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
-  const [totalPages, setTotalPages] = useState(0);
 
-  const pdfContainerRef = useRef<HTMLDivElement>(null);
-  const lastPageCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
-  const sigPreviewRef = useRef<HTMLCanvasElement>(null);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
   const points = useRef<{ x: number; y: number }[]>([]);
   const strokes = useRef<{ x: number; y: number }[][]>([]);
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-  const VIEW_SCALE = 1.5;
 
-  // Signature pad dimensions
   const SIG_PAD_WIDTH = 400;
   const SIG_PAD_HEIGHT = 150;
 
-  // Render ALL pages of the PDF
+  const handlePdfLoad = () => setLoading(false);
+  const handlePdfError = () => { setPdfError(true); setLoading(false); };
+
   useEffect(() => {
-    let cancelled = false;
-    let pdfLoadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null;
-    let currentRenderTask: { cancel: () => void; promise: Promise<void> } | null = null;
-
-    async function renderPdf() {
-      try {
-        const resp = await fetch("/doc/contrat_exacademy.pdf");
-        const buffer = await resp.arrayBuffer();
-        if (cancelled) return;
-
-        // Store the loading task so we can destroy it on cleanup
-        pdfLoadingTask = pdfjsLib.getDocument({ data: buffer });
-        const pdf = await pdfLoadingTask.promise;
-        if (cancelled) return;
-
-        setTotalPages(pdf.numPages);
-        const container = pdfContainerRef.current;
-        if (!container) return;
-
-        // Clear previous canvases
-        container.innerHTML = "";
-
-        for (let i = 1; i <= pdf.numPages; i++) {
-          if (cancelled) return;
-          const page = await pdf.getPage(i);
-          if (cancelled) return;
-          const viewport = page.getViewport({ scale: VIEW_SCALE });
-
-          const wrapper = document.createElement("div");
-          wrapper.style.position = "relative";
-          wrapper.style.width = "100%";
-          wrapper.style.maxWidth = `${viewport.width}px`;
-
-          if (i < pdf.numPages) {
-            wrapper.style.marginBottom = "12px";
-          }
-
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width * dpr;
-          canvas.height = viewport.height * dpr;
-          // Use CSS to make the canvas scale responsively
-          canvas.style.width = "100%";
-          canvas.style.height = "auto";
-          canvas.style.display = "block";
-          canvas.className = "shadow-sm";
-
-          const ctx = canvas.getContext("2d");
-          if (!ctx) continue;
-          ctx.scale(dpr, dpr);
-
-          // Guard before starting render — component may have unmounted
-          if (cancelled) return;
-
-          // Store the render task so we can cancel it on cleanup
-          currentRenderTask = page.render({
-            canvas,
-            canvasContext: ctx,
-            viewport,
-          });
-          try {
-            await currentRenderTask.promise;
-          } catch (renderErr: any) {
-            // RenderingCancelledException or unmount cancellation - ignore gracefully
-            if (cancelled || renderErr?.name === "RenderingCancelledException") return;
-            throw renderErr;
-          } finally {
-            currentRenderTask = null;
-          }
-
-          if (cancelled) return;
-
-          wrapper.appendChild(canvas);
-          container.appendChild(wrapper);
-
-          // Keep reference to the last page wrapper for the signature overlay
-          if (i === pdf.numPages) {
-            // @ts-ignore - we'll cast this where it's used
-            lastPageCanvasRef.current = wrapper;
-
-            // Store original unscaled PDF dimensions for percentage-based positioning
-            const unscaledViewport = page.getViewport({ scale: 1 });
-            wrapper.dataset.pdfWidth = unscaledViewport.width.toString();
-            wrapper.dataset.pdfHeight = unscaledViewport.height.toString();
-          }
-        }
-
-        if (!cancelled) setLoading(false);
-      } catch (e) {
-        if (!cancelled) {
-          console.error("PDF load error:", e);
-          setError("Impossible de charger le contrat. Veuillez réessayer.");
-          setLoading(false);
-        }
-      }
-    }
-
-    renderPdf();
-
-    return () => {
-      // Mark as cancelled first so that any in-flight catch blocks exit silently
-      cancelled = true;
-      // Cancel the active page render — prevents RenderingCancelledException from surfacing
-      currentRenderTask?.cancel();
-      // Destroy the PDF loading task if still in progress
-      pdfLoadingTask?.destroy();
-    };
-  }, []);
-
-  // Track scrolling to check if student scrolled to bottom
-  useEffect(() => {
-    const container = pdfContainerRef.current?.parentElement;
+    const container = scrollContainerRef.current;
     if (!container) return;
-
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      if (scrollHeight - scrollTop - clientHeight < 100) {
-        setScrolledToBottom(true);
-      }
+      if (scrollHeight - scrollTop - clientHeight < 100) setScrolledToBottom(true);
     };
-
-    container.addEventListener("scroll", handleScroll);
+    container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
   }, [loading]);
 
-  // Initialize signature pad canvas
   useEffect(() => {
     const canvas = sigCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    // Reset transform before scaling
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     ctx.strokeStyle = "#1a1a2e";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-
-    if (readOnly && signatureData) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, SIG_PAD_WIDTH, SIG_PAD_HEIGHT);
-      img.src = signatureData;
-    }
-  }, [dpr, readOnly, signatureData, padKey]);
-
-  // Draw signature preview on the last page of PDF
-  useEffect(() => {
-    if (!localSignature || !lastPageCanvasRef.current) return;
-
-    // @ts-ignore - now it's actually the wrapper div
-    const wrapper = lastPageCanvasRef.current as HTMLDivElement;
-    if (!wrapper) return;
-
-    // Create or update the preview overlay
-    let overlay = wrapper.querySelector(".sig-overlay") as HTMLDivElement | null;
-    if (!overlay) {
-      overlay = document.createElement("div");
-      overlay.className = "sig-overlay";
-      overlay.style.position = "absolute";
-      overlay.style.pointerEvents = "none";
-      wrapper.appendChild(overlay);
-    }
-
-    // PDF signature zone: x=50, y=80 in PDF coords (bottom-left)
-    const sigX = 50;
-    const sigY = 80;
-    const sigW = 160;
-    const sigH = 55;
-
-    const pdfWidth = parseFloat(wrapper.dataset.pdfWidth || "595");
-    const pdfHeight = parseFloat(wrapper.dataset.pdfHeight || "842");
-
-    // Convert to percentages
-    const leftPct = (sigX / pdfWidth) * 100;
-    const bottomPct = (sigY / pdfHeight) * 100;
-    const widthPct = (sigW / pdfWidth) * 100;
-    const heightPct = (sigH / pdfHeight) * 100;
-
-    overlay.style.left = `${leftPct}%`;
-    overlay.style.bottom = `${bottomPct}%`;
-    overlay.style.width = `${widthPct}%`;
-    overlay.style.height = `${heightPct}%`;
-
-    const img = new Image();
-    img.onload = () => {
-      overlay!.innerHTML = "";
-      const imgEl = document.createElement("img");
-      imgEl.src = localSignature;
-      imgEl.style.width = "100%";
-      imgEl.style.height = "100%";
-      imgEl.style.objectFit = "contain";
-      overlay!.appendChild(imgEl);
-    };
-    img.src = localSignature;
-
-    return () => {
-      if (overlay && overlay.parentNode) {
-        overlay.parentNode.removeChild(overlay);
-      }
-    };
-  }, [localSignature, loading]);
+  }, [dpr, padKey]);
 
   const getPos = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const canvas = sigCanvasRef.current;
@@ -267,9 +81,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
     ctx.clearRect(0, 0, SIG_PAD_WIDTH, SIG_PAD_HEIGHT);
 
     const allStrokes = [...strokes.current];
-    if (points.current.length >= 2) {
-      allStrokes.push(points.current);
-    }
+    if (points.current.length >= 2) allStrokes.push(points.current);
 
     for (const stroke of allStrokes) {
       if (stroke.length < 2) continue;
@@ -311,9 +123,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
   }, [isDrawing, readOnly, getPos, redrawAll]);
 
   const endDraw = useCallback(() => {
-    if (isDrawing && points.current.length >= 2) {
-      strokes.current.push([...points.current]);
-    }
+    if (isDrawing && points.current.length >= 2) strokes.current.push([...points.current]);
     setIsDrawing(false);
     points.current = [];
     lastPos.current = null;
@@ -372,13 +182,12 @@ export default function ContractView({ onSign, signatureData, studentName, readO
         )}
       </div>
 
-      {/* PDF Viewer - All pages, scrollable */}
+      {/* PDF Viewer — native rendering for Safari compatibility */}
       <div className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden">
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <span className="font-semibold text-gray-700 text-sm flex items-center gap-2">
             <FileText size={16} className="text-gray-400" />
             contrat_exacademy.pdf
-            {totalPages > 0 && <span className="text-xs text-gray-400">({totalPages} pages)</span>}
             {localSignature && <span className="text-green-600 text-xs font-bold ml-2 flex items-center gap-1"><CheckCircle size={12} /> Signé</span>}
           </span>
           {!scrolledToBottom && !readOnly && !localSignature && !loading && (
@@ -395,20 +204,32 @@ export default function ContractView({ onSign, signatureData, studentName, readO
           </div>
         )}
 
-        {error && !loading && (
+        {pdfError && (
           <div className="flex items-center justify-center h-[400px] bg-gray-50">
             <div className="flex items-center gap-2 text-red-600">
               <AlertCircle size={20} />
-              <span className="text-sm font-semibold">{error}</span>
+              <span className="text-sm font-semibold">Impossible de charger le contrat.</span>
             </div>
+            <a href="/doc/contrat_exacademy.pdf" target="_blank" rel="noopener noreferrer"
+              className="ml-3 text-sm text-[#0056B3] underline font-semibold">
+              Ouvrir le PDF directement
+            </a>
           </div>
         )}
 
         <div
-          className="bg-gray-100 overflow-auto p-4 flex justify-center relative"
-          style={{ maxHeight: "500px", display: (loading || error) ? "none" : "flex" }}
+          ref={scrollContainerRef}
+          className="bg-gray-100 overflow-auto"
+          style={{ maxHeight: "70vh", display: (loading || pdfError) ? "none" : "block" }}
         >
-          <div ref={pdfContainerRef} className="flex flex-col items-center w-full" />
+          <iframe
+            src="/doc/contrat_exacademy.pdf"
+            onLoad={handlePdfLoad}
+            onError={handlePdfError}
+            title="Contrat de formation"
+            className="w-full border-0"
+            style={{ height: "100%", minHeight: "600px" }}
+          />
         </div>
       </div>
 
@@ -435,7 +256,6 @@ export default function ContractView({ onSign, signatureData, studentName, readO
           </div>
 
           <div className="p-4 flex flex-col items-center gap-4">
-            {/* Signature Canvas */}
             <div className="relative w-full flex justify-center">
               <div
                 className="relative border-2 border-dashed border-[#0056B3]/40 rounded-xl bg-white overflow-hidden"
@@ -467,33 +287,21 @@ export default function ContractView({ onSign, signatureData, studentName, readO
                     </span>
                   </div>
                 )}
-
-                {/* Baseline */}
-                <div
-                  className="absolute left-4 right-4 pointer-events-none"
-                  style={{ bottom: "25%" }}
-                >
+                <div className="absolute left-4 right-4 pointer-events-none" style={{ bottom: "25%" }}>
                   <div className="border-b border-gray-200" />
                 </div>
               </div>
             </div>
 
-            {/* Action buttons */}
             <div className="flex items-center gap-3 w-full justify-center">
               {hasDrawn && (
                 <>
-                  <button
-                    type="button"
-                    onClick={clear}
-                    className="flex items-center gap-1.5 px-4 py-2 text-xs text-red-500 hover:text-red-700 font-semibold border-2 border-red-100 hover:border-red-200 rounded-lg transition-all"
-                  >
+                  <button type="button" onClick={clear}
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs text-red-500 hover:text-red-700 font-semibold border-2 border-red-100 hover:border-red-200 rounded-lg transition-all">
                     <Trash2 size={14} /> Effacer
                   </button>
-                  <button
-                    type="button"
-                    onClick={confirmSignature}
-                    className="flex items-center gap-1.5 px-6 py-2.5 bg-[#0056B3] text-white text-sm font-bold rounded-lg hover:bg-[#003375] transition-all shadow-md hover:shadow-lg"
-                  >
+                  <button type="button" onClick={confirmSignature}
+                    className="flex items-center gap-1.5 px-6 py-2.5 bg-[#0056B3] text-white text-sm font-bold rounded-lg hover:bg-[#003375] transition-all shadow-md hover:shadow-lg">
                     <Check size={16} /> Confirmer ma signature
                   </button>
                 </>
@@ -524,21 +332,14 @@ export default function ContractView({ onSign, signatureData, studentName, readO
               <img src={localSignature} alt="Votre signature" className="h-14 max-w-[200px] object-contain" />
             </div>
             {!readOnly && (
-              <button
-                type="button"
-                onClick={resetSignature}
-                className="flex items-center gap-1.5 text-xs text-red-500 font-semibold hover:underline"
-              >
+              <button type="button" onClick={resetSignature}
+                className="flex items-center gap-1.5 text-xs text-red-500 font-semibold hover:underline">
                 <Trash2 size={14} /> Recommencer la signature
               </button>
             )}
           </div>
         </div>
       )}
-
-      {/* Hidden canvas for preview (used by the overlay effect) */}
-      <canvas ref={sigPreviewRef} style={{ display: "none" }} />
     </div>
   );
 }
-
