@@ -258,7 +258,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
             <CreditCard size={20} className="text-[#0056B3]" />
             <h2 className="text-xl font-black text-gray-900">Paiement de l'inscription</h2>
           </div>
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 space-y-2">
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 space-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-bold text-gray-900">Frais d'inscription</div>
@@ -277,26 +277,26 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
             )}
             <div className="flex items-center justify-between pt-2 border-t border-blue-200">
               <span className="font-black text-gray-900">Total</span>
-              <span className="font-black text-2xl text-[#0056B3]">{formatPrice(totalAmount)} FCFA</span>
+              <span className="font-black text-xl sm:text-2xl text-[#0056B3]">{formatPrice(totalAmount)} FCFA</span>
             </div>
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-700 mb-4">Choisissez votre moyen de paiement</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
               {localMethods.map(p => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => handleMethodSelect(p.id)}
-                  className={`flex flex-col items-center gap-3 p-6 border-2 rounded-2xl transition-all cursor-pointer hover:shadow-lg hover:border-[#0056B3]
+                  className={`flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 border-2 rounded-xl sm:rounded-2xl transition-all cursor-pointer hover:shadow-lg hover:border-[#0056B3]
                     ${form.paymentMethod === p.id ? "border-[#0056B3] bg-blue-50 shadow-md" : "border-gray-200 bg-white"}`}
                 >
                   {p.image ? (
-                    <img src={p.image} alt={p.name} className="h-14 w-auto object-contain" />
+                    <img src={p.image} alt={p.name} className="h-8 sm:h-14 w-auto object-contain" />
                   ) : (
-                    <div className="h-14 w-14 rounded-xl bg-gray-100 flex items-center justify-center text-2xl">💳</div>
+                    <div className="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl bg-gray-100 flex items-center justify-center text-lg sm:text-2xl">💳</div>
                   )}
-                  <span className="font-semibold text-gray-900 text-sm">{p.name}</span>
+                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">{p.name}</span>
                 </button>
               ))}
             </div>
@@ -325,39 +325,39 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-100">
+      <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-100">
         {step > 1 ? (
           <button type="button" onClick={() => { setError(null); setStep(s => s - 1); }}
-            className="flex items-center gap-2 px-5 py-2.5 border-2 border-gray-200 text-gray-600 rounded-xl hover:border-gray-300 font-semibold text-sm transition-all">
-            <ArrowLeft size={16} /> Précédent
+            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border-2 border-gray-200 text-gray-600 rounded-xl hover:border-gray-300 font-semibold text-xs sm:text-sm transition-all">
+            <ArrowLeft size={14} /> Précédent
           </button>
         ) : (
           onCancel && (
             <button type="button" onClick={onCancel}
-              className="flex items-center gap-2 px-5 py-2.5 border-2 border-gray-200 text-gray-600 rounded-xl hover:border-gray-300 font-semibold text-sm transition-all">
-              <ArrowLeft size={16} /> Annuler
+              className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border-2 border-gray-200 text-gray-600 rounded-xl hover:border-gray-300 font-semibold text-xs sm:text-sm transition-all">
+              <ArrowLeft size={14} /> Annuler
             </button>
           )
         )}
 
         {step < 3 ? (
           <button type="button" onClick={goNextStep}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#0056B3] hover:bg-[#003375] text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg">
-            Suivant <ArrowRight size={16} />
+            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#0056B3] hover:bg-[#003375] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md hover:shadow-lg">
+            Suivant <ArrowRight size={14} />
           </button>
         ) : step === 3 ? (
           <button type="button" onClick={() => { setError(null); setStep(4); }}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#0056B3] hover:bg-[#003375] text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg">
-            <FileText size={16} /> Voir le contrat <ArrowRight size={16} />
+            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#0056B3] hover:bg-[#003375] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md hover:shadow-lg">
+            <FileText size={14} /> Voir le contrat <ArrowRight size={14} />
           </button>
         ) : step === 4 ? (
           <button type="button" onClick={goNextStep}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg">
-            Procéder au paiement <ArrowRight size={16} />
+            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md hover:shadow-lg">
+            Procéder au paiement <ArrowRight size={14} />
           </button>
         ) : (
           <button type="submit" disabled={submitting}
-            className="flex items-center gap-2 px-8 py-3 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-black rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
+            className="flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold sm:font-black text-sm sm:text-base rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
             {submitting ? <Loader2 size={18} className="animate-spin" /> : "💳"}
             {submitting ? "Paiement en cours..." : "Payer maintenant"} <ArrowRight size={16} />
           </button>
