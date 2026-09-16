@@ -26,11 +26,13 @@ export const MODES: { id: Mode; name: string; desc: string }[] = [
 ];
 
 export const VILLES = [
-  "Abidjan (Cocody Palmeraie)",
+  "Abidjan",
   "Bouaké",
   "Yamoussoukro",
   "Daloa",
   "Korhogo",
+  "Divo",
+  "Man",
 ];
 
 export function isDiaspora(pays: string): boolean {
