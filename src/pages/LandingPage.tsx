@@ -120,7 +120,7 @@ function Hero() {
                   ))}
                 </div>
                 <div>
-                  <div className="text-white font-bold text-sm">10 000+</div>
+                  <div className="text-white font-bold text-sm">1000+</div>
                   <div className="text-gray-400 text-xs">étudiants formés</div>
                 </div>
               </div>
@@ -796,15 +796,7 @@ function Testimonials() {
     } catch (err: any) { setFormError(err.message); } finally { setFormSubmitting(false); }
   };
 
-  if (error) return null;
-  if (loading) return (
-    <section className="py-16 bg-surface-50 border-t border-gray-100">
-      <Container>
-        <div className="flex justify-center"><div className="w-full max-w-2xl h-64 bg-gray-200 rounded-3xl animate-pulse" /></div>
-      </Container>
-    </section>
-  );
-  if (data.length === 0) return null;
+  if (error || loading || data.length === 0) return null;
 
   return (
     <section className="py-16 sm:py-20 bg-gradient-to-b from-surface-50 to-white relative overflow-hidden">
