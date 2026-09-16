@@ -98,6 +98,7 @@ export const initializePayment = async (req: Request, res: Response) => {
       method: 'POST',
       headers: geniusPayHeaders(),
       body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15000),
     });
 
     const gpData = await handleGeniusPayResponse(response);
@@ -132,6 +133,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
 
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments/${reference}`, {
       headers: geniusPayHeaders(),
+      signal: AbortSignal.timeout(15000),
     });
 
     const gpData = await handleGeniusPayResponse(response);

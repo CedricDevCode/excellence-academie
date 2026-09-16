@@ -15,25 +15,25 @@ import TeacherSalariesView from "../components/TeacherSalariesView";
 import { generateInvoiceReport } from "../utils/pdf";
 
 const EXPENSE_CATEGORIES = [
-  { value: '', label: 'Non cat�goris�' },
+  { value: '', label: 'Non catÃ©gorisÃ©' },
   { value: 'SALAIRE', label: 'Salaire / Enseignant' },
   { value: 'LOYER', label: 'Loyer / Location' },
-  { value: 'FOURNITURE', label: 'Fournitures / Mat�riel' },
-  { value: 'EQUIPEMENT', label: '�quipement' },
+  { value: 'FOURNITURE', label: 'Fournitures / MatÃ©riel' },
+  { value: 'EQUIPEMENT', label: 'Ãquipement' },
   { value: 'TRANSPORT', label: 'Transport' },
   { value: 'COMMUNICATION', label: 'Communication / Internet' },
-  { value: 'SERVICES_PUBLICS', label: 'Services publics (eau, �lectricit�)' },
-  { value: 'FORMATION', label: 'Formation / S�minaire' },
+  { value: 'SERVICES_PUBLICS', label: 'Services publics (eau, Ã©lectricitÃ©)' },
+  { value: 'FORMATION', label: 'Formation / SÃ©minaire' },
   { value: 'AUTRE', label: 'Autre' },
 ];
 
 const NAV_ITEMS = [
   { icon: <Home size={18} />, label: "Tableau de bord", id: "dashboard" },
   { icon: <DollarSign size={18} />, label: "Revenus", id: "revenues" },
-  { icon: <TrendingDown size={18} />, label: "D�penses", id: "expenses" },
-  { icon: <FileText size={18} />, label: "Re�us & Factures", id: "receipts" },
+  { icon: <TrendingDown size={18} />, label: "DÃ©penses", id: "expenses" },
+  { icon: <FileText size={18} />, label: "ReÃ§us & Factures", id: "receipts" },
   { icon: <MapPin size={18} />, label: "Villes", id: "cities" },
-  { icon: <Clock size={18} />, label: "S�ances", id: "sessions" },
+  { icon: <Clock size={18} />, label: "Sï¿½ances", id: "sessions" },
   { icon: <TrendingUp size={18} />, label: "Rapports", id: "reports" },
   { icon: <Bell size={18} />, label: "Alertes", id: "alerts" },
 ];
@@ -47,7 +47,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => vo
     <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-3">
       <AlertCircle size={20} className="text-red-500 shrink-0" />
       <p className="text-red-700 text-sm flex-1">{message}</p>
-      {onRetry && <button onClick={onRetry} className="text-red-600 text-sm font-semibold hover:underline shrink-0">R�essayer</button>}
+      {onRetry && <button onClick={onRetry} className="text-red-600 text-sm font-semibold hover:underline shrink-0">Rï¿½essayer</button>}
     </div>
   );
 }
@@ -83,7 +83,7 @@ export default function AccountantDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [expenseForm, setExpenseForm] = useState({ amount: "", description: "", category: "", ville: "", paymentMethod: "Esp�ces", teacherId: "" });
+  const [expenseForm, setExpenseForm] = useState({ amount: "", description: "", category: "", ville: "", paymentMethod: "Espï¿½ces", teacherId: "" });
   const [creatingExpense, setCreatingExpense] = useState(false);
 
   const [startDate, setStartDate] = useState("");
@@ -157,7 +157,7 @@ export default function AccountantDashboard() {
         teacherId: expenseForm.teacherId || undefined,
       });
       setShowExpenseForm(false);
-      setExpenseForm({ amount: "", description: "", category: "", ville: "", paymentMethod: "Esp�ces", teacherId: "" });
+      setExpenseForm({ amount: "", description: "", category: "", ville: "", paymentMethod: "Espï¿½ces", teacherId: "" });
       const [expensesData, notifsData] = await Promise.all([
         fetchExpenses(),
         fetchNotifications(),
@@ -165,7 +165,7 @@ export default function AccountantDashboard() {
       setExpenses(expensesData);
       setNotifs(notifsData);
     } catch (err: any) {
-      alert(err?.message || "Erreur lors de la cr�ation de la d�pense");
+      alert(err?.message || "Erreur lors de la crï¿½ation de la dï¿½pense");
     } finally {
       setCreatingExpense(false);
     }
@@ -178,7 +178,7 @@ export default function AccountantDashboard() {
       const receiptsData = await fetchReceipts();
       setReceipts(receiptsData);
     } catch (err: any) {
-      alert(err?.message || "Erreur lors de la g�n�ration du re�u");
+      alert(err?.message || "Erreur lors de la gï¿½nï¿½ration du reï¿½u");
     } finally {
       setGeneratingReceiptId(null);
     }
@@ -227,7 +227,7 @@ export default function AccountantDashboard() {
   });
 
   const monthlyData = useMemo(() => {
-    const months = ['Janvier', 'F�vrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Ao�t', 'Septembre', 'Octobre', 'Novembre', 'D�cembre'];
+    const months = ['Janvier', 'Fï¿½vrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aoï¿½t', 'Septembre', 'Octobre', 'Novembre', 'Dï¿½cembre'];
     const map: Record<string, { revenus: number; depenses: number; count: number }> = {};
 
     paidPayments.forEach((p: any) => {
@@ -258,13 +258,13 @@ export default function AccountantDashboard() {
 
   const handleExportCsv = () => {
     const rows = [
-      ["Date", "�tudiant", "Type", "Montant", "M�thode", "Statut"],
+      ["Date", "ï¿½tudiant", "Type", "Montant", "Mï¿½thode", "Statut"],
       ...filteredPayments.map((t: any) => [
         new Date(t.createdAt).toLocaleDateString("fr-FR"),
         t.user?.name || "Inconnu",
-        "Mensualit�",
+        "Mensualitï¿½",
         `${formatPrice(t.amount)} FCFA`,
-        t.geniusPayReference ? "GeniusPay" : "�",
+        t.geniusPayReference ? "GeniusPay" : "ï¿½",
         t.status,
       ]),
     ];
@@ -293,7 +293,7 @@ export default function AccountantDashboard() {
         className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:border-green-500 focus:outline-none" />
       {(startDate || endDate) && (
         <button onClick={() => { setStartDate(''); setEndDate(''); }}
-          className="text-xs text-gray-500 hover:text-gray-700 underline">R�initialiser</button>
+          className="text-xs text-gray-500 hover:text-gray-700 underline">Rï¿½initialiser</button>
       )}
     </div>
   );
@@ -335,7 +335,7 @@ export default function AccountantDashboard() {
             {monthlyData.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-bold text-gray-900 text-sm">R�partition mensuelle</h3>
+                  <h3 className="font-bold text-gray-900 text-sm">Rï¿½partition mensuelle</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -399,7 +399,7 @@ export default function AccountantDashboard() {
             {dateFilteredPaidPayments.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
                 <DollarSign size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-400 text-sm">Aucun revenu enregistr�</p>
+                <p className="text-gray-400 text-sm">Aucun revenu enregistrï¿½</p>
               </div>
             ) : (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -407,7 +407,7 @@ export default function AccountantDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        {["Date", "�tudiant", "Ville", "Montant", "Statut"].map(h => (
+                        {["Date", "ï¿½tudiant", "Ville", "Montant", "Statut"].map(h => (
                           <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                         ))}
                       </tr>
@@ -417,9 +417,9 @@ export default function AccountantDashboard() {
                         <tr key={t.id} className="hover:bg-gray-50 transition-colors">
                           <td className="py-3 px-4 text-xs text-gray-500">{new Date(t.createdAt).toLocaleDateString("fr-FR")}</td>
                           <td className="py-3 px-4 font-semibold text-gray-900 text-sm">{t.user?.name || "Inconnu"}</td>
-                          <td className="py-3 px-4 text-xs text-gray-400">{t.user?.ville || "�"}</td>
+                          <td className="py-3 px-4 text-xs text-gray-400">{t.user?.ville || "ï¿½"}</td>
                           <td className="py-3 px-4 font-black text-green-600 text-sm">+{formatPrice(t.amount)} FCFA</td>
-                          <td className="py-3 px-4"><span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">Valid�</span></td>
+                          <td className="py-3 px-4"><span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">Validï¿½</span></td>
                         </tr>
                       ))}
                     </tbody>
@@ -435,19 +435,19 @@ export default function AccountantDashboard() {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
               <div>
-                <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><TrendingDown size={18} className="text-red-500" /> D�penses</h2>
-                <p className="text-gray-500 text-sm mt-1">Suivi des d�penses.</p>
+                <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><TrendingDown size={18} className="text-red-500" /> Dï¿½penses</h2>
+                <p className="text-gray-500 text-sm mt-1">Suivi des dï¿½penses.</p>
               </div>
               <button onClick={() => setShowExpenseForm(true)}
                 className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors">
-                <Plus size={16} /> Ajouter une d�pense
+                <Plus size={16} /> Ajouter une dï¿½pense
               </button>
             </div>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="text-3xl font-black text-red-600">{formatPrice(totalDepenses)} <span className="text-sm font-normal text-gray-400">FCFA</span></div>
-                  <p className="text-gray-500 text-sm mt-1">Total des d�penses ({expenses.length} entr�es)</p>
+                  <p className="text-gray-500 text-sm mt-1">Total des dï¿½penses ({expenses.length} entrï¿½es)</p>
                 </div>
                 <DateFilterBar />
               </div>
@@ -455,7 +455,7 @@ export default function AccountantDashboard() {
             {dateFilteredExpenses.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
                 <TrendingDown size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-400 text-sm">Aucune d�pense enregistr�e</p>
+                <p className="text-gray-400 text-sm">Aucune dï¿½pense enregistrï¿½e</p>
               </div>
             ) : (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
@@ -469,10 +469,10 @@ export default function AccountantDashboard() {
                         <div className="font-semibold text-gray-900 text-sm truncate">{d.description}</div>
                         <div className="text-gray-400 text-xs">
                           {new Date(d.createdAt).toLocaleDateString("fr-FR")}
-                          {d.ville ? ` � ${d.ville}` : ""}
-                          {d.category ? ` � ${EXPENSE_CATEGORIES.find(c => c.value === d.category)?.label || d.category}` : ""}
-                          {d.paymentMethod ? ` � ${d.paymentMethod}` : ""}
-                          {d.teacher?.name ? ` � ${d.teacher.name}` : ""}
+                          {d.ville ? ` ï¿½ ${d.ville}` : ""}
+                          {d.category ? ` ï¿½ ${EXPENSE_CATEGORIES.find(c => c.value === d.category)?.label || d.category}` : ""}
+                          {d.paymentMethod ? ` ï¿½ ${d.paymentMethod}` : ""}
+                          {d.teacher?.name ? ` ï¿½ ${d.teacher.name}` : ""}
                         </div>
                       </div>
                       <div className="font-black text-red-500 text-sm shrink-0">-{formatPrice(d.amount)} FCFA</div>
@@ -480,7 +480,7 @@ export default function AccountantDashboard() {
                   ))}
                 </div>
                 <div className="p-4 bg-red-50 flex items-center justify-between">
-                  <span className="text-red-700 font-semibold text-sm">Total d�penses</span>
+                  <span className="text-red-700 font-semibold text-sm">Total dï¿½penses</span>
                   <span className="text-red-700 font-black">{formatPrice(totalDepenses)} FCFA</span>
                 </div>
               </div>
@@ -492,20 +492,20 @@ export default function AccountantDashboard() {
         return (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><FileText size={18} className="text-green-500" /> Re�us & Factures</h2>
-              <p className="text-gray-500 text-sm mt-1">Consultez et g�n�rez les re�us de paiement.</p>
+              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><FileText size={18} className="text-green-500" /> Reï¿½us & Factures</h2>
+              <p className="text-gray-500 text-sm mt-1">Consultez et gï¿½nï¿½rez les reï¿½us de paiement.</p>
             </div>
             {receipts.length === 0 && paidPayments.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
                 <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-400 text-sm">Aucun re�u disponible. Effectuez des paiements pour g�n�rer des re�us.</p>
+                <p className="text-gray-400 text-sm">Aucun reï¿½u disponible. Effectuez des paiements pour gï¿½nï¿½rer des reï¿½us.</p>
               </div>
             ) : (
               <>
                 {paidPayments.length > 0 && (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-4 border-b border-gray-100">
-                      <h3 className="font-bold text-gray-900 text-sm">G�n�rer un re�u</h3>
+                      <h3 className="font-bold text-gray-900 text-sm">Gï¿½nï¿½rer un reï¿½u</h3>
                     </div>
                     <div className="divide-y divide-gray-100">
                       {paidPayments.map((p: any) => {
@@ -515,12 +515,12 @@ export default function AccountantDashboard() {
                             <div className="flex-1 min-w-0">
                               <div className="font-semibold text-gray-900 text-sm truncate">{p.user?.name || "Inconnu"}</div>
                               <div className="text-gray-400 text-xs">
-                                {new Date(p.createdAt).toLocaleDateString("fr-FR")} � {formatPrice(p.amount)} FCFA
+                                {new Date(p.createdAt).toLocaleDateString("fr-FR")} ï¿½ {formatPrice(p.amount)} FCFA
                               </div>
                             </div>
                             {hasReceipt ? (
                               <span className="flex items-center gap-1 text-green-600 text-xs font-semibold">
-                                <CheckCircle size={12} /> Re�u g�n�r�
+                                <CheckCircle size={12} /> Reï¿½u gï¿½nï¿½rï¿½
                               </span>
                             ) : (
                               <button onClick={() => handleGenerateReceipt(p.id)} disabled={generatingReceiptId === p.id}
@@ -530,7 +530,7 @@ export default function AccountantDashboard() {
                                 ) : (
                                   <Printer size={12} />
                                 )}
-                                G�n�rer le re�u
+                                Gï¿½nï¿½rer le reï¿½u
                               </button>
                             )}
                           </div>
@@ -542,13 +542,13 @@ export default function AccountantDashboard() {
                 {receipts.length > 0 && (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-4 border-b border-gray-100">
-                      <h3 className="font-bold text-gray-900 text-sm">Re�us existants</h3>
+                      <h3 className="font-bold text-gray-900 text-sm">Reï¿½us existants</h3>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-gray-50">
                           <tr>
-                            {["Date", "�tudiant", "Montant", "Statut"].map(h => (
+                            {["Date", "ï¿½tudiant", "Montant", "Statut"].map(h => (
                               <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                             ))}
                           </tr>
@@ -560,7 +560,7 @@ export default function AccountantDashboard() {
                               <td className="py-3 px-4 font-semibold text-gray-900 text-sm">{r.payment?.user?.name || "Inconnu"}</td>
                               <td className="py-3 px-4 font-black text-green-600 text-sm">{formatPrice(r.payment?.amount || 0)} FCFA</td>
                               <td className="py-3 px-4">
-                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">G�n�r�</span>
+                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">Gï¿½nï¿½rï¿½</span>
                               </td>
                             </tr>
                           ))}
@@ -578,13 +578,13 @@ export default function AccountantDashboard() {
         return (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><MapPin size={18} className="text-purple-500" /> Revenus et d�penses par ville</h2>
-              <p className="text-gray-500 text-sm mt-1">R�partition financi�re par ville de r�sidence des �tudiants et localisation des d�penses.</p>
+              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><MapPin size={18} className="text-purple-500" /> Revenus et dï¿½penses par ville</h2>
+              <p className="text-gray-500 text-sm mt-1">Rï¿½partition financiï¿½re par ville de rï¿½sidence des ï¿½tudiants et localisation des dï¿½penses.</p>
             </div>
             {cityData.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
                 <MapPin size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-400 text-sm">Aucune donn�e disponible</p>
+                <p className="text-gray-400 text-sm">Aucune donnï¿½e disponible</p>
               </div>
             ) : (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -592,7 +592,7 @@ export default function AccountantDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        {["Ville", "Revenus", "D�penses", "R�sultat net"].map(h => (
+                        {["Ville", "Revenus", "Dï¿½penses", "Rï¿½sultat net"].map(h => (
                           <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                         ))}
                       </tr>
@@ -614,7 +614,7 @@ export default function AccountantDashboard() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="font-black text-red-500 text-sm">-{formatPrice(c.expense)} FCFA</div>
-                            <div className="text-gray-400 text-xs">{c.expenseCount} entr�e{c.expenseCount > 1 ? 's' : ''}</div>
+                            <div className="text-gray-400 text-xs">{c.expenseCount} entrï¿½e{c.expenseCount > 1 ? 's' : ''}</div>
                           </td>
                           <td className={`py-3 px-4 font-black text-sm ${c.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                             {c.net >= 0 ? '+' : ''}{formatPrice(c.net)} FCFA
@@ -638,7 +638,7 @@ export default function AccountantDashboard() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
               <div>
                 <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><TrendingUp size={18} className="text-green-500" /> Rapports</h2>
-                <p className="text-gray-500 text-sm mt-1">Exportez les donn�es financi�res.</p>
+                <p className="text-gray-500 text-sm mt-1">Exportez les donnï¿½es financiï¿½res.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={handleExportCsv} className="flex items-center gap-2 bg-[#0056B3] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003375] transition-colors">
@@ -656,14 +656,14 @@ export default function AccountantDashboard() {
               </div>
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="text-red-600 text-2xl font-black">{formatPrice(totalDepenses)} FCFA</div>
-                <div className="text-gray-500 text-sm mt-1">Total D�penses</div>
+                <div className="text-gray-500 text-sm mt-1">Total Dï¿½penses</div>
               </div>
               <div className={`rounded-2xl p-6 shadow-sm border ${balance >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
                 <div className={`text-2xl font-black ${balance >= 0 ? "text-green-700" : "text-red-700"}`}>
                   {balance >= 0 ? "+" : ""}{formatPrice(balance)} FCFA
                 </div>
                 <div className={`${balance >= 0 ? "text-green-600" : "text-red-600"} text-sm mt-1`}>
-                  {balance >= 0 ? "B�n�fice net" : "D�ficit"}
+                  {balance >= 0 ? "Bï¿½nï¿½fice net" : "Dï¿½ficit"}
                 </div>
               </div>
             </div>
@@ -671,13 +671,13 @@ export default function AccountantDashboard() {
             {monthlyData.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-bold text-gray-900">�volution mensuelle</h3>
+                  <h3 className="font-bold text-gray-900">ï¿½volution mensuelle</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        {["Mois", "Revenus", "D�penses", "R�sultat net"].map(h => (
+                        {["Mois", "Revenus", "Dï¿½penses", "Rï¿½sultat net"].map(h => (
                           <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                         ))}
                       </tr>
@@ -713,7 +713,7 @@ export default function AccountantDashboard() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
               <div>
                 <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><Bell size={18} className="text-green-500" /> Alertes</h2>
-                <p className="text-gray-500 text-sm mt-1">Notifications et alertes financi�res.</p>
+                <p className="text-gray-500 text-sm mt-1">Notifications et alertes financiï¿½res.</p>
               </div>
               {notifs.filter(n => !n.isRead).length > 0 && (
                 <span className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -778,10 +778,10 @@ export default function AccountantDashboard() {
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-11 h-11 bg-red-500 rounded-xl flex items-center justify-center text-white"><TrendingDown size={22} /></div>
-                  <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-1 rounded-full">{expenses.length} entr�es</span>
+                  <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-1 rounded-full">{expenses.length} entrï¿½es</span>
                 </div>
                 <div className="text-2xl font-black text-gray-900">{formatPrice(totalDepenses)} <span className="text-sm font-normal text-gray-400">FCFA</span></div>
-                <div className="text-gray-500 text-sm mt-1">D�penses</div>
+                <div className="text-gray-500 text-sm mt-1">Dï¿½penses</div>
               </div>
               <div className={`rounded-2xl p-6 shadow-sm border ${balance >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
                 <div className="flex items-center justify-between mb-4">
@@ -789,7 +789,7 @@ export default function AccountantDashboard() {
                     <DollarSign size={22} />
                   </div>
                   <span className={`text-xs font-semibold px-2 py-1 rounded-full ${balance >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                    {balance >= 0 ? "B�n�fice" : "D�ficit"}
+                    {balance >= 0 ? "Bï¿½nï¿½fice" : "Dï¿½ficit"}
                   </span>
                 </div>
                 <div className={`text-2xl font-black ${balance >= 0 ? "text-green-700" : "text-red-700"}`}>
@@ -802,7 +802,7 @@ export default function AccountantDashboard() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="font-black text-gray-900 flex items-center gap-2"><CheckCircle size={18} className="text-green-500" /> Transactions r�centes</h2>
+                  <h2 className="font-black text-gray-900 flex items-center gap-2"><CheckCircle size={18} className="text-green-500" /> Transactions rï¿½centes</h2>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
@@ -817,7 +817,7 @@ export default function AccountantDashboard() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          {["�tudiant", "Montant", "Statut", "Date"].map(h => (
+                          {["ï¿½tudiant", "Montant", "Statut", "Date"].map(h => (
                             <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                           ))}
                         </tr>
@@ -844,14 +844,14 @@ export default function AccountantDashboard() {
 
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="font-black text-gray-900 flex items-center gap-2"><TrendingDown size={18} className="text-red-500" /> Derni�res d�penses</h2>
+                  <h2 className="font-black text-gray-900 flex items-center gap-2"><TrendingDown size={18} className="text-red-500" /> Derniï¿½res dï¿½penses</h2>
                   <button onClick={() => setShowExpenseForm(true)}
                     className="flex items-center gap-1 text-red-600 text-xs font-semibold hover:underline">
                     <Plus size={14} /> Ajouter
                   </button>
                 </div>
                 {expenses.length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center py-8">Aucune d�pense</p>
+                  <p className="text-gray-400 text-sm text-center py-8">Aucune dï¿½pense</p>
                 ) : (
                   <>
                     <div className="divide-y divide-gray-50">
@@ -861,8 +861,8 @@ export default function AccountantDashboard() {
                             <div className="font-semibold text-gray-900 text-sm truncate">{d.description}</div>
                             <div className="text-gray-400 text-xs">
                               {new Date(d.createdAt).toLocaleDateString("fr-FR")}
-                              {d.ville ? ` � ${d.ville}` : ""}
-                              {d.category ? ` � ${EXPENSE_CATEGORIES.find(c => c.value === d.category)?.label || d.category}` : ""}
+                              {d.ville ? ` ï¿½ ${d.ville}` : ""}
+                              {d.category ? ` ï¿½ ${EXPENSE_CATEGORIES.find(c => c.value === d.category)?.label || d.category}` : ""}
                             </div>
                           </div>
                           <div className="font-black text-red-500 text-sm shrink-0">-{formatPrice(d.amount)} FCFA</div>
@@ -881,13 +881,13 @@ export default function AccountantDashboard() {
             {monthlyData.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-6">
                 <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-bold text-gray-900">R�sum� mensuel</h3>
+                  <h3 className="font-bold text-gray-900">Rï¿½sumï¿½ mensuel</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        {["Mois", "Revenus", "D�penses", "R�sultat"].map(h => (
+                        {["Mois", "Revenus", "Dï¿½penses", "Rï¿½sultat"].map(h => (
                           <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                         ))}
                       </tr>
@@ -917,7 +917,7 @@ export default function AccountantDashboard() {
 
   return (
     <div className="flex h-screen bg-gray-100 font-[Inter,sans-serif] overflow-hidden">
-      <aside className={`fixed inset-y-0 left-0 z-50 bg-green-700 text-white transform transition-all duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`} role="navigation" aria-label="Menu comptabilit�">
+      <aside className={`fixed inset-y-0 left-0 z-50 bg-green-700 text-white transform transition-all duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`} role="navigation" aria-label="Menu comptabilitï¿½">
         <div className={`flex items-center justify-between border-b border-green-600/30 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
           {sidebarCollapsed ? (
             <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0" />
@@ -925,8 +925,8 @@ export default function AccountantDashboard() {
             <div className="flex items-center gap-3 overflow-hidden">
               <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0" />
               <div className="min-w-0">
-                <div className="font-black text-sm truncate">Excellence Acad�mie</div>
-                <div className="text-green-200 text-xs truncate">Comptabilit�</div>
+                <div className="font-black text-sm truncate">Excellence Acadï¿½mie</div>
+                <div className="text-green-200 text-xs truncate">Comptabilitï¿½</div>
               </div>
             </div>
           )}
@@ -948,14 +948,14 @@ export default function AccountantDashboard() {
         </nav>
         <div className={`absolute bottom-0 left-0 right-0 border-t border-green-600/30 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           <button onClick={toggleSidebar} className={`w-full flex items-center gap-3 text-green-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
-            title={sidebarCollapsed ? "Agrandir" : "R�duire"}>
+            title={sidebarCollapsed ? "Agrandir" : "Rï¿½duire"}>
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-            {!sidebarCollapsed && <span>R�duire</span>}
+            {!sidebarCollapsed && <span>Rï¿½duire</span>}
           </button>
           <button onClick={handleLogout} className={`w-full flex items-center gap-3 text-green-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
-            title="D�connexion">
+            title="Dï¿½connexion">
             <LogOut size={18} />
-            {!sidebarCollapsed && <span>D�connexion</span>}
+            {!sidebarCollapsed && <span>Dï¿½connexion</span>}
           </button>
         </div>
       </aside>
@@ -969,8 +969,8 @@ export default function AccountantDashboard() {
               <Menu size={22} />
             </button>
             <div>
-              <h1 className="font-black text-gray-900">Tableau de bord � Comptabilit�</h1>
-              <p className="text-gray-400 text-xs">Excellence Acad�mie � {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+              <h1 className="font-black text-gray-900">Tableau de bord ï¿½ Comptabilitï¿½</h1>
+              <p className="text-gray-400 text-xs">Excellence Acadï¿½mie ï¿½ {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -991,7 +991,7 @@ export default function AccountantDashboard() {
                   <div className="p-2">
                     <button onClick={handleLogout}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors">
-                      <LogOut size={16} /> D�connexion
+                      <LogOut size={16} /> Dï¿½connexion
                     </button>
                   </div>
                 </div>
@@ -1012,7 +1012,7 @@ export default function AccountantDashboard() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-black text-gray-900">Nouvelle d�pense</h3>
+              <h3 className="font-black text-gray-900">Nouvelle dï¿½pense</h3>
               <button onClick={() => setShowExpenseForm(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X size={20} />
               </button>
@@ -1029,7 +1029,7 @@ export default function AccountantDashboard() {
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" required min="1" placeholder="50000" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Cat�gorie</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Catï¿½gorie</label>
                 <select value={expenseForm.category} onChange={e => setExpenseForm({ ...expenseForm, category: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
                   {EXPENSE_CATEGORIES.map(cat => (
@@ -1040,19 +1040,19 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ville</label>
                 <input type="text" value={expenseForm.ville} list="city-list-acc" onChange={e => setExpenseForm({ ...expenseForm, ville: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" placeholder="Ex: Abidjan, Bouak�..." />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" placeholder="Ex: Abidjan, Bouakï¿½..." />
                 <datalist id="city-list-acc">
                   {cities.map(c => <option key={c.id} value={c.name} />)}
                 </datalist>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">M�thode de paiement</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Mï¿½thode de paiement</label>
                 <select value={expenseForm.paymentMethod} onChange={e => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
-                  <option value="Esp�ces">Esp�ces</option>
+                  <option value="Espï¿½ces">Espï¿½ces</option>
                   <option value="Virement bancaire">Virement bancaire</option>
                   <option value="Mobile Money">Mobile Money (Orange Money / MTN)</option>
-                  <option value="Ch�que">Ch�que</option>
+                  <option value="Chï¿½que">Chï¿½que</option>
                   <option value="Carte bancaire">Carte bancaire</option>
                 </select>
               </div>
@@ -1060,7 +1060,7 @@ export default function AccountantDashboard() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Enseignant (optionnel)</label>
                 <select value={expenseForm.teacherId} onChange={e => setExpenseForm({ ...expenseForm, teacherId: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
-                  <option value="">S�lectionner un enseignant</option>
+                  <option value="">Sï¿½lectionner un enseignant</option>
                   {teachers.map((t: any) => (
                     <option key={t.id} value={t.id}>{t.name || t.email}</option>
                   ))}
@@ -1069,7 +1069,7 @@ export default function AccountantDashboard() {
               <button type="submit" disabled={creatingExpense}
                 className="w-full bg-red-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {creatingExpense ? <Loader2 size={16} className="animate-spin" /> : null}
-                {creatingExpense ? "Enregistrement..." : "Enregistrer la d�pense"}
+                {creatingExpense ? "Enregistrement..." : "Enregistrer la dï¿½pense"}
               </button>
             </form>
           </div>

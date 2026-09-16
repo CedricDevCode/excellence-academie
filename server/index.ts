@@ -2,6 +2,8 @@ import './env';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 import { prisma } from './utils/prisma';
@@ -27,6 +29,7 @@ import blogRoutes from './routes/blogRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import { seedFormations } from './seed-courses';
 import { ensureSessionTables } from './controllers/sessionController';
+import { ensureCategoryTable } from './controllers/categoryController';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -42,6 +45,39 @@ if (!process.env.JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET est manquant dans les variables d\'environnement.');
   process.exit(1);
 }
+
+// ─── Rate Limiting global ─────────────────────────────────────────────────────
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // 200 requêtes par fenêtre
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes. Réessayez dans 15 minutes.' },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // 20 tentatives d'auth par fenêtre
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
+});
+
+const webhookLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 30, // 30 webhooks par minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes webhook.' },
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20, // 20 uploads par heure
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop d\'uploads. Réessayez dans une heure.' },
+});
 
 // ─── Origines CORS autorisées ─────────────────────────────────────────────────
 const defaultOrigins = [
@@ -68,7 +104,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
@@ -77,6 +113,12 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false,
 }));
+
+// ─── Compression ──────────────────────────────────────────────────────────────
+app.use(compression());
+
+// ─── Rate Limiting global ─────────────────────────────────────────────────────
+app.use('/api', globalLimiter);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -88,8 +130,7 @@ app.use(cors({
     const isAllowed =
       allowedOrigins.includes(origin) ||
       origin.endsWith('.exacademie.net') ||
-      origin.includes('exacademie.net') ||
-      (!isProduction && origin.includes('localhost'));
+      (!isProduction && /^https?:\/\/localhost:\d+$/.test(origin));
 
     if (isAllowed) {
       return callback(null, true);
@@ -121,7 +162,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
 // ─── Routes API ───────────────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -187,7 +228,7 @@ app.get('/api/health', async (req, res) => {
 const projectRoot = process.cwd();
 const rootUploads = path.resolve(projectRoot, 'uploads');
 const serverUploads = path.resolve(projectRoot, 'server', 'uploads');
-for (const sub of ['products', 'testimonials', 'blog', 'users', 'sessions']) {
+for (const sub of ['products', 'testimonials', 'blog', 'users', 'sessions', 'categories']) {
   fs.mkdirSync(path.join(rootUploads, sub), { recursive: true });
 }
 
@@ -228,6 +269,9 @@ async function initDatabaseDefaults() {
 
     // Initialiser les tables de sessions personnalisées en toute sécurité
     await ensureSessionTables();
+
+    // Initialiser la table Category si elle n'existe pas
+    await ensureCategoryTable();
 
     const adminExists = await prisma.user.findUnique({
       where: { email: 'admin@excellence.ci' },
@@ -275,16 +319,24 @@ async function initDatabaseDefaults() {
 }
 
 // ─── Démarrage du serveur ─────────────────────────────────────────────────────
-app.listen(port, () => {
-  console.log(`🚀 Serveur démarré sur le port ${port} [${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}]`);
-  initDatabaseDefaults();
+async function startServer() {
+  await initDatabaseDefaults();
 
-  // 🌟 Neon PostgreSQL Keep-Alive (ping toutes les 3 minutes)
-  setInterval(async () => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-    } catch (err: any) {
-      console.warn('⚠️ [Neon Keep-Alive] Ping DB :', err?.message || err);
-    }
-  }, 180 * 1000);
+  app.listen(port, () => {
+    console.log(`🚀 Serveur démarré sur le port ${port} [${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}]`);
+
+    // 🌟 Neon PostgreSQL Keep-Alive (ping toutes les 3 minutes)
+    setInterval(async () => {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+      } catch (err: any) {
+        console.warn('⚠️ [Neon Keep-Alive] Ping DB :', err?.message || err);
+      }
+    }, 180 * 1000);
+  });
+}
+
+startServer().catch((err) => {
+  console.error('❌ Erreur fatale au démarrage du serveur:', err);
+  process.exit(1);
 });

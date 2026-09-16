@@ -37,14 +37,17 @@ export const generateReceipt = async (req: Request, res: Response) => {
     }
 
     // Create a new receipt record
+    const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const userName = escapeHtml(payment.user?.name || payment.user?.email || '');
+    const courseTitle = payment.course ? escapeHtml(payment.course.title) : '';
     const content = `
       <h1>Reçu de Paiement</h1>
       <p><strong>Académie:</strong> Excellence Académie</p>
       <p><strong>Date:</strong> ${new Date(payment.createdAt).toLocaleDateString()}</p>
-      <p><strong>Étudiant:</strong> ${payment.user?.name || payment.user?.email}</p>
+      <p><strong>Étudiant:</strong> ${userName}</p>
       <p><strong>Montant:</strong> ${payment.amount} FCFA</p>
-      <p><strong>Statut:</strong> ${payment.status}</p>
-      ${payment.course ? `<p><strong>Cours:</strong> ${payment.course.title}</p>` : ''}
+      <p><strong>Statut:</strong> ${escapeHtml(payment.status)}</p>
+      ${payment.course ? `<p><strong>Cours:</strong> ${courseTitle}</p>` : ''}
     `;
 
     const receipt = await prisma.receipt.create({

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, GraduationCap, ArrowLeft, Lock, User, AlertCircle, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
@@ -73,26 +74,36 @@ export default function StudentLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#0056B3] to-[#003375] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-primary-500 to-primary-600 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="flex items-center gap-2 text-blue-200 hover:text-white mb-8 transition-colors text-sm" aria-label="Retour à l'accueil">
+        <Link to="/" className="flex items-center gap-2 text-primary-200 hover:text-white mb-8 transition-colors text-sm" aria-label="Retour à l'accueil">
           <ArrowLeft size={16} /> Retour à l'accueil
         </Link>
 
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 32, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="bg-white rounded-3xl shadow-2xl p-8"
+        >
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-[#0056B3] flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <div className="w-16 h-16 rounded-2xl bg-primary-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
               <span className="text-white font-black text-xl">EA</span>
             </div>
             <h1 className="text-2xl font-black text-gray-900">Connexion</h1>
-            <p className="text-gray-500 text-sm mt-1">Excellence Académie – Espace personnel</p>
+            <p className="text-surface-500 text-sm mt-1">Excellence Académie – Espace personnel</p>
           </div>
 
           {serverError && (
-            <div className="mb-5 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3" role="alert">
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mb-5 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
+              role="alert"
+            >
               <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
               <p className="text-red-700 text-sm">{serverError}</p>
-            </div>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
@@ -105,11 +116,12 @@ export default function StudentLogin() {
                   { val: "accountant", label: "Comptable", icon: <Lock size={14} /> },
                   { val: "admin", label: "Administrateur", icon: <Lock size={14} /> },
                 ].map(r => (
-                  <button key={r.val} type="button"
+                  <motion.button key={r.val} type="button"
+                    whileTap={{ scale: 0.97 }}
                     onClick={() => setForm({ ...form, role: r.val })}
-                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border-2 text-xs font-semibold transition-all ${form.role === r.val ? "border-[#0056B3] bg-blue-50 text-[#0056B3]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border-2 text-xs font-semibold transition-all duration-200 ${form.role === r.val ? "border-primary-500 bg-primary-50 text-primary-500" : "border-surface-200 text-surface-500 hover:border-surface-300"}`}>
                     {r.icon} {r.label}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -119,7 +131,7 @@ export default function StudentLogin() {
               <input id="login-email" type="email" value={form.email}
                 onChange={e => { setForm({ ...form, email: e.target.value }); if (errors.email) setErrors(prev => ({ ...prev, email: undefined })); }}
                 placeholder="votre@email.com"
-                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none text-sm transition-colors ${errors.email ? "border-red-400 focus:border-red-500" : "border-gray-200 focus:border-[#0056B3]"}`}
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none text-sm transition-colors duration-200 ${errors.email ? "border-red-400 focus:border-red-500" : "border-surface-200 focus:border-primary-500"}`}
                 aria-invalid={!!errors.email} aria-describedby={errors.email ? "email-error" : undefined} />
               {errors.email && <p id="email-error" className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
@@ -130,48 +142,49 @@ export default function StudentLogin() {
                 <input id="login-password" type={showPass ? "text" : "password"} value={form.password}
                   onChange={e => { setForm({ ...form, password: e.target.value }); if (errors.password) setErrors(prev => ({ ...prev, password: undefined })); }}
                   placeholder="••••••••"
-                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none text-sm pr-10 transition-colors ${errors.password ? "border-red-400 focus:border-red-500" : "border-gray-200 focus:border-[#0056B3]"}`}
+                  className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none text-sm pr-10 transition-colors duration-200 ${errors.password ? "border-red-400 focus:border-red-500" : "border-surface-200 focus:border-primary-500"}`}
                   aria-invalid={!!errors.password} aria-describedby={errors.password ? "password-error" : undefined} />
                 <button type="button" onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" aria-label={showPass ? "Masquer le mot de passe" : "Afficher le mot de passe"}>
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 transition-colors" aria-label={showPass ? "Masquer le mot de passe" : "Afficher le mot de passe"}>
                   {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
               {errors.password && <p id="password-error" className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
 
-            <button type="submit" disabled={loading}
-              className="w-full py-3 bg-[#0056B3] hover:bg-[#003375] text-white font-black rounded-xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2">
+            <motion.button type="submit" disabled={loading}
+              whileHover={!loading ? { y: -1 } : undefined}
+              whileTap={!loading ? { scale: 0.98 } : undefined}
+              className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white font-black rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
               {loading ? <Loader2 size={18} className="animate-spin" /> : null}
               {loading ? "Connexion..." : "Se connecter"}
-            </button>
+            </motion.button>
           </form>
 
           <div className="mt-6 text-center space-y-3">
-            <p className="text-gray-500 text-sm">
+            <p className="text-surface-500 text-sm">
               Pas encore de compte ?{" "}
-              <Link to={`/shop/register${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-[#FF6B00] font-bold hover:text-[#e05e00]">
+              <Link to={`/shop/register${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-accent-500 font-bold hover:text-accent-600 transition-colors">
                 Créer un compte boutique
               </Link>
             </p>
-            <p className="text-gray-400 text-xs">
+            <p className="text-surface-400 text-xs">
               Vous êtes un étudiant ?{" "}
-              <Link to={`/students/new${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-[#0056B3] font-bold hover:underline">
+              <Link to={`/students/new${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-primary-500 font-bold hover:underline">
                 Inscrivez-vous à une formation
               </Link>
             </p>
-            <p className="text-gray-400 text-xs">
+            <p className="text-surface-400 text-xs">
               Mot de passe oublié ? Contactez-nous au{" "}
-              <a href="tel:+2250747439443" className="text-[#0056B3] hover:underline">07 47 43 94 43</a>
+              <a href="tel:+2250747439443" className="text-primary-500 hover:underline">07 47 43 94 43</a>
             </p>
           </div>
-        </div>
+        </motion.div>
 
-        <p className="text-center text-blue-200 text-xs mt-6">
+        <p className="text-center text-primary-200 text-xs mt-6">
           © 2026 Excellence Académie • RCCM : CI-ABJ-03-2025-B12-01298
         </p>
       </div>
     </div>
   );
 }
-

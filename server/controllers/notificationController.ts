@@ -122,14 +122,15 @@ export const sendNotification = async (userId: string, title: string, message: s
 
     // 2. Send Email Notification
     const fromAddress = process.env.SMTP_FROM || 'noreply@excellence-academie.ci';
+    const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     await transporter.sendMail({
       from: `"Excellence Académie" <${fromAddress}>`,
       to: user.email,
       subject: title,
       html: `
         <div style="font-family: sans-serif; padding: 20px; background: #f4f7f6;">
-          <h2 style="color: #0056B3;">${title}</h2>
-          <p>${message}</p>
+          <h2 style="color: #0056B3;">${escapeHtml(title)}</h2>
+          <p>${escapeHtml(message)}</p>
           <hr />
           <p style="font-size: 12px; color: #888;">Ceci est un message automatique, merci de ne pas y répondre.</p>
         </div>

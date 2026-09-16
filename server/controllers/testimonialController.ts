@@ -1,11 +1,5 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
-import path from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const uploadTestimonialImage = async (req: Request, res: Response) => {
   try {

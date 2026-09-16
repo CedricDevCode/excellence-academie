@@ -11,6 +11,8 @@ import { generatePaymentReceipt, generatePaymentsReport } from "../utils/pdf";
 import StudentSessionsView from "../components/StudentSessionsView";
 import ContractView from "../components/ContractView";
 import StudentPurchasesView from "../components/StudentPurchasesView";
+import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton, Card, Badge, Button, ProgressBar } from "../components/ui";
 
 const NAV_ITEMS = [
   { icon: <Home size={18} />, label: "Tableau de bord", id: "dashboard" },
@@ -31,10 +33,14 @@ function formatPrice(amount: number) {
 function LoadingSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="bg-linear-to-r from-[#0056B3] to-[#003375] rounded-2xl p-6 h-32" />
+      <Skeleton variant="rectangular" className="h-32 w-full rounded-2xl" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1,2,3,4].map(i => <div key={i} className="bg-white rounded-2xl p-5 h-28 border border-gray-100" />)}
+        {[1, 2, 3, 4].map(i => (
+          <Skeleton key={i} variant="card" className="h-28 rounded-2xl" />
+        ))}
       </div>
+      <Skeleton variant="rectangular" className="h-24 w-full rounded-2xl" />
+      <Skeleton variant="rectangular" className="h-48 w-full rounded-2xl" />
     </div>
   );
 }
@@ -94,7 +100,7 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
 
   return (
     <>
-      <div className="bg-linear-to-r from-[#0056B3] to-[#003375] rounded-2xl p-6 text-white mb-6">
+      <div className="bg-linear-to-r from-primary-500 to-primary-700 rounded-2xl p-6 text-white mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-black text-xl mb-1">Bon retour parmi nous, {user?.name?.split(" ")[0] || "Étudiant"} !</h2>
@@ -111,7 +117,7 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
             </p>
           </div>
           <div className="text-right hidden sm:block">
-            <div className="text-3xl font-black text-[#FF6B00]">{formatPrice(totalPaidAmount)}</div>
+            <div className="text-3xl font-black text-accent-500">{formatPrice(totalPaidAmount)}</div>
             <div className="text-blue-200 text-sm">FCFA payés</div>
           </div>
         </div>
@@ -136,111 +142,137 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
         {[
           { label: "Paiements effectués", value: `${paidCount}`, icon: <CheckCircle size={18} />, color: "text-green-500", bg: "bg-green-50" },
           { label: "Prochaine échéance", value: activeSub ? `${formatPrice(nextPaymentAmount)} FCFA` : "—", icon: <Clock size={18} />, color: "text-orange-500", bg: "bg-orange-50", sub: nextPaymentDate },
-          { label: "Total payé", value: `${formatPrice(totalPaidAmount)} FCFA`, icon: <CreditCard size={18} />, color: "text-[#0056B3]", bg: "bg-blue-50" },
+          { label: "Total payé", value: `${formatPrice(totalPaidAmount)} FCFA`, icon: <CreditCard size={18} />, color: "text-primary-500", bg: "bg-blue-50" },
           { label: "Concours", value: courseNames[0] || "Non défini", icon: <GraduationCap size={18} />, color: "text-purple-600", bg: "bg-purple-50" },
         ].map((s, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} mb-3`}>{s.icon}</div>
-            <div className="font-black text-gray-900 text-lg leading-tight">{s.value}</div>
-            <div className="text-gray-500 text-xs mt-1">{s.label}</div>
-            {(s as any).sub && activeSub && (
-              <div className="mt-2 space-y-1.5">
-                <div className="text-gray-400 text-[10px]">Échéance : {(s as any).sub}</div>
-                {hasPendingPayment ? (
-                  <div className="py-1.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-lg text-center">
-                    Paiement en cours...
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {isOverdue && (
-                      <div className="flex gap-1">
-                        {[1, 2, 3].map(n => (
-                          <button key={n} onClick={() => setSelectedMonths(n)}
-                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === n ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
-                            {n} mois
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1, duration: 0.4 }}
+          >
+            <Card padding="md">
+              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} mb-3`}>{s.icon}</div>
+              <div className="font-black text-gray-900 text-lg leading-tight">{s.value}</div>
+              <div className="text-gray-500 text-xs mt-1">{s.label}</div>
+              {(s as any).sub && activeSub && (
+                <div className="mt-2 space-y-1.5">
+                  <div className="text-gray-400 text-[10px]">Échéance : {(s as any).sub}</div>
+                  {hasPendingPayment ? (
+                    <div className="py-1.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-lg text-center">
+                      Paiement en cours...
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {isOverdue && (
+                        <div className="flex gap-1">
+                          {[1, 2, 3].map(n => (
+                            <button key={n} onClick={() => setSelectedMonths(n)}
+                              className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === n ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                              {n} mois
+                            </button>
+                          ))}
+                          <button onClick={() => setSelectedMonths(6)}
+                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === 6 ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                            Tout
                           </button>
-                        ))}
-                        <button onClick={() => setSelectedMonths(6)}
-                          className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === 6 ? 'bg-[#0056B3] text-white border-[#0056B3]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
-                          Tout
-                        </button>
-                      </div>
-                    )}
-                    <button onClick={() => paySubscriptionNow(activeSub.id)} disabled={paying === activeSub.id}
-                      className="w-full py-1.5 bg-[#FF6B00] text-white text-xs font-bold rounded-lg hover:bg-[#e05e00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                      {paying === activeSub.id ? 'Redirection...' : isOverdue ? `Payer ${selectedMonths > 1 ? selectedMonths + ' mois' : 'le retard'}` : 'Payer maintenant'}
-                    </button>
-                    {isOverdue && (
-                      <div className="text-gray-400 text-[10px] text-center">
-                        Total : {formatPrice((activeSub?.amount || 0) * selectedMonths)} FCFA
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                        </div>
+                      )}
+                      <button onClick={() => paySubscriptionNow(activeSub.id)} disabled={paying === activeSub.id}
+                        className="w-full py-1.5 bg-accent-500 text-white text-xs font-bold rounded-lg hover:bg-accent-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        {paying === activeSub.id ? 'Redirection...' : isOverdue ? `Payer ${selectedMonths > 1 ? selectedMonths + ' mois' : 'le retard'}` : 'Payer maintenant'}
+                      </button>
+                      {isOverdue && (
+                        <div className="text-gray-400 text-[10px] text-center">
+                          Total : {formatPrice((activeSub?.amount || 0) * selectedMonths)} FCFA
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          </motion.div>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-black text-gray-900">Progression des paiements</h3>
-          <span className="text-[#0056B3] font-black">{progress}%</span>
-        </div>
-        <div className="h-4 bg-gray-100 rounded-full overflow-hidden mb-2">
-          <div className="h-full bg-linear-to-r from-[#0056B3] to-[#FF6B00] rounded-full transition-all" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="text-gray-400 text-sm">{paidCount} paiement(s) sur {totalPayments || 0}</p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.4 }}
+      >
+        <Card padding="lg" className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-black text-gray-900">Progression des paiements</h3>
+            <span className="text-primary-500 font-black">{progress}%</span>
+          </div>
+          <ProgressBar value={progress} max={100} color="primary" size="md" />
+          <p className="text-gray-400 text-sm mt-2">{paidCount} paiement(s) sur {totalPayments || 0}</p>
+        </Card>
+      </motion.div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-black text-gray-900 flex items-center gap-2"><Calendar size={18} className="text-[#0056B3]" /> Historique des paiements</h3>
-        </div>
-        <div className="overflow-x-auto">
-          {payments.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">Aucun paiement pour le moment</p>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {["Date", "Montant", "Type", "Statut", "Référence"].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((m: any, i: number) => (
-                  <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4 font-semibold text-gray-900 text-sm">{new Date(m.createdAt).toLocaleDateString("fr-FR")}</td>
-                    <td className="py-3 px-4 font-bold text-[#0056B3] text-sm">{formatPrice(m.amount)} FCFA</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
-                        {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.status === "SUCCESS" ? "bg-green-100 text-green-700" : m.status === "PENDING" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
-                        {m.status === "SUCCESS" ? "✅ Payé" : m.status === "PENDING" ? "⏳ En attente" : "❌ Échoué"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "—"}</td>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
+      >
+        <Card padding="none" className="overflow-hidden mb-6">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="font-black text-gray-900 flex items-center gap-2"><Calendar size={18} className="text-primary-500" /> Historique des paiements</h3>
+          </div>
+          <div className="overflow-x-auto">
+            {payments.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">Aucun paiement pour le moment</p>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {["Date", "Montant", "Type", "Statut", "Référence"].map(h => (
+                      <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+                </thead>
+                <tbody>
+                  <AnimatePresence>
+                    {payments.map((m: any, i: number) => (
+                      <motion.tr
+                        key={m.id}
+                        className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ delay: i * 0.05, duration: 0.3 }}
+                      >
+                        <td className="py-3 px-4 font-semibold text-gray-900 text-sm">{new Date(m.createdAt).toLocaleDateString("fr-FR")}</td>
+                        <td className="py-3 px-4 font-bold text-primary-500 text-sm">{formatPrice(m.amount)} FCFA</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
+                            {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.status === "SUCCESS" ? "bg-green-100 text-green-700" : m.status === "PENDING" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
+                            {m.status === "SUCCESS" ? "✅ Payé" : m.status === "PENDING" ? "⏳ En attente" : "❌ Échoué"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "—"}</td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Card>
+      </motion.div>
 
       <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-6">
-        <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2"><Phone size={18} className="text-[#0056B3]" /> Besoin d'aide ?</h3>
+        <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2"><Phone size={18} className="text-primary-500" /> Besoin d'aide ?</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <a href="tel:+2250747439443" className="flex items-center gap-2 text-sm text-[#0056B3] font-semibold hover:underline" aria-label="Appeler le 07 47 43 94 43">
+          <a href="tel:+2250747439443" className="flex items-center gap-2 text-sm text-primary-500 font-semibold hover:underline" aria-label="Appeler le 07 47 43 94 43">
             📞 07 47 43 94 43 (WhatsApp)
           </a>
-          <a href="mailto:ea@exacademie.com" className="flex items-center gap-2 text-sm text-[#0056B3] font-semibold hover:underline" aria-label="Envoyer un email à ea@exacademie.com">
+          <a href="mailto:ea@exacademie.com" className="flex items-center gap-2 text-sm text-primary-500 font-semibold hover:underline" aria-label="Envoyer un email à ea@exacademie.com">
             📧 ea@exacademie.com
           </a>
         </div>
@@ -338,7 +370,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <Card padding="lg">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="font-black text-gray-900 text-xl mb-2">Mes paiements</h2>
@@ -346,16 +378,16 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
           </div>
           {payments.length > 0 && (
             <div className="flex flex-wrap gap-3">
-              <button onClick={handleExportCsv} className="inline-flex items-center gap-2 bg-[#0056B3] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003375]">
-                <Download size={16} /> Exporter CSV
-              </button>
-              <button onClick={handleExportPdf} className="inline-flex items-center gap-2 bg-[#10B981] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#0f7f5a]">
-                <Download size={16} /> Exporter PDF
-              </button>
+              <Button variant="primary" size="sm" icon={<Download size={16} />} onClick={handleExportCsv}>
+                Exporter CSV
+              </Button>
+              <Button variant="outline" size="sm" icon={<Download size={16} />} onClick={handleExportPdf}>
+                Exporter PDF
+              </Button>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {payError && (
         <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-4 flex items-center gap-3">
@@ -405,12 +437,11 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
               <div>
                 <span className="text-sm text-gray-600">{selectedIds.length} mois sélectionné(s)</span>
-                <span className="ml-3 text-lg font-black text-[#0056B3]">{formatPrice(totalSelected)} FCFA</span>
+                <span className="ml-3 text-lg font-black text-primary-500">{formatPrice(totalSelected)} FCFA</span>
               </div>
-              <button onClick={handlePaySelected} disabled={paying}
-                className="px-6 py-2.5 bg-[#FF6B00] text-white font-bold text-sm rounded-xl hover:bg-[#e05e00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              <Button variant="accent" size="sm" disabled={paying} onClick={handlePaySelected}>
                 {paying ? 'Redirection...' : `Payer ${formatPrice(totalSelected)} FCFA`}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -423,54 +454,69 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
           <p className="text-gray-400 text-sm">Aucun paiement enregistré</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="font-black text-gray-900 flex items-center gap-2 text-sm"><Calendar size={16} className="text-[#0056B3]" /> Historique des paiements</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {["Date", "Montant", "Formation(s) suivie(s)", "Type", "Statut", "Référence", ""].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((m: any) => (
-                  <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-gray-900 text-sm">{new Date(m.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
-                      <div className="text-gray-400 text-xs">{new Date(m.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-[#0056B3] text-sm">{formatPrice(m.amount)}</div>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-700 font-medium">{m.course?.title || "—"}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
-                        {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.status === "SUCCESS" ? "bg-green-100 text-green-700" : m.status === "PENDING" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
-                        {m.status === "SUCCESS" ? "✅ Payé" : m.status === "PENDING" ? "⏳ En attente" : "❌ Échoué"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "—"}</td>
-                    <td className="py-3 px-4">
-                      {m.status === "SUCCESS" && (
-                        <button onClick={() => openReceipt(m)} className="px-3 py-1.5 border border-[#0056B3] text-[#0056B3] rounded-lg text-xs font-semibold hover:bg-[#F1F9FF] whitespace-nowrap" aria-label="Voir le reçu">
-                          <Eye size={12} className="inline mr-1" /> Reçu
-                        </button>
-                      )}
-                    </td>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Card padding="none" className="overflow-hidden">
+            <div className="p-4 border-b border-gray-100">
+              <h3 className="font-black text-gray-900 flex items-center gap-2 text-sm"><Calendar size={16} className="text-primary-500" /> Historique des paiements</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {["Date", "Montant", "Formation(s) suivie(s)", "Type", "Statut", "Référence", ""].map(h => (
+                      <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                </thead>
+                <tbody>
+                  <AnimatePresence>
+                    {payments.map((m: any, i: number) => (
+                      <motion.tr
+                        key={m.id}
+                        className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ delay: i * 0.05, duration: 0.3 }}
+                      >
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-gray-900 text-sm">{new Date(m.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
+                          <div className="text-gray-400 text-xs">{new Date(m.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-primary-500 text-sm">{formatPrice(m.amount)}</div>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700 font-medium">{m.course?.title || "—"}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
+                            {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.status === "SUCCESS" ? "bg-green-100 text-green-700" : m.status === "PENDING" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
+                            {m.status === "SUCCESS" ? "✅ Payé" : m.status === "PENDING" ? "⏳ En attente" : "❌ Échoué"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "—"}</td>
+                        <td className="py-3 px-4">
+                          {m.status === "SUCCESS" && (
+                            <button onClick={() => openReceipt(m)} className="px-3 py-1.5 border border-primary-500 text-primary-500 rounded-lg text-xs font-semibold hover:bg-primary-50 whitespace-nowrap" aria-label="Voir le reçu">
+                              <Eye size={12} className="inline mr-1" /> Reçu
+                            </button>
+                          )}
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </motion.div>
       )}
       {/* ───── Receipt Preview Modal ───── */}
       {showReceiptModal && receiptUrl && (
@@ -486,12 +532,12 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={handlePrintReceipt} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2">
-                  <Printer size={16} /> Imprimer
-                </button>
-                <button onClick={handleDownloadReceipt} className="px-4 py-2 bg-[#0056B3] text-white rounded-xl text-sm font-semibold hover:bg-[#004494] transition-colors flex items-center gap-2">
-                  <Download size={16} /> Télécharger
-                </button>
+                <Button variant="outline" size="sm" icon={<Printer size={16} />} onClick={handlePrintReceipt}>
+                  Imprimer
+                </Button>
+                <Button variant="primary" size="sm" icon={<Download size={16} />} onClick={handleDownloadReceipt}>
+                  Télécharger
+                </Button>
                 <button onClick={closeReceiptModal} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Fermer">
                   <X size={20} />
                 </button>
@@ -540,12 +586,12 @@ function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <Card padding="lg">
         <h2 className="font-black text-gray-900 text-xl">Calendrier</h2>
         <p className="text-gray-500 text-sm">Vos prochaines sessions et échéances.</p>
-      </div>
+      </Card>
       {loading ? (
-        <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#0056B3]" /></div>
+        <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary-500" /></div>
       ) : events.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
           <Calendar size={40} className="mx-auto text-gray-300 mb-3" />
@@ -556,14 +602,14 @@ function CalendarPage() {
           {events.map((event: any) => (
             <div key={event.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-start gap-4">
-                <div className="bg-[#0056B3]/10 rounded-xl p-3 text-center shrink-0 min-w-[60px]">
-                  <div className="text-[#0056B3] text-xs font-bold uppercase">
+                <div className="bg-primary-50 rounded-xl p-3 text-center shrink-0 min-w-[60px]">
+                  <div className="text-primary-500 text-xs font-bold uppercase">
                     {new Date(event.startTime).toLocaleDateString("fr-FR", { weekday: "short" })}
                   </div>
-                  <div className="text-[#0056B3] font-black text-lg leading-tight">
+                  <div className="text-primary-500 font-black text-lg leading-tight">
                     {new Date(event.startTime).getDate()}
                   </div>
-                  <div className="text-[#0056B3] text-[10px] font-semibold uppercase">
+                  <div className="text-primary-500 text-[10px] font-semibold uppercase">
                     {new Date(event.startTime).toLocaleDateString("fr-FR", { month: "short" })}
                   </div>
                 </div>
@@ -615,27 +661,29 @@ function NotificationsPage({ notifs, onRefresh }: { notifs: any[]; onRefresh: ()
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
-        <div>
-          <h2 className="font-black text-gray-900 text-xl">Notifications</h2>
-          <p className="text-gray-500 text-sm">Dernières alertes et messages reçus.</p>
+      <Card padding="lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-black text-gray-900 text-xl">Notifications</h2>
+            <p className="text-gray-500 text-sm">Dernières alertes et messages reçus.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {unreadCount > 0 && (
+              <>
+                <Badge variant="accent" size="md">
+                  {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
+                </Badge>
+                <button
+                  onClick={handleMarkAllRead}
+                  className="text-xs font-bold text-primary-500 hover:underline bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                >
+                  <CheckCircle size={14} /> Tout marquer comme lu
+                </button>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {unreadCount > 0 && (
-            <>
-              <span className="bg-[#FF6B00] text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
-              </span>
-              <button
-                onClick={handleMarkAllRead}
-                className="text-xs font-bold text-[#0056B3] hover:underline bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-              >
-                <CheckCircle size={14} /> Tout marquer comme lu
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      </Card>
       {notifs.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
           <Bell size={40} className="mx-auto text-gray-300 mb-3" />
@@ -644,14 +692,14 @@ function NotificationsPage({ notifs, onRefresh }: { notifs: any[]; onRefresh: ()
       ) : (
         <div className="space-y-4">
           {notifs.map((n: any) => (
-            <div key={n.id} className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm ${!n.isRead ? "border-l-4 border-l-[#0056B3]" : ""}`}>
+            <div key={n.id} className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm ${!n.isRead ? "border-l-4 border-l-primary-500" : ""}`}>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">{n.title}</h3>
                 <span className="text-xs text-gray-400">{new Date(n.createdAt).toLocaleDateString("fr-FR")}</span>
               </div>
               <p className="text-gray-500 text-sm">{n.message}</p>
               {!n.isRead && (
-                <button onClick={() => handleMarkRead(n.id)} className="mt-2 text-[#0056B3] text-xs font-semibold hover:underline">
+                <button onClick={() => handleMarkRead(n.id)} className="mt-2 text-primary-500 text-xs font-semibold hover:underline">
                   Marquer comme lu
                 </button>
               )}
@@ -708,15 +756,15 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 bg-linear-to-r from-blue-50 to-white">
+      <Card padding="lg" className="bg-linear-to-r from-blue-50 to-white">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-[#0056B3] flex items-center justify-center text-white"><User size={22} /></div>
+          <div className="w-12 h-12 rounded-xl bg-primary-500 flex items-center justify-center text-white"><User size={22} /></div>
           <div>
             <h2 className="font-black text-gray-900">Mon profil</h2>
             <p className="text-gray-500 text-sm">Informations personnelles et sécurité</p>
           </div>
         </div>
-      </div>
+      </Card>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 space-y-6">
@@ -733,7 +781,7 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
                 {form.image ? (
                   <img src={form.image} alt="Photo" className="w-20 h-20 rounded-full object-cover shadow-md border-2 border-white" />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-linear-to-br from-[#0056B3] to-blue-400 flex items-center justify-center text-white text-2xl font-black shadow-md">
+                  <div className="w-20 h-20 rounded-full bg-linear-to-br from-primary-500 to-blue-400 flex items-center justify-center text-white text-2xl font-black shadow-md">
                     {initials}
                   </div>
                 )}
@@ -760,16 +808,16 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
               <div className="font-bold text-gray-900">{form.name || 'Étudiant'}</div>
               <div className="text-gray-500 text-sm">{user?.email}</div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1 bg-blue-50 text-[#0056B3] text-xs font-semibold px-2.5 py-1 rounded-full">
-                  <CheckCircle size={10} /> Étudiant
-                </span>
+                <Badge variant="primary" size="md" dot>
+                  Étudiant
+                </Badge>
                 {user?.matricule && (
                   <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full">
                     {user.matricule}
                   </span>
                 )}
               </div>
-              <label htmlFor="student-photo-upload" className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#0056B3] hover:underline cursor-pointer">
+              <label htmlFor="student-photo-upload" className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary-500 hover:underline cursor-pointer">
                 <Camera size={12} /> Changer la photo
               </label>
             </div>
@@ -782,7 +830,7 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nom complet</label>
               <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
@@ -792,17 +840,17 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Téléphone</label>
               <input value={form.telephone} onChange={e => setForm({...form, telephone: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ville</label>
               <input value={form.ville} onChange={e => setForm({...form, ville: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Pays</label>
               <input value={form.pays} onChange={e => setForm({...form, pays: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
             </div>
           </div>
 
@@ -816,23 +864,22 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mot de passe actuel</label>
                 <input type="password" value={form.oldPass} onChange={e => setForm({...form, oldPass: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nouveau mot de passe</label>
                 <input type="password" value={form.newPass} onChange={e => setForm({...form, newPass: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
               </div>
             </div>
           </div>
 
           {/* Save button */}
           <div className="pt-2 flex justify-end border-t border-gray-100">
-            <button onClick={handleSave} disabled={saving}
-              className="flex items-center gap-2 bg-[#0056B3] text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003375] transition-all disabled:opacity-50 shadow-sm">
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            <Button variant="primary" size="md" onClick={handleSave} disabled={saving}
+              icon={saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}>
               {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -864,12 +911,12 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <Card padding="lg">
         <h2 className="font-black text-gray-900 text-xl flex items-center gap-2">
-          <FileText size={18} className="text-[#0056B3]" /> Mon contrat de formation
+          <FileText size={18} className="text-primary-500" /> Mon contrat de formation
         </h2>
         <p className="text-gray-500 text-sm mt-1">Consultez et signez votre contrat de formation.</p>
-      </div>
+      </Card>
 
       {signError && (
         <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-4 flex items-center gap-3">
@@ -908,15 +955,15 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
           <ContractView onSign={setSignatureData} signatureData={signatureData} studentName={user?.name} />
           {signatureData && (
             <div className="flex justify-end">
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="lg"
                 onClick={handleSignContract}
                 disabled={signing}
-                className="flex items-center gap-2 px-8 py-3 bg-[#0056B3] hover:bg-[#003375] text-white font-bold rounded-xl transition-all disabled:opacity-50 shadow-md"
+                icon={signing ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
               >
-                {signing ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
                 {signing ? 'Signature en cours...' : 'Signer le contrat'}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -933,15 +980,17 @@ function StudentBlogView() {
   }, []);
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
-        <div>
-          <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><BookOpen size={18} className="text-[#0056B3]" /> Blog</h2>
-          <p className="text-gray-500 text-sm">Articles récents de l'académie.</p>
+      <Card padding="lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><BookOpen size={18} className="text-primary-500" /> Blog</h2>
+            <p className="text-gray-500 text-sm">Articles récents de l'académie.</p>
+          </div>
+          <Link to="/blog" className="text-sm text-primary-500 font-semibold hover:underline">Voir tout</Link>
         </div>
-        <Link to="/blog" className="text-sm text-[#0056B3] font-semibold hover:underline">Voir tout</Link>
-      </div>
+      </Card>
       {loading ? (
-        <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#0056B3]" /></div>
+        <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary-500" /></div>
       ) : posts.length === 0 ? (
         <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
           <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
@@ -1077,9 +1126,8 @@ export default function StudentDashboard() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <Loader2 size={32} className="animate-spin text-[#0056B3] mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">Chargement de votre espace...</p>
+        <div className="w-full max-w-5xl px-6">
+          <LoadingSkeleton />
         </div>
       </div>
     );
@@ -1087,7 +1135,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="flex h-screen bg-gray-100 font-[Inter,sans-serif] overflow-hidden">
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0056B3] text-white transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} role="navigation" aria-label="Menu étudiant">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary-500 text-white transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} role="navigation" aria-label="Menu étudiant">
           <div className="flex items-center justify-between p-5 border-b border-blue-400/30">
           <div className="flex items-center gap-3">
             <img src="/images/logo%20exacademy.jpeg" alt="Excellence Académie" className="h-10 w-10 rounded-full object-cover border-2 border-white/30" />
@@ -1137,13 +1185,13 @@ export default function StudentDashboard() {
               </div>
             </div>
             <nav className="hidden lg:flex items-center gap-5 mx-6">
-              <a href="/#hero" className="text-xs font-semibold text-gray-500 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Accueil</a>
-              <a href="/#actualite" className="text-xs font-semibold text-gray-500 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Actualité</a>
-              <a href="/#atouts" className="text-xs font-semibold text-gray-500 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">L'École</a>
-              <a href="/#formations" className="text-xs font-semibold text-gray-500 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Formations</a>
-              <a href="/#tarifs" className="text-xs font-semibold text-gray-500 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Tarifs</a>
-              <a href="/shop" className="text-xs font-semibold text-gray-500 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Boutique</a>
-              <a href="/student/login" className="text-xs font-semibold text-[#FF6B00] hover:text-[#e65c00] uppercase tracking-wide transition-colors">Espace Étudiant</a>
+              <a href="/#hero" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Accueil</a>
+              <a href="/#actualite" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Actualité</a>
+              <a href="/#atouts" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">L'École</a>
+              <a href="/#formations" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Formations</a>
+              <a href="/#tarifs" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Tarifs</a>
+              <a href="/shop" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Boutique</a>
+              <a href="/student/login" className="text-xs font-semibold text-accent-500 hover:text-accent-600 uppercase tracking-wide transition-colors">Espace Étudiant</a>
             </nav>
             <div className="flex items-center gap-3">
             <div className="relative" ref={notifRef}>
@@ -1151,8 +1199,8 @@ export default function StudentDashboard() {
                 <Bell size={20} />
                 {notifs.filter(n => !n.isRead).length > 0 && (
                   <>
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#FF6B00] rounded-full" />
-                    <span className="absolute -top-0.5 -right-0.5 bg-[#FF6B00] text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full" />
+                    <span className="absolute -top-0.5 -right-0.5 bg-accent-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                       {notifs.filter(n => !n.isRead).length}
                     </span>
                   </>
@@ -1164,7 +1212,7 @@ export default function StudentDashboard() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-gray-900 text-sm">Notifications</h3>
                       {notifs.filter(n => !n.isRead).length > 0 && (
-                        <span className="bg-[#FF6B00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        <span className="bg-accent-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                           {notifs.filter(n => !n.isRead).length}
                         </span>
                       )}
@@ -1173,12 +1221,12 @@ export default function StudentDashboard() {
                       {notifs.filter(n => !n.isRead).length > 0 && (
                         <button
                           onClick={() => markAllNotificationsRead().then(() => loadData())}
-                          className="text-[11px] text-[#0056B3] hover:underline font-semibold"
+                          className="text-[11px] text-primary-500 hover:underline font-semibold"
                         >
                           Tout lire
                         </button>
                       )}
-                      <button onClick={() => { setActiveTab("notifs"); setShowNotifDropdown(false); }} className="text-[#0056B3] text-xs font-semibold hover:underline">
+                      <button onClick={() => { setActiveTab("notifs"); setShowNotifDropdown(false); }} className="text-primary-500 text-xs font-semibold hover:underline">
                         Voir tout
                       </button>
                     </div>
@@ -1197,7 +1245,7 @@ export default function StudentDashboard() {
                             <span className="text-[10px] text-gray-400 whitespace-nowrap">{new Date(n.createdAt).toLocaleDateString("fr-FR")}</span>
                           </div>
                           {!n.isRead && (
-                            <button onClick={() => markNotificationRead(n.id).then(() => loadData())} className="mt-1.5 text-[#0056B3] text-[10px] font-semibold hover:underline">
+                            <button onClick={() => markNotificationRead(n.id).then(() => loadData())} className="mt-1.5 text-primary-500 text-[10px] font-semibold hover:underline">
                               Marquer comme lu
                             </button>
                           )}
@@ -1209,7 +1257,7 @@ export default function StudentDashboard() {
               )}
             </div>
             <div className="relative" ref={userMenuRef}>
-              <button onClick={() => { setShowUserDropdown(!showUserDropdown); setShowNotifDropdown(false); }} className="w-9 h-9 rounded-full bg-[#FF6B00] flex items-center justify-center text-white font-black text-xs hover:ring-2 hover:ring-[#FF6B00]/50 transition-all" aria-label="Menu utilisateur">
+              <button onClick={() => { setShowUserDropdown(!showUserDropdown); setShowNotifDropdown(false); }} className="w-9 h-9 rounded-full bg-accent-500 flex items-center justify-center text-white font-black text-xs hover:ring-2 hover:ring-accent-500/50 transition-all" aria-label="Menu utilisateur">
                 {initials}
               </button>
               {showUserDropdown && (
@@ -1234,10 +1282,19 @@ export default function StudentDashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {renderContent()}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25 }}
+            >
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>
   );
 }
-

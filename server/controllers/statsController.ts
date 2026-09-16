@@ -1,85 +1,133 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 
+const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
-    const totalStudents = await prisma.user.count({ where: { role: 'STUDENT' } });
-    const totalTeachers = await prisma.user.count({ where: { role: 'TEACHER' } });
-    
-    const payments = await prisma.payment.findMany({
-      where: { status: 'SUCCESS' },
-      include: { course: true, user: { select: { ville: true } } }
-    });
+    const [totalStudents, totalTeachers] = await Promise.all([
+      prisma.user.count({ where: { role: 'STUDENT' } }),
+      prisma.user.count({ where: { role: 'TEACHER' } }),
+    ]);
 
-    const expenses = await prisma.expense.findMany({
-      where: { status: 'PAID' }
-    });
+    // Aggregate payments via SQL instead of loading all rows
+    const [paymentAgg, shopAgg, expenseAgg] = await Promise.all([
+      prisma.payment.groupBy({
+        by: ['courseId'],
+        where: { status: 'SUCCESS' },
+        _sum: { amount: true },
+        _count: true,
+      }),
+      prisma.shopOrder.aggregate({
+        where: { status: { in: ['PAID', 'DELIVERED'] } },
+        _sum: { totalAmount: true },
+        _count: true,
+      }),
+      prisma.expense.aggregate({
+        where: { status: 'PAID' },
+        _sum: { amount: true },
+      }),
+    ]);
 
-    const shopOrders = await prisma.shopOrder.findMany({
-      where: { status: { in: ['PAID', 'DELIVERED'] } }
-    });
+    const totalRevenueFromPayments = paymentAgg.reduce((s, g) => s + (g._sum.amount || 0), 0);
+    const totalRevenueFromShop = shopAgg._sum.totalAmount || 0;
+    const totalRevenue = totalRevenueFromPayments + totalRevenueFromShop;
+    const totalExpenses = expenseAgg._sum.amount || 0;
 
+    // Monthly chart data — aggregate by month using raw SQL for performance
+    const currentYear = new Date().getFullYear();
+    const [monthlyPayments, monthlyExpenses, monthlyShopOrders] = await Promise.all([
+      prisma.$queryRaw<{ month: number; total: number }[]>`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, SUM("amount")::float AS total
+        FROM "Payment" WHERE "status" = 'SUCCESS' AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `,
+      prisma.$queryRaw<{ month: number; total: number }[]>`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, SUM("amount")::float AS total
+        FROM "Expense" WHERE "status" = 'PAID' AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `,
+      prisma.$queryRaw<{ month: number; total: number }[]>`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, SUM("totalAmount")::float AS total
+        FROM "ShopOrder" WHERE "status" IN ('PAID','DELIVERED') AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `,
+    ]);
+
+    const chartDataMap: Record<string, { name: string; Revenus: number; Depenses: number }> = {};
+    for (const m of MONTHS) chartDataMap[m] = { name: m, Revenus: 0, Depenses: 0 };
+
+    for (const row of monthlyPayments) {
+      const name = MONTHS[row.month - 1];
+      if (chartDataMap[name]) chartDataMap[name].Revenus += row.total;
+    }
+    for (const row of monthlyShopOrders) {
+      const name = MONTHS[row.month - 1];
+      if (chartDataMap[name]) chartDataMap[name].Revenus += row.total;
+    }
+    for (const row of monthlyExpenses) {
+      const name = MONTHS[row.month - 1];
+      if (chartDataMap[name]) chartDataMap[name].Depenses += row.total;
+    }
+    const chartData = Object.values(chartDataMap);
+
+    // Revenue by course — aggregate
+    const courses = await prisma.course.findMany({ select: { id: true, title: true } });
+    const courseMap = new Map(courses.map(c => [c.id, c.title]));
+    const revenueByCourseData = paymentAgg
+      .filter(g => g.courseId && courseMap.get(g.courseId))
+      .map(g => ({ name: courseMap.get(g.courseId!)!, Revenus: g._sum.amount || 0 }))
+      .sort((a, b) => b.Revenus - a.Revenus);
+
+    // Enrollments by month
+    const [enrollmentsByMonth] = await Promise.all([
+      prisma.$queryRaw<{ month: number; count: bigint }[]>`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, COUNT(*)::int AS count
+        FROM "Payment" WHERE "status" = 'SUCCESS' AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `,
+    ]);
+    const enrollmentsData = enrollmentsByMonth.map(e => ({
+      name: MONTHS[e.month - 1],
+      Inscriptions: Number(e.count),
+    }));
+
+    // Revenue by city — aggregate via raw SQL joining User table
+    const [revenueByCityRaw, expenseByCityRaw] = await Promise.all([
+      prisma.$queryRaw<{ city: string; revenue: number; count: bigint }[]>`
+        SELECT COALESCE(u."ville", 'Non précisée') AS city, SUM(p."amount")::float AS revenue, COUNT(*)::int AS count
+        FROM "Payment" p LEFT JOIN "User" u ON p."userId" = u."id"
+        WHERE p."status" = 'SUCCESS'
+        GROUP BY city ORDER BY revenue DESC
+      `,
+      prisma.$queryRaw<{ city: string; expense: number; count: bigint }[]>`
+        SELECT COALESCE("ville", 'Non précisée') AS city, SUM("amount")::float AS expense, COUNT(*)::int AS count
+        FROM "Expense" WHERE "status" = 'PAID'
+        GROUP BY city
+      `,
+    ]);
+
+    const cityMap = new Map<string, { revenue: number; revenueCount: number; expense: number; expenseCount: number }>();
+    for (const r of revenueByCityRaw) {
+      cityMap.set(r.city, { revenue: r.revenue, revenueCount: Number(r.count), expense: 0, expenseCount: 0 });
+    }
+    for (const e of expenseByCityRaw) {
+      const existing = cityMap.get(e.city) || { revenue: 0, revenueCount: 0, expense: 0, expenseCount: 0 };
+      existing.expense = e.expense;
+      existing.expenseCount = Number(e.count);
+      cityMap.set(e.city, existing);
+    }
+    const revenueByCityData = Array.from(cityMap.entries()).map(([city, data]) => ({
+      name: city,
+      Revenus: data.revenue,
+    }));
+
+    // Recent payments (still limited to 5 — tiny)
     const recentPayments = await prisma.payment.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { name: true, email: true } } }
+      include: { user: { select: { name: true, email: true } } },
     });
-
-    // Calculate totals
-    const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0) + shopOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-
-    // Group for charts
-    const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const chartDataMap: Record<string, any> = {};
-    const enrollmentsMap: Record<string, number> = {};
-    const revenueByCourseMap: Record<string, number> = {};
-    const revenueByCityMap: Record<string, number> = {};
-
-    payments.forEach(p => {
-      const monthIndex = new Date(p.createdAt).getMonth();
-      const monthName = months[monthIndex];
-      
-      if (!chartDataMap[monthName]) chartDataMap[monthName] = { name: monthName, Revenus: 0, Depenses: 0 };
-      chartDataMap[monthName].Revenus += p.amount;
-
-      if (!enrollmentsMap[monthName]) enrollmentsMap[monthName] = 0;
-      enrollmentsMap[monthName] += 1;
-
-      if (p.course) {
-        if (!revenueByCourseMap[p.course.title]) revenueByCourseMap[p.course.title] = 0;
-        revenueByCourseMap[p.course.title] += p.amount;
-      }
-
-      const city = p.user?.ville?.trim() || 'Non précisée';
-      if (!revenueByCityMap[city]) revenueByCityMap[city] = 0;
-      revenueByCityMap[city] += p.amount;
-    });
-
-    expenses.forEach(e => {
-      const monthIndex = new Date(e.createdAt).getMonth();
-      const monthName = months[monthIndex];
-      if (!chartDataMap[monthName]) chartDataMap[monthName] = { name: monthName, Revenus: 0, Depenses: 0 };
-      chartDataMap[monthName].Depenses += e.amount;
-    });
-
-    shopOrders.forEach(o => {
-      const monthIndex = new Date(o.createdAt).getMonth();
-      const monthName = months[monthIndex];
-      
-      if (!chartDataMap[monthName]) chartDataMap[monthName] = { name: monthName, Revenus: 0, Depenses: 0 };
-      chartDataMap[monthName].Revenus += o.totalAmount;
-
-      const city = o.city?.trim() || 'Non précisée';
-      if (!revenueByCityMap[city]) revenueByCityMap[city] = 0;
-      revenueByCityMap[city] += o.totalAmount;
-    });
-
-    // Format final arrays
-    const chartData = Object.values(chartDataMap);
-    const enrollmentsData = Object.keys(enrollmentsMap).map(k => ({ name: k, Inscriptions: enrollmentsMap[k] }));
-    const revenueByCourseData = Object.keys(revenueByCourseMap).map(k => ({ name: k, Revenus: revenueByCourseMap[k] }));
-    const revenueByCityData = Object.keys(revenueByCityMap).map(k => ({ name: k, Revenus: revenueByCityMap[k] }));
 
     res.json({
       totalStudents,
@@ -91,7 +139,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       chartData,
       enrollmentsData,
       revenueByCourseData,
-      revenueByCityData
+      revenueByCityData,
     });
   } catch (error) {
     console.error(error);
@@ -101,55 +149,41 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
 export const getCityBreakdown = async (req: Request, res: Response) => {
   try {
-    // Revenus par ville : groupe les paiements SUCCESS par ville de l'étudiant
-    const payments = await prisma.payment.findMany({
-      where: { status: 'SUCCESS' },
-      include: { user: { select: { ville: true } } }
-    });
+    const [revenueByCityRaw, expenseByCityRaw] = await Promise.all([
+      prisma.$queryRaw<{ city: string; revenue: number; count: bigint }[]>`
+        SELECT COALESCE(u."ville", 'Non précisée') AS city, SUM(p."amount")::float AS revenue, COUNT(*)::int AS count
+        FROM "Payment" p LEFT JOIN "User" u ON p."userId" = u."id"
+        WHERE p."status" = 'SUCCESS'
+        GROUP BY city ORDER BY revenue DESC
+      `,
+      prisma.$queryRaw<{ city: string; expense: number; count: bigint }[]>`
+        SELECT COALESCE("ville", 'Non précisée') AS city, SUM("amount")::float AS expense, COUNT(*)::int AS count
+        FROM "Expense" WHERE "status" = 'PAID'
+        GROUP BY city
+      `,
+    ]);
 
-    const revenueByCity: Record<string, { revenue: number; count: number }> = {};
-    payments.forEach(p => {
-      const city = p.user?.ville?.trim() || 'Non précisée';
-      if (!revenueByCity[city]) revenueByCity[city] = { revenue: 0, count: 0 };
-      revenueByCity[city].revenue += p.amount;
-      revenueByCity[city].count += 1;
-    });
+    const cityMap = new Map<string, { revenue: number; revenueCount: number; expense: number; expenseCount: number }>();
+    for (const r of revenueByCityRaw) {
+      cityMap.set(r.city, { revenue: r.revenue, revenueCount: Number(r.count), expense: 0, expenseCount: 0 });
+    }
+    for (const e of expenseByCityRaw) {
+      const existing = cityMap.get(e.city) || { revenue: 0, revenueCount: 0, expense: 0, expenseCount: 0 };
+      existing.expense = e.expense;
+      existing.expenseCount = Number(e.count);
+      cityMap.set(e.city, existing);
+    }
 
-    const shopOrders = await prisma.shopOrder.findMany({
-      where: { status: { in: ['PAID', 'DELIVERED'] } }
-    });
-    
-    shopOrders.forEach(o => {
-      const city = o.city?.trim() || 'Non précisée';
-      if (!revenueByCity[city]) revenueByCity[city] = { revenue: 0, count: 0 };
-      revenueByCity[city].revenue += o.totalAmount;
-      revenueByCity[city].count += 1;
-    });
-
-    // Dépenses par ville
-    const expenses = await prisma.expense.findMany({
-      where: { status: 'PAID' },
-      select: { amount: true, ville: true }
-    });
-
-    const expenseByCity: Record<string, { expense: number; count: number }> = {};
-    expenses.forEach(e => {
-      const city = e.ville?.trim() || 'Non précisée';
-      if (!expenseByCity[city]) expenseByCity[city] = { expense: 0, count: 0 };
-      expenseByCity[city].expense += e.amount;
-      expenseByCity[city].count += 1;
-    });
-
-    // Fusionner toutes les villes
-    const allCities = new Set([...Object.keys(revenueByCity), ...Object.keys(expenseByCity)]);
-    const cityData = Array.from(allCities).map(city => ({
-      city,
-      revenue: revenueByCity[city]?.revenue || 0,
-      revenueCount: revenueByCity[city]?.count || 0,
-      expense: expenseByCity[city]?.expense || 0,
-      expenseCount: expenseByCity[city]?.count || 0,
-      net: (revenueByCity[city]?.revenue || 0) - (expenseByCity[city]?.expense || 0),
-    })).sort((a, b) => b.revenue - a.revenue);
+    const cityData = Array.from(cityMap.entries())
+      .map(([city, data]) => ({
+        city,
+        revenue: data.revenue,
+        revenueCount: data.revenueCount,
+        expense: data.expense,
+        expenseCount: data.expenseCount,
+        net: data.revenue - data.expense,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
 
     res.json(cityData);
   } catch (error) {

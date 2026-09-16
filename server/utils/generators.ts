@@ -11,6 +11,30 @@ export function generateReceiptNumber(): string {
 
 export async function generateMatricule(): Promise<string> {
   const year = new Date().getFullYear().toString();
+  const maxRetries = 5;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const last = await prisma.user.findFirst({
+      where: { matricule: { startsWith: `EA-${year}-` } },
+      orderBy: { matricule: 'desc' },
+      select: { matricule: true },
+    });
+    let next = 1;
+    if (last?.matricule) {
+      const parts = last.matricule.split('-');
+      next = parseInt(parts[2], 10) + 1 + attempt;
+    }
+    const matricule = `EA-${year}-${String(next).padStart(4, '0')}`;
+    // Le UNIQUE constraint sur matricule casse la boucle en cas de doublon
+    try {
+      await prisma.user.findFirst({ where: { matricule }, select: { id: true } });
+      // Si pas d'erreur, le matricule est unique
+      return matricule;
+    } catch {
+      continue;
+    }
+  }
+  // Fallback : laisser Prisma gérer l'erreur UNIQUE
   const last = await prisma.user.findFirst({
     where: { matricule: { startsWith: `EA-${year}-` } },
     orderBy: { matricule: 'desc' },

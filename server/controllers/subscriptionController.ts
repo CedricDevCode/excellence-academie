@@ -119,6 +119,7 @@ export const paySubscription = async (req: Request, res: Response) => {
       method: 'POST',
       headers: geniusPayHeaders(),
       body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15000),
     });
 
     const gpData = await handleGeniusPayResponse(response);

@@ -1,10 +1,5 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const asString = (value: string | string[] | undefined): string | undefined => {
   if (Array.isArray(value)) return value[0];

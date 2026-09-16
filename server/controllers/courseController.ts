@@ -1,11 +1,32 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 
-// Helper to normalize route/query params that can be string | string[] | undefined
 const asString = (value: string | string[] | undefined): string | undefined => {
   if (Array.isArray(value)) return value[0];
   return value;
 };
+
+async function retryWithNeonWakeup<T>(fn: () => Promise<T>, retries = 2, delayMs = 2000): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const isConnectionError =
+        err?.code === 'P1001' ||
+        err?.code === 'P1017' ||
+        err?.message?.includes('ECONNREFUSED') ||
+        err?.message?.includes('连接') ||
+        err?.message?.includes('timeout');
+      if (isConnectionError && attempt < retries) {
+        console.warn(`⚠️ [Neon Wakeup] Tentative ${attempt + 1}/${retries + 1} échouée, retry dans ${delayMs}ms...`);
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Unreachable');
+}
 
 export const getAllCourses = async (req: Request, res: Response) => {
   try {
@@ -15,18 +36,20 @@ export const getAllCourses = async (req: Request, res: Response) => {
       where.category = category.trim();
     }
 
-    const courses = await prisma.course.findMany({
-      where,
-      orderBy: [{ category: 'asc' }, { title: 'asc' }],
-      include: {
-        _count: {
-          select: {
-            subscriptions: true,
-            payments: true,
+    const courses = await retryWithNeonWakeup(() =>
+      prisma.course.findMany({
+        where,
+        orderBy: [{ category: 'asc' }, { title: 'asc' }],
+        include: {
+          _count: {
+            select: {
+              subscriptions: true,
+              payments: true,
+            }
           }
         }
-      }
-    });
+      })
+    );
     res.json(courses);
   } catch (error) {
     console.error(error);
@@ -37,7 +60,7 @@ export const getAllCourses = async (req: Request, res: Response) => {
 export const createCourse = async (req: Request, res: Response) => {
   try {
     const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
-    
+
     if (!title) {
       return res.status(400).json({ message: "Le titre est obligatoire" });
     }
@@ -45,18 +68,20 @@ export const createCourse = async (req: Request, res: Response) => {
     const regFee = registrationFee !== undefined ? Number(registrationFee) : (price !== undefined ? Number(price) : 35000);
     const mFee = monthlyFee !== undefined ? Number(monthlyFee) : 30000;
 
-    const course = await prisma.course.create({
-      data: {
-        title: title.trim(),
-        description: description ? description.trim() : null,
-        price: regFee,
-        registrationFee: regFee,
-        monthlyFee: mFee,
-        hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : true,
-        hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : true,
-        category: category && category.trim() ? category.trim() : "Général",
-      },
-    });
+    const course = await retryWithNeonWakeup(() =>
+      prisma.course.create({
+        data: {
+          title: title.trim(),
+          description: description ? description.trim() : null,
+          price: regFee,
+          registrationFee: regFee,
+          monthlyFee: mFee,
+          hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : true,
+          hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : true,
+          category: category && category.trim() ? category.trim() : "Général",
+        },
+      })
+    );
     res.status(201).json(course);
   } catch (error) {
     console.error(error);
@@ -66,7 +91,6 @@ export const createCourse = async (req: Request, res: Response) => {
 
 export const updateCourse = async (req: Request, res: Response) => {
   try {
-    // normalize in case the param comes as string[] (defensive)
     const rawId = (req.params as any).id as string | string[] | undefined;
     const id = asString(rawId);
 
@@ -78,19 +102,21 @@ export const updateCourse = async (req: Request, res: Response) => {
     const regFee = registrationFee !== undefined ? Number(registrationFee) : (price !== undefined ? Number(price) : undefined);
     const mFee = monthlyFee !== undefined ? Number(monthlyFee) : undefined;
 
-    const course = await prisma.course.update({
-      where: { id },
-      data: {
-        title: title !== undefined ? title.trim() : undefined,
-        description: description !== undefined ? description.trim() : undefined,
-        price: regFee !== undefined ? regFee : undefined,
-        registrationFee: regFee !== undefined ? regFee : undefined,
-        monthlyFee: mFee !== undefined ? mFee : undefined,
-        hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : undefined,
-        hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : undefined,
-        category: category !== undefined ? (category ? category.trim() : "Général") : undefined,
-      },
-    });
+    const course = await retryWithNeonWakeup(() =>
+      prisma.course.update({
+        where: { id },
+        data: {
+          title: title !== undefined ? title.trim() : undefined,
+          description: description !== undefined ? description.trim() : undefined,
+          price: regFee !== undefined ? regFee : undefined,
+          registrationFee: regFee !== undefined ? regFee : undefined,
+          monthlyFee: mFee !== undefined ? mFee : undefined,
+          hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : undefined,
+          hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : undefined,
+          category: category !== undefined ? (category ? category.trim() : "Général") : undefined,
+        },
+      })
+    );
     res.json(course);
   } catch (error) {
     console.error(error);
@@ -107,7 +133,7 @@ export const deleteCourse = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "id de la formation requis" });
     }
 
-    await prisma.course.delete({ where: { id } });
+    await retryWithNeonWakeup(() => prisma.course.delete({ where: { id } }));
     res.json({ message: "Formation supprimée avec succès" });
   } catch (error) {
     console.error(error);

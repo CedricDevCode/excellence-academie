@@ -59,7 +59,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         return false;
       }
       if (!validateEmail(form.email)) { setError("Format d'email invalide."); return false; }
-      if (form.password.length < 4) { setError("Le mot de passe doit contenir au moins 4 caractères."); return false; }
+      if (form.password.length < 8) { setError("Le mot de passe doit contenir au moins 8 caractères."); return false; }
       if (!validatePhone(form.telephone)) { setError("Format de téléphone invalide (ex: 07 XX XX XX XX)."); return false; }
     }
     if (s === 2) {

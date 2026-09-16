@@ -48,6 +48,16 @@ model User {
   updatedAt     DateTime        @updatedAt
 }
 
+model Category {
+  id           String    @id @default(uuid())
+  name         String    @unique
+  description  String?
+  color        String?   @default("#0056B3")
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
 model Course {
   id              String         @id @default(uuid())
   title           String
@@ -80,6 +90,11 @@ model Payment {
   receipt            Receipt?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Subscription {
@@ -95,6 +110,11 @@ model Subscription {
   coursParticuliers Boolean?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([courseId])
+  @@index([status])
+  @@index([nextPayment])
 }
 
 model Notification {
@@ -106,6 +126,10 @@ model Notification {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
 }
 
 model Expense {
@@ -120,6 +144,10 @@ model Expense {
   teacherId      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([teacherId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Receipt {
@@ -176,6 +204,10 @@ model CalendarEvent {
   teacherId   String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([courseId])
+  @@index([teacherId])
+  @@index([startTime])
 }
 
 model Evaluation {
@@ -192,6 +224,11 @@ model Evaluation {
   teacherId   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([courseId])
+  @@index([teacherId])
+  @@index([createdAt])
 }
 
 model Contract {
@@ -219,6 +256,10 @@ model TeacherSession {
   status      String   @default("PENDING")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([teacherId])
+  @@index([date])
+  @@index([status])
 }
 
 model Product {
@@ -289,6 +330,10 @@ model ShopOrder {
   items              ShopOrderItem[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model ShopOrderItem {
@@ -299,6 +344,9 @@ model ShopOrderItem {
   productId   String
   quantity    Int
   priceAtTime Float
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model BlogTag {
@@ -332,6 +380,11 @@ model BlogPost {
   exercises   BlogExercise[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
+  @@index([authorId])
+  @@index([courseId])
+  @@index([published])
+  @@index([createdAt])
 }
 
 model BlogComment {
@@ -343,6 +396,10 @@ model BlogComment {
   postId    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([postId])
+  @@index([createdAt])
 }
 
 model BlogExercise {

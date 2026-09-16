@@ -97,7 +97,7 @@ export default function TeacherSalariesView() {
   const handleSaveRate = async (teacherId: string) => {
     setSavingRate(true);
     try {
-      await updateUser(teacherId, { hourlyRate: rateEditValue || null });
+      await updateUser(teacherId, { hourlyRate: rateEditValue ? Number(rateEditValue) : undefined });
       toast('success', 'Taux horaire mis à jour');
       setEditingRate(null);
       loadReport();

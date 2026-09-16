@@ -47,9 +47,9 @@ router.post('/login', loginLimiter, login);
 router.post('/logout', logout);
 router.post('/register', registerLimiter, register);
 router.post('/register-and-pay', registerLimiter, paymentInitLimiter, registerAndPay);
-router.post('/confirm-payment', confirmPayment);
 
 // ─── Routes protégées ─────────────────────────────────────────────────────────
 router.get('/me', authenticateToken, getMe);
+router.post('/confirm-payment', authenticateToken, confirmPayment);
 
 export default router;

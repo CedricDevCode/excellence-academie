@@ -1,5 +1,85 @@
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  telephone?: string;
+  pays?: string;
+  ville?: string;
+  role: string;
+  isActive: boolean;
+  matricule?: string;
+  image?: string;
+  hourlyRate?: number;
+  createdAt?: string;
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  category?: string;
+  description?: string;
+  price: number;
+  registrationFee?: number;
+  monthlyFee?: number;
+  hasPresentiel?: boolean;
+  hasOnline?: boolean;
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  userId: string;
+  courseId?: string;
+  status: string;
+  geniusPayReference?: string;
+  receiptNumber?: string;
+  createdAt: string;
+  user?: User;
+  course?: Course;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  courseId: string;
+  amount: number;
+  status: string;
+  nextPayment: string;
+  formule?: string;
+  coursParticuliers?: boolean;
+  course?: Course;
+}
+
+export interface CreateUserData {
+  email: string;
+  password?: string;
+  name?: string;
+  prenom?: string;
+  nom?: string;
+  telephone?: string;
+  pays?: string;
+  ville?: string;
+  role?: string;
+  hourlyRate?: number;
+}
+
+export interface UpdateUserData {
+  name?: string;
+  prenom?: string;
+  nom?: string;
+  telephone?: string;
+  pays?: string;
+  ville?: string;
+  role?: string;
+  isActive?: boolean;
+  hourlyRate?: number;
+  image?: string;
+  [key: string]: unknown;
+}
+
 const authFetch = (url: string, options: RequestInit = {}) => {
   return fetch(url, {
     ...options,
@@ -37,13 +117,13 @@ export const fetchCityBreakdown = async () => {
 };
 
 // Users
-export const fetchUsers = async () => {
+export const fetchUsers = async (): Promise<User[]> => {
   const res = await authFetch(`${API_BASE_URL}/users`);
   if (!res.ok) throw new Error('Failed to fetch users');
   return res.json();
 };
 
-export const createUser = async (data: any) => {
+export const createUser = async (data: CreateUserData) => {
   const res = await authFetch(`${API_BASE_URL}/users`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -55,7 +135,7 @@ export const createUser = async (data: any) => {
   return res.json();
 };
 
-export const updateMyProfile = async (data: any) => {
+export const updateMyProfile = async (data: Partial<UpdateUserData>) => {
   const res = await authFetch(`${API_BASE_URL}/users/me`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -67,7 +147,7 @@ export const updateMyProfile = async (data: any) => {
   return res.json();
 };
 
-export const updateUser = async (id: string, data: any) => {
+export const updateUser = async (id: string, data: UpdateUserData) => {
   const res = await authFetch(`${API_BASE_URL}/users/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -91,7 +171,7 @@ export const deleteUser = async (id: string) => {
 };
 
 // Payments
-export const fetchPayments = async () => {
+export const fetchPayments = async (): Promise<Payment[]> => {
   const res = await authFetch(`${API_BASE_URL}/payments`);
   if (!res.ok) throw new Error('Failed to fetch payments');
   return res.json();
@@ -338,7 +418,7 @@ export const updateShopOrderStatus = async (id: string, status: string) => {
 
 // Courses
 export const fetchCourses = async () => {
-  const res = await fetch(`${API_BASE_URL}/courses`);
+  const res = await authFetch(`${API_BASE_URL}/courses`);
   if (!res.ok) throw new Error('Failed to fetch courses');
   return res.json();
 };
@@ -377,9 +457,17 @@ export const deleteCourse = async (id: string) => {
 
 // Course Categories
 export const fetchCourseCategories = async () => {
-  const res = await fetch(`${API_BASE_URL}/categories`);
-  if (!res.ok) throw new Error('Failed to fetch categories');
-  return res.json();
+  try {
+    const res = await authFetch(`${API_BASE_URL}/categories`);
+    if (!res.ok) {
+      console.warn('API /categories a retourné un statut non-200 :', res.status);
+      return [];
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn('Erreur réseau lors de la récupération des catégories :', err);
+    return [];
+  }
 };
 
 export const createCourseCategory = async (data: { name: string; description?: string; color?: string; displayOrder?: number }) => {

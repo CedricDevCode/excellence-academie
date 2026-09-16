@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { requireRole } from '../middleware/authMiddleware';
 import {
@@ -10,6 +11,15 @@ import {
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Rate limiting pour les uploads de fichiers (30/heure)
+const sessionUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop d\'uploads de fichiers. Réessayez dans une heure.' },
+});
 
 router.use(authenticateToken);
 
@@ -29,7 +39,7 @@ router.get('/files/:fileId/download', requireRole(['STUDENT', 'TEACHER', 'ADMIN'
 // Parameterized routes
 router.put('/:id/complete', requireRole(['TEACHER']), completeSession);
 router.put('/:id/validate', requireRole(['ADMIN', 'SECRETARY']), validateSession);
-router.post('/:id/files', requireRole(['TEACHER']), upload.single('file'), uploadSessionFile);
+router.post('/:id/files', requireRole(['TEACHER']), sessionUploadLimiter, upload.single('file'), uploadSessionFile);
 router.get('/:id/files', requireRole(['STUDENT', 'TEACHER', 'ADMIN', 'SECRETARY']), getSessionFiles);
 
 export default router;

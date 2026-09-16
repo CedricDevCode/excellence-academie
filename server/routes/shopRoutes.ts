@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -33,6 +34,15 @@ const upload = multer({
 
 const router = Router();
 
+// Rate limiting spécifique pour les uploads (20/heure)
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop d\'uploads. Réessayez dans une heure.' },
+});
+
 // Public routes
 router.get('/products', getProducts);
 router.get('/products/:id', getProductById);
@@ -47,7 +57,7 @@ router.get('/my-orders', authenticateToken, getStudentOrders);
 
 // Admin/Secretary routes for Products
 router.get('/admin/products', authenticateToken, requireRole(['ADMIN', 'SECRETARY']), getAllProducts);
-router.post('/admin/products/upload', authenticateToken, requireRole(['ADMIN', 'SECRETARY']), upload.single('image'), uploadProductImage);
+router.post('/admin/products/upload', authenticateToken, requireRole(['ADMIN', 'SECRETARY']), uploadLimiter, upload.single('image'), uploadProductImage);
 router.post('/admin/products', authenticateToken, requireRole(['ADMIN', 'SECRETARY']), createProduct);
 router.put('/admin/products/:id', authenticateToken, requireRole(['ADMIN', 'SECRETARY']), updateProduct);
 router.delete('/admin/products/:id', authenticateToken, requireRole(['ADMIN', 'SECRETARY']), deleteProduct);

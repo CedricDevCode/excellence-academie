@@ -10,20 +10,25 @@ import { sendDirectEmail } from './notificationController';
 
 export const initPayment = async (req: Request, res: Response) => {
   try {
-    const { userId, courseId, formule, successUrl, errorUrl, paymentMethod } = req.body;
+    const { userId, courseId, formule, successUrl, errorUrl, paymentMethod, pays, ville, mode, coursParticuliers } = req.body;
 
     if (!userId || !courseId || !formule) {
       return res.status(400).json({ error: 'userId, courseId et formule sont requis' });
     }
 
-    const amount = calcRegistrationPrice('', 'presentiel', '', false);
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, telephone: true },
+      select: { id: true, name: true, email: true, telephone: true, pays: true, ville: true },
     });
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
+
+    const userPays = pays || user.pays || '';
+    const userVille = ville || user.ville || '';
+    const userMode = mode || 'presentiel';
+    const isCoursParticuliers = coursParticuliers || false;
+    const amount = calcRegistrationPrice(userPays, userMode, userVille, isCoursParticuliers);
 
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) {

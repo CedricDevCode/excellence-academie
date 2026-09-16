@@ -442,6 +442,7 @@ async function processGeniusPayPayout(teacher: any, amount: number, description:
   try {
     const walletRes = await fetch(`${GENIUSPAY_API_BASE}/wallets`, {
       headers: geniusPayHeaders(),
+      signal: AbortSignal.timeout(15000),
     });
     const walletBody = await walletRes.json();
     let walletId = walletBody.data?.wallets?.[0]?.id;
@@ -456,6 +457,7 @@ async function processGeniusPayPayout(teacher: any, amount: number, description:
           type: 'payout',
           currency: 'XOF',
         }),
+        signal: AbortSignal.timeout(15000),
       });
       const createBody = await createRes.json();
       walletId = createBody.data?.id;
@@ -486,6 +488,7 @@ async function processGeniusPayPayout(teacher: any, amount: number, description:
         metadata: { teacher_id: teacher.id, type: 'salary' },
         idempotency_key: crypto.randomUUID(),
       }),
+      signal: AbortSignal.timeout(15000),
     });
     const result = await payoutRes.json();
 

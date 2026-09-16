@@ -3,11 +3,6 @@ import prisma from '../utils/prisma';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { METHOD_TO_GP } from '../constants';
 import { sendDirectEmail } from './notificationController';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // --- PRODUCTS ---
 
@@ -173,6 +168,10 @@ export const createOrder = async (req: Request, res: Response) => {
       if (!product) {
         return res.status(404).json({ error: `Product ${item.productId} not found` });
       }
+      // Vérifier le stock
+      if (product.stock !== null && product.stock < item.quantity) {
+        return res.status(400).json({ error: `Stock insuffisant pour "${product.title}" (${product.stock} disponibles)` });
+      }
       totalAmount += product.price * item.quantity;
       orderItemsData.push({
         productId: product.id,
@@ -197,6 +196,16 @@ export const createOrder = async (req: Request, res: Response) => {
         }
       }
     });
+
+    // Décrémenter le stock atomiquement pour chaque produit
+    await prisma.$transaction(
+      items.map((item: any) =>
+        prisma.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        })
+      )
+    );
 
     // Cash on delivery — skip GeniusPay
     if (paymentMethod === 'ESPECES') {
@@ -235,6 +244,7 @@ export const createOrder = async (req: Request, res: Response) => {
       method: 'POST',
       headers: geniusPayHeaders(),
       body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15000),
     });
 
     const gpData = await handleGeniusPayResponse(response);
@@ -339,11 +349,12 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
     if (status === 'SHIPPED' || status === 'DELIVERED' || status === 'TRAITEE') {
       try {
+        const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const mailOptions = {
           to: order.customerEmail,
           subject: `Mise à jour de votre commande Excellence Académie - ${status}`,
-          html: `<p>Bonjour ${order.customerName},</p>
-                 <p>Le statut de votre commande (Ref: ${order.id}) est maintenant : <strong>${status}</strong>.</p>
+          html: `<p>Bonjour ${escapeHtml(order.customerName || '')},</p>
+                 <p>Le statut de votre commande (Ref: ${escapeHtml(order.id)}) est maintenant : <strong>${escapeHtml(status)}</strong>.</p>
                  <p>Merci pour votre achat !</p>
                  <p>L'équipe Excellence Académie</p>`
         };

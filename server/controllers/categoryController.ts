@@ -11,81 +11,112 @@ const DEFAULT_PRESETS = [
   { name: 'Finances & Gestion', description: 'Trésor, Impôts, Douanes, Comptabilité publique', color: '#0284C7', displayOrder: 7 },
 ];
 
-/**
- * Initialise les catégories par défaut et synchronise les catégories existantes des formations
- */
-export const seedAndSyncCategories = async () => {
+let categoryTableReady: boolean | null = null;
+
+async function isCategoryTableReady(): Promise<boolean> {
+  if (categoryTableReady !== null) return categoryTableReady;
   try {
-    const existingCount = await prisma.courseCategory.count();
-    if (existingCount === 0) {
-      for (const cat of DEFAULT_PRESETS) {
-        await prisma.courseCategory.upsert({
-          where: { name: cat.name },
-          update: {},
-          create: cat,
-        });
-      }
-    }
+    await prisma.$queryRaw`SELECT 1 FROM "Category" LIMIT 1`;
+    categoryTableReady = true;
+  } catch {
+    categoryTableReady = false;
+  }
+  return categoryTableReady;
+}
 
-    // Récupérer les catégories distinctes des cours existants
-    const courses = await prisma.course.findMany({ select: { category: true } });
-    const uniqueCourseCategories = Array.from(
-      new Set(courses.map(c => c.category?.trim()).filter(Boolean))
-    ) as string[];
-
-    for (const catName of uniqueCourseCategories) {
-      const found = await prisma.courseCategory.findUnique({ where: { name: catName } });
-      if (!found) {
-        await prisma.courseCategory.create({
-          data: {
-            name: catName,
-            description: `Catégorie issue du catalogue (${catName})`,
-            color: '#0056B3',
-            displayOrder: 10,
-          },
-        });
-      }
-    }
+export const ensureCategoryTable = async (): Promise<void> => {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Category" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "color" TEXT DEFAULT '#0056B3',
+        "displayOrder" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Category_name_key" ON "Category"("name")`);
+    categoryTableReady = true;
+    console.log('✅ Table Category vérifiée/créée');
   } catch (err) {
-    console.warn('⚠️ Synchronisation des catégories de cours :', err);
+    console.warn('⚠️ Impossible de créer la table Category:', err);
+    categoryTableReady = false;
   }
 };
 
-/**
- * Récupérer toutes les catégories
- */
+async function ensureDefaultCategories() {
+  const tableReady = await isCategoryTableReady();
+  if (!tableReady) return;
+
+  try {
+    const count = await prisma.category.count();
+    if (count === 0) {
+      for (const preset of DEFAULT_PRESETS) {
+        await prisma.category.upsert({
+          where: { name: preset.name },
+          update: {},
+          create: preset,
+        });
+      }
+      console.log('✅ Catégories par défaut initialisées en base');
+    }
+  } catch (err) {
+    console.warn('⚠️ Erreur init catégories par défaut:', err);
+  }
+}
+
 export const getAllCategories = async (req: Request, res: Response) => {
   try {
-    await seedAndSyncCategories();
-    const categories = await prisma.courseCategory.findMany({
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.json(DEFAULT_PRESETS.map((c, i) => ({ ...c, id: `preset-${i}`, coursesCount: 0 })));
+    }
+
+    await ensureDefaultCategories();
+
+    const categories = await prisma.category.findMany({
       orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
     });
 
-    // Compter le nombre de formations par catégorie
-    const courses = await prisma.course.findMany({ select: { category: true } });
     const counts: Record<string, number> = {};
-    for (const c of courses) {
-      const cat = c.category?.trim() || 'Général';
-      counts[cat] = (counts[cat] || 0) + 1;
+    try {
+      const courses = await prisma.course.findMany({ select: { category: true } });
+      for (const c of courses) {
+        const catName = c.category?.trim();
+        if (catName) {
+          counts[catName] = (counts[catName] || 0) + 1;
+        }
+      }
+    } catch (dbErr) {
+      console.warn('⚠️ Impossible de compter les cours en base :', dbErr);
     }
 
     const result = categories.map(cat => ({
-      ...cat,
+      id: cat.id,
+      name: cat.name,
+      description: cat.description,
+      color: cat.color,
+      displayOrder: cat.displayOrder,
       coursesCount: counts[cat.name] || 0,
     }));
 
     res.json(result);
   } catch (error) {
     console.error('Erreur getAllCategories :', error);
-    res.status(500).json({ message: 'Erreur lors de la récupération des catégories' });
+    res.json(DEFAULT_PRESETS.map((c, i) => ({ ...c, id: `preset-${i}`, coursesCount: 0 })));
   }
 };
 
-/**
- * Créer une nouvelle catégorie
- */
 export const createCategory = async (req: Request, res: Response) => {
   try {
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.status(503).json({ message: 'La table Category n\'est pas encore disponible. Réessayez dans quelques instants.' });
+    }
+
     const { name, description, color, displayOrder } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -93,36 +124,40 @@ export const createCategory = async (req: Request, res: Response) => {
     }
 
     const trimmedName = name.trim();
-    const existing = await prisma.courseCategory.findUnique({ where: { name: trimmedName } });
+
+    const existing = await prisma.category.findUnique({ where: { name: trimmedName } });
     if (existing) {
       return res.status(400).json({ message: 'Une catégorie avec ce nom existe déjà' });
     }
 
-    const category = await prisma.courseCategory.create({
+    const count = await prisma.category.count();
+    const newCategory = await prisma.category.create({
       data: {
         name: trimmedName,
         description: description?.trim() || null,
         color: color?.trim() || '#0056B3',
-        displayOrder: Number(displayOrder) || 0,
+        displayOrder: Number(displayOrder) || (count + 1),
       },
     });
 
-    res.status(201).json(category);
+    res.status(201).json({ ...newCategory, coursesCount: 0 });
   } catch (error) {
     console.error('Erreur createCategory :', error);
     res.status(500).json({ message: 'Erreur lors de la création de la catégorie' });
   }
 };
 
-/**
- * Mettre à jour une catégorie
- */
 export const updateCategory = async (req: Request, res: Response) => {
   try {
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.status(503).json({ message: 'La table Category n\'est pas encore disponible.' });
+    }
+
     const { id } = req.params;
     const { name, description, color, displayOrder } = req.body;
 
-    const existing = await prisma.courseCategory.findUnique({ where: { id } });
+    const existing = await prisma.category.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ message: 'Catégorie introuvable' });
     }
@@ -130,21 +165,25 @@ export const updateCategory = async (req: Request, res: Response) => {
     const oldName = existing.name;
     const newName = name !== undefined ? name.trim() : oldName;
 
-    // Si le nom change, vérifier les doublons et mettre à jour les cours associés
-    if (newName !== oldName) {
-      const duplicate = await prisma.courseCategory.findUnique({ where: { name: newName } });
-      if (duplicate && duplicate.id !== id) {
+    if (newName.toLowerCase() !== oldName.toLowerCase()) {
+      const duplicate = await prisma.category.findFirst({
+        where: { id: { not: id }, name: { equals: newName, mode: 'insensitive' } },
+      });
+      if (duplicate) {
         return res.status(400).json({ message: 'Ce nom de catégorie est déjà utilisé' });
       }
 
-      // Mettre à jour le champ category des formations existantes
-      await prisma.course.updateMany({
-        where: { category: oldName },
-        data: { category: newName },
-      });
+      try {
+        await prisma.course.updateMany({
+          where: { category: oldName },
+          data: { category: newName },
+        });
+      } catch (dbErr) {
+        console.warn('⚠️ Erreur mise à jour des cours associés :', dbErr);
+      }
     }
 
-    const updated = await prisma.courseCategory.update({
+    const updatedCategory = await prisma.category.update({
       where: { id },
       data: {
         name: newName,
@@ -154,31 +193,38 @@ export const updateCategory = async (req: Request, res: Response) => {
       },
     });
 
-    res.json(updated);
+    res.json(updatedCategory);
   } catch (error) {
     console.error('Erreur updateCategory :', error);
     res.status(500).json({ message: 'Erreur lors de la modification de la catégorie' });
   }
 };
 
-/**
- * Supprimer une catégorie
- */
 export const deleteCategory = async (req: Request, res: Response) => {
   try {
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.status(503).json({ message: 'La table Category n\'est pas encore disponible.' });
+    }
+
     const { id } = req.params;
-    const existing = await prisma.courseCategory.findUnique({ where: { id } });
+
+    const existing = await prisma.category.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ message: 'Catégorie introuvable' });
     }
 
-    // Basculer les cours associés vers "Général"
-    await prisma.course.updateMany({
-      where: { category: existing.name },
-      data: { category: 'Général' },
-    });
+    try {
+      await prisma.course.updateMany({
+        where: { category: existing.name },
+        data: { category: 'Général' },
+      });
+    } catch (dbErr) {
+      console.warn('⚠️ Erreur mise à jour des cours supprimés :', dbErr);
+    }
 
-    await prisma.courseCategory.delete({ where: { id } });
+    await prisma.category.delete({ where: { id } });
+
     res.json({ message: 'Catégorie supprimée avec succès' });
   } catch (error) {
     console.error('Erreur deleteCategory :', error);

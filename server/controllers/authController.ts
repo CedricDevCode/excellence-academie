@@ -6,6 +6,7 @@ import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '.
 import { calcRegistrationPrice, calcMonthlyAmount, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { sendNotification, sendNotificationToRole } from './notificationController';
+import { invalidateUserCache } from '../middleware/authMiddleware';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ async function retryWithNeonWakeup<T>(fn: () => Promise<T>, retries = 2, delayMs
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, nom, prenom, role, telephone, pays, ville } = req.body;
+    const { email, password, name, nom, prenom, telephone, pays, ville } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email et mot de passe sont requis' });
@@ -65,9 +66,10 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Cet email est déjà utilisé' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12); // bcrypt cost 12 (plus sécurisé que 10)
+    const hashedPassword = await bcrypt.hash(password, 12);
     const fullName = name || [prenom, nom].filter(Boolean).join(' ') || cleanEmail;
 
+    // SÉCURITÉ: Toujours forcer STUDENT sur l'inscription publique
     const user = await prisma.user.create({
       data: {
         email: cleanEmail,
@@ -76,7 +78,7 @@ export const register = async (req: Request, res: Response) => {
         telephone,
         pays,
         ville,
-        role: role || 'STUDENT',
+        role: 'STUDENT',
         isActive: true,
       },
     });
@@ -245,11 +247,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
     }
 
     const gpResponse = await fetch(`${GENIUSPAY_API_BASE}/payments/${reference}`, {
-      headers: {
-        'X-API-Key': process.env.GENIUSPAY_API_KEY || '',
-        'X-API-Secret': process.env.GENIUSPAY_SECRET_KEY || '',
-        Accept: 'application/json',
-      },
+      headers: { ...geniusPayHeaders(), Accept: 'application/json' },
       signal: AbortSignal.timeout(15000),
     });
 
@@ -273,38 +271,14 @@ export const confirmPayment = async (req: Request, res: Response) => {
       });
 
       if (!pending) {
-        // Le paiement est validé mais les données d'inscription ont expiré ou ont déjà été traitées
         return res.status(400).json({
           error: 'Données d\'inscription expirées ou déjà traitées. Contactez le support.',
         });
       }
 
-      // Vérifier que le token n'est pas expiré
       if (new Date() > pending.expiresAt) {
         await prisma.pendingRegistration.delete({ where: { id: pending.id } });
         return res.status(400).json({ error: 'Session d\'inscription expirée. Veuillez recommencer.' });
-      }
-
-      let user = await prisma.user.findUnique({ where: { email: pending.email } });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            email: pending.email,
-            password: pending.passwordHash,
-            name: pending.name || pending.email,
-            telephone: pending.telephone || '',
-            pays: pending.pays || '',
-            ville: pending.ville || '',
-            role: 'STUDENT',
-            isActive: true,
-          },
-        });
-      }
-
-      if (!user.matricule && user.role === 'STUDENT') {
-        const matricule = await generateMatricule();
-        await prisma.user.update({ where: { id: user.id }, data: { matricule } });
       }
 
       const courseIdList: string[] = Array.isArray(pending.courseIds) ? pending.courseIds : [];
@@ -314,50 +288,77 @@ export const confirmPayment = async (req: Request, res: Response) => {
       );
       const totalAmount = inscriptionAmount + monthlyAmt;
 
-      const existingPayment = await prisma.payment.findFirst({
-        where: { geniusPayReference: reference },
-      });
+      // Transaction atomique : utilisateur + paiement + abonnements
+      const result = await prisma.$transaction(async (tx) => {
+        let user = await tx.user.findUnique({ where: { email: pending.email } });
 
-      if (!existingPayment) {
-        const payment = await prisma.payment.create({
-          data: {
-            amount: gpData.amount || totalAmount,
-            userId: user.id,
-            status: 'SUCCESS',
-            geniusPayReference: reference,
-          },
-        });
-        const receiptNumber = generateReceiptNumber();
-        await prisma.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
-      }
-
-      for (const cId of courseIdList) {
-        const existingSub = await prisma.subscription.findFirst({
-          where: { userId: user.id, courseId: cId },
-        });
-        if (!existingSub) {
-          const nextPayment = new Date();
-          nextPayment.setMonth(nextPayment.getMonth() + 1);
-          await prisma.subscription.create({
+        if (!user) {
+          user = await tx.user.create({
             data: {
-              userId: user.id,
-              courseId: cId,
-              amount: monthlyAmt,
-              status: 'ACTIVE',
-              nextPayment,
-              formule: pending.mode || 'presentiel',
-              coursParticuliers: pending.coursParticuliers,
+              email: pending.email,
+              password: pending.passwordHash,
+              name: pending.name || pending.email,
+              telephone: pending.telephone || '',
+              pays: pending.pays || '',
+              ville: pending.ville || '',
+              role: 'STUDENT',
+              isActive: true,
             },
           });
         }
-      }
 
-      // Supprimer le pending registration — données sensibles nettoyées
-      await prisma.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {});
+        if (!user.matricule && user.role === 'STUDENT') {
+          const matricule = await generateMatricule();
+          await tx.user.update({ where: { id: user.id }, data: { matricule } });
+        }
+
+        const existingPayment = await tx.payment.findFirst({
+          where: { geniusPayReference: reference },
+        });
+
+        if (!existingPayment) {
+          const payment = await tx.payment.create({
+            data: {
+              amount: gpData.amount || totalAmount,
+              userId: user.id,
+              status: 'SUCCESS',
+              geniusPayReference: reference,
+            },
+          });
+          const receiptNumber = generateReceiptNumber();
+          await tx.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
+        }
+
+        for (const cId of courseIdList) {
+          const existingSub = await tx.subscription.findFirst({
+            where: { userId: user.id, courseId: cId },
+          });
+          if (!existingSub) {
+            const nextPayment = new Date();
+            nextPayment.setMonth(nextPayment.getMonth() + 1);
+            await tx.subscription.create({
+              data: {
+                userId: user.id,
+                courseId: cId,
+                amount: monthlyAmt,
+                status: 'ACTIVE',
+                nextPayment,
+                formule: pending.mode || 'presentiel',
+                coursParticuliers: pending.coursParticuliers,
+              },
+            });
+          }
+        }
+
+        // Supprimer le pending registration
+        await tx.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {});
+
+        return user;
+      });
 
       try {
         await sendNotification(
-          user.id,
+          result.id,
           'Inscription et paiement validés',
           `Votre paiement de ${totalAmount.toLocaleString('fr-FR')} FCFA a été reçu. Bienvenue !`
         );
@@ -370,12 +371,12 @@ export const confirmPayment = async (req: Request, res: Response) => {
         console.error('Notification error on payment confirmation:', err);
       }
 
-      setAuthCookie(res, user.id, user.role);
+      setAuthCookie(res, result.id, result.role);
 
       return res.json({
         success: true,
         status: gpData.status,
-        user: { id: user.id, email: user.email, name: user.name, role: user.role },
+        user: { id: result.id, email: result.email, name: result.name, role: result.role },
       });
     }
 
@@ -468,6 +469,7 @@ export const login = async (req: Request, res: Response) => {
 // ─── Déconnexion ──────────────────────────────────────────────────────────────
 
 export const logout = (req: Request, res: Response) => {
+  if (req.user?.id) invalidateUserCache(req.user.id);
   clearAuthCookie(res);
   res.json({ message: 'Déconnexion réussie' });
 };

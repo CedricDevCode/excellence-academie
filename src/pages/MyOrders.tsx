@@ -3,6 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Package, ChevronRight, Loader2, Clock, CheckCircle, XCircle, Truck, Eye, Search, ChevronDown, Menu as MenuIcon, X, User, Bell, LogOut, Phone, Star } from 'lucide-react';
 import api, { getMe, logout as apiLogout } from '../utils/api';
 
+function getProductImg(imageUrl: string | null | undefined): string {
+  if (!imageUrl) return '';
+  try {
+    const p = JSON.parse(imageUrl);
+    if (Array.isArray(p)) return p[0] || '';
+    return imageUrl;
+  } catch {
+    return imageUrl;
+  }
+}
+
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'En attente',
   PAID: 'Payée',
@@ -90,7 +101,6 @@ export default function MyOrders() {
   };
 
   const filteredOrders = filter === 'all' ? orders : orders.filter(o => o.status === filter.toUpperCase());
-  const count = 0;
 
   if (loading) {
     return (
@@ -260,7 +270,7 @@ export default function MyOrders() {
                         <div key={item.id} className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-gray-50">
                             {item.product?.imageUrl ? (
-                              <img src={item.product.imageUrl} alt={item.product.title} className="w-full h-full object-contain" />
+                              <img src={getProductImg(item.product.imageUrl)} alt={item.product.title} className="w-full h-full object-contain" />
                             ) : (
                               <Package size={20} className="text-gray-200" />
                             )}
@@ -299,7 +309,7 @@ export default function MyOrders() {
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900">Noter ce produit</h3>
-              <button onClick={() => setReviewModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+              <button onClick={() => setReviewModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer" aria-label="Fermer">
                 <X size={20} />
               </button>
             </div>
@@ -307,6 +317,7 @@ export default function MyOrders() {
             <div className="flex items-center justify-center gap-1 mb-4">
               {[1, 2, 3, 4, 5].map(i => (
                 <button key={i} type="button" onClick={() => setReviewRating(i)}
+                  aria-label={`${i} étoile${i > 1 ? 's' : ''}`}
                   className={`p-1 transition-all cursor-pointer ${i <= reviewRating ? 'scale-110' : ''}`}>
                   <Star size={28} className={i <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'} />
                 </button>

@@ -1,29 +1,45 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import LandingPage from "./pages/LandingPage";
-import StudentLogin from "./pages/StudentLogin";
-import StudentRegister from "./pages/StudentRegister";
-import AdminDashboard from "./pages/AdminDashboard";
-import StudentDashboard from "./pages/StudentDashboard";
-import TeacherDashboard from "./pages/TeacherDashboard";
-import AccountantDashboard from "./pages/AccountantDashboard";
-import SecretaryDashboard from "./pages/SecretaryDashboard";
-import CGU from "./pages/CGU";
-import PaymentCallback from "./pages/PaymentCallback";
-import Shop from "./pages/Shop";
-import ProductDetail from "./pages/ProductDetail";
-import CartPage from "./pages/CartPage";
-import CheckoutPage from "./pages/CheckoutPage";
-import MyOrders from "./pages/MyOrders";
-import ShopRegister from "./pages/ShopRegister";
-import ShopCheckoutCallback from "./pages/ShopCheckoutCallback";
-import BlogList from "./pages/BlogList";
-import BlogDetail from "./pages/BlogDetail";
-import BlogEditor from "./pages/BlogEditor";
-import BlogSubmissions from "./pages/BlogSubmissions";
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, useLocation, Link } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import CartDrawer from "./components/CartDrawer";
+import PageTransition from "./components/ui/PageTransition";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/Toast";
+
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const StudentLogin = lazy(() => import("./pages/StudentLogin"));
+const StudentRegister = lazy(() => import("./pages/StudentRegister"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+const AccountantDashboard = lazy(() => import("./pages/AccountantDashboard"));
+const SecretaryDashboard = lazy(() => import("./pages/SecretaryDashboard"));
+const CGU = lazy(() => import("./pages/CGU"));
+const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
+const Shop = lazy(() => import("./pages/Shop"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const CartPage = lazy(() => import("./pages/CartPage"));
+const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
+const MyOrders = lazy(() => import("./pages/MyOrders"));
+const ShopRegister = lazy(() => import("./pages/ShopRegister"));
+const ShopCheckoutCallback = lazy(() => import("./pages/ShopCheckoutCallback"));
+const BlogList = lazy(() => import("./pages/BlogList"));
+const BlogDetail = lazy(() => import("./pages/BlogDetail"));
+const BlogEditor = lazy(() => import("./pages/BlogEditor"));
+const BlogSubmissions = lazy(() => import("./pages/BlogSubmissions"));
+
+function PageLoader() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-surface-50">
+      <div className="text-center">
+        <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-surface-500 text-sm font-semibold">Chargement...</p>
+      </div>
+    </div>
+  );
+}
 
 function AppRoutes() {
   const location = useLocation();
@@ -41,33 +57,52 @@ function AppRoutes() {
   return (
     <>
       {!shouldHide && <Navbar />}
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/student/login" element={<StudentLogin />} />
-        <Route path="/students/new" element={<StudentRegister />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/student/dashboard" element={<StudentDashboard />} />
-        <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-        <Route path="/accountant/dashboard" element={<AccountantDashboard />} />
-        <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
-        <Route path="/payment/success" element={<PaymentCallback />} />
-        <Route path="/payment/error" element={<PaymentCallback />} />
-        <Route path="/shop" element={<Shop />} />
-        <Route path="/shop/c/:type" element={<Shop />} />
-          <Route path="/shop/product/:id" element={<ProductDetail />} />
-          <Route path="/cart" element={<CartPage />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/my-orders" element={<MyOrders />} />
-        <Route path="/shop/register" element={<ShopRegister />} />
-        <Route path="/shop/payment/success" element={<ShopCheckoutCallback />} />
-        <Route path="/shop/payment/error" element={<ShopCheckoutCallback />} />
-        <Route path="/blog" element={<BlogList />} />
-        <Route path="/blog/new" element={<BlogEditor />} />
-        <Route path="/blog/edit/:id" element={<BlogEditor />} />
-        <Route path="/blog/:slug" element={<BlogDetail />} />
-        <Route path="/blog/exercises/:exerciseId/submissions" element={<BlogSubmissions />} />
-        <Route path="/cgu" element={<CGU />} />
-      </Routes>
+      <AnimatePresence mode="wait">
+        <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
+            <Route path="/student/login" element={<PageTransition><StudentLogin /></PageTransition>} />
+            <Route path="/students/new" element={<PageTransition><StudentRegister /></PageTransition>} />
+            <Route path="/admin/dashboard" element={<PageTransition><AdminDashboard /></PageTransition>} />
+            <Route path="/student/dashboard" element={<PageTransition><StudentDashboard /></PageTransition>} />
+            <Route path="/teacher/dashboard" element={<PageTransition><TeacherDashboard /></PageTransition>} />
+            <Route path="/accountant/dashboard" element={<PageTransition><AccountantDashboard /></PageTransition>} />
+            <Route path="/secretary/dashboard" element={<PageTransition><SecretaryDashboard /></PageTransition>} />
+            <Route path="/payment/success" element={<PageTransition><PaymentCallback /></PageTransition>} />
+            <Route path="/payment/error" element={<PageTransition><PaymentCallback /></PageTransition>} />
+            <Route path="/shop" element={<PageTransition><Shop /></PageTransition>} />
+            <Route path="/shop/c/:type" element={<PageTransition><Shop /></PageTransition>} />
+            <Route path="/shop/product/:id" element={<PageTransition><ProductDetail /></PageTransition>} />
+            <Route path="/cart" element={<PageTransition><CartPage /></PageTransition>} />
+            <Route path="/checkout" element={<PageTransition><CheckoutPage /></PageTransition>} />
+            <Route path="/my-orders" element={<PageTransition><MyOrders /></PageTransition>} />
+            <Route path="/shop/register" element={<PageTransition><ShopRegister /></PageTransition>} />
+            <Route path="/shop/payment/success" element={<PageTransition><ShopCheckoutCallback /></PageTransition>} />
+            <Route path="/shop/payment/error" element={<PageTransition><ShopCheckoutCallback /></PageTransition>} />
+            <Route path="/blog" element={<PageTransition><BlogList /></PageTransition>} />
+            <Route path="/blog/new" element={<PageTransition><BlogEditor /></PageTransition>} />
+            <Route path="/blog/edit/:id" element={<PageTransition><BlogEditor /></PageTransition>} />
+            <Route path="/blog/:slug" element={<PageTransition><BlogDetail /></PageTransition>} />
+            <Route path="/blog/exercises/:exerciseId/submissions" element={<PageTransition><BlogSubmissions /></PageTransition>} />
+            <Route path="/cgu" element={<PageTransition><CGU /></PageTransition>} />
+            <Route path="*" element={
+              <PageTransition>
+                <div className="min-h-[70vh] flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <h1 className="text-6xl font-black text-primary-900 mb-4">404</h1>
+                    <p className="text-lg text-gray-500 mb-6">Page introuvable</p>
+                    <Link to="/" className="px-6 py-3 bg-primary-500 text-white font-bold rounded-lg hover:bg-primary-600 transition-colors">
+                      Retour à l'accueil
+                    </Link>
+                  </div>
+                </div>
+              </PageTransition>
+            } />
+          </Routes>
+        </Suspense>
+        </ErrorBoundary>
+      </AnimatePresence>
       {!shouldHide && <Footer />}
     </>
   );

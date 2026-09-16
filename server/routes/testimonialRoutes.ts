@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -25,10 +26,19 @@ const upload = multer({
 
 const router = Router();
 
+// Rate limiting pour les uploads (10/heure)
+const testimonialUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop d\'uploads. Réessayez dans une heure.' },
+});
+
 // Public routes
 router.get('/', getTestimonials);
 router.post('/', createTestimonial);
-router.post('/upload', upload.array('images', 3), uploadTestimonialImage);
+router.post('/upload', authenticateToken, testimonialUploadLimiter, upload.array('images', 3), uploadTestimonialImage);
 
 // Admin routes
 router.get('/admin/all', authenticateToken, requireRole(['ADMIN']), getAllTestimonials);
