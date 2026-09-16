@@ -1,11 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { FileText, CheckCircle, Loader2, Trash2, Check, AlertCircle, ChevronDown, Pen } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
-import workerCode from "pdfjs-dist/build/pdf.worker.min.mjs?raw";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
-  new Blob([workerCode], { type: "application/javascript" })
-);
+pdfjsLib.GlobalWorkerOptions.workerSrc = "";
 
 interface ContractViewProps {
   onSign: (signatureData: string) => void;
