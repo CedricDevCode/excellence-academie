@@ -13,7 +13,7 @@
     "preview": "vite preview",
     "start": "node dist/server.js",
     "start:dev": "tsx server/index.ts",
-    "postinstall": "prisma generate && prisma migrate deploy"
+    "postinstall": "prisma generate && (prisma migrate deploy || true)"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
