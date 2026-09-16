@@ -7,12 +7,15 @@
   "background_color": "#ffffff",
   "theme_color": "#0056B3",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "categories": ["education"],
   "icons": [
     {
       "src": "/images/logo exacademy.jpeg",
       "sizes": "192x192",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/images/logo exacademy.jpeg",
@@ -21,7 +24,6 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education"],
-  "lang": "fr",
-  "scope": "/"
+  "screenshots": [],
+  "prefer_related_applications": false
 }

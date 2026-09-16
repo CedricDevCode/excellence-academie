@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
+export const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface User {
@@ -80,7 +80,7 @@ export interface UpdateUserData {
   [key: string]: unknown;
 }
 
-const authFetch = (url: string, options: RequestInit = {}) => {
+export const authFetch = (url: string, options: RequestInit = {}) => {
   return fetch(url, {
     ...options,
     credentials: 'include',

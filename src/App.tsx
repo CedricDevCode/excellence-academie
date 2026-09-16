@@ -7,6 +7,8 @@ import CartDrawer from "./components/CartDrawer";
 import PageTransition from "./components/ui/PageTransition";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/Toast";
+import PwaInstallBanner from "./components/PwaInstallBanner";
+import PushAutoSubscribe from "./components/PushAutoSubscribe";
 
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const StudentLogin = lazy(() => import("./pages/StudentLogin"));
@@ -114,6 +116,8 @@ export default function App() {
       <ToastProvider>
         <AppRoutes />
         <CartDrawer />
+        <PwaInstallBanner />
+        <PushAutoSubscribe />
       </ToastProvider>
     </BrowserRouter>
   );

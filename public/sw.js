@@ -1,4 +1,4 @@
-const CACHE_NAME = "exacademie-v1";
+const CACHE_NAME = "exacademie-v2";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -22,13 +22,53 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Push notification handler
+self.addEventListener("push", (event) => {
+  let data = { title: "Excellence Académie", body: "", url: "/", icon: "/images/logo exacademy.jpeg" };
+  try {
+    data = { ...data, ...event.data.json() };
+  } catch {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      badge: data.icon,
+      vibrate: [200, 100, 200],
+      tag: "exacademie-" + Date.now(),
+      renotify: true,
+      data: { url: data.url },
+      actions: [
+        { action: "open", title: "Ouvrir", icon: data.icon },
+      ],
+    })
+  );
+});
+
+// Notification click handler
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.registration.scope) && "focus" in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
+});
+
+// Fetch handler with cache-first for static assets
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-
-  // Skip non-GET, API calls, and admin routes
   if (request.method !== "GET") return;
   if (request.url.includes("/api/")) return;
-  if (request.url.includes("/admin")) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {
@@ -41,7 +81,6 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => cached);
-
       return cached || fetched;
     })
   );

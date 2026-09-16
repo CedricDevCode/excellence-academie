@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import nodemailer from 'nodemailer';
 import prisma from '../utils/prisma';
 import { EventEmitter } from 'events';
+import { sendPushNotification } from '../utils/push';
 
 export const notificationEvents = new EventEmitter();
 notificationEvents.setMaxListeners(100);
@@ -119,6 +120,9 @@ export const sendNotification = async (userId: string, title: string, message: s
       message,
       createdAt: notif.createdAt
     });
+
+    // 1c. Send browser push notification
+    sendPushNotification(userId, title, message).catch(() => {});
 
     // 2. Send Email Notification
     const fromAddress = process.env.SMTP_FROM || 'noreply@excellence-academie.ci';

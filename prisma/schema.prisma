@@ -132,6 +132,19 @@ model Notification {
   @@index([createdAt])
 }
 
+model PushSubscription {
+  id           String   @id @default(uuid())
+  userId       String
+  endpoint     String
+  p256dh       String
+  auth         String
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+}
+
 model Expense {
   id             String   @id @default(uuid())
   amount         Float

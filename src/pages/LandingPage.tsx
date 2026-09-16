@@ -494,7 +494,7 @@ function AdmisSection() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (!loading && admisList.length === 0) return null;
+  if (loading || admisList.length === 0) return null;
 
   return (
     <section id="admis" className="py-16 sm:py-20 bg-gradient-to-b from-white via-orange-50/20 to-white">
