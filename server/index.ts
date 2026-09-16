@@ -246,6 +246,11 @@ const candidateDistPaths = [
 const distPath = candidateDistPaths.find(p => fs.existsSync(p)) || candidateDistPaths[0];
 
 app.use(express.static(distPath));
+// Servir aussi le dossier public/doc (contrat PDF)
+const publicDocPath = path.resolve(projectRoot, 'public', 'doc');
+if (fs.existsSync(publicDocPath)) {
+  app.use('/doc', express.static(publicDocPath));
+}
 if (fs.existsSync(rootUploads)) {
   app.use('/uploads', express.static(rootUploads));
 }
