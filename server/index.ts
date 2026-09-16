@@ -112,6 +112,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      workerSrc: ["'self'", 'blob:'],
       connectSrc: ["'self'", 'https://exacademie.net', 'https://www.exacademie.net', 'https://*.hostingersite.com', ...(frontendUrl ? [frontendUrl] : [])],
     },
   },
