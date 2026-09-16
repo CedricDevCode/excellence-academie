@@ -30,26 +30,46 @@ function useInView(threshold = 0.1) {
 
 function Hero() {
   return (
-    <section id="hero" className="pt-24 pb-12 md:pt-32 md:pb-24 relative overflow-hidden flex items-center min-h-[500px]">
-      {/* Utilisation de bg-position-[center_25%] pour un compromis parfait entre le haut de l'image (tête) et le bas (corps) */}
-      <div className="absolute inset-0 z-0 bg-cover bg-position-[center_25%] bg-no-repeat" style={{ backgroundImage: "url('/images/hero_bg.png')" }}></div>
-      <div className="absolute inset-0 z-0" style={{ backgroundImage: 'linear-gradient(to right, rgba(0,18,41,0.25), rgba(0,18,41,0.1), transparent)' }}></div>
+    <section id="hero" className="pt-20 sm:pt-28 md:pt-36 pb-12 sm:pb-16 md:pb-24 relative overflow-hidden flex items-center min-h-[480px] sm:min-h-[540px] md:min-h-[620px]">
+      {/* Arrière-plan avec image optimisée */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-position-[center_25%] bg-no-repeat"
+        style={{ backgroundImage: "url('/images/hero_bg.png')" }}
+      ></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10">
+      {/* Dégradé de contraste soigné pour lisibilité maximale sur tous écrans */}
+      <div
+        className="absolute inset-0 z-0 bg-gradient-to-r from-[#001838]/90 via-[#002855]/70 to-[#002855]/30 md:from-[#001838]/85 md:via-[#002855]/50 md:to-transparent"
+      ></div>
+
+      <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10">
         <div className="max-w-2xl">
-          <div className="inline-block px-3 py-1 mb-4 border border-[#FF6B00]/30 bg-[#FF6B00]/10 rounded-full">
-            <span className="text-[#FF6B00] text-xs font-bold uppercase tracking-wider">L'école de référence en CI</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-4 border border-[#FF6B00]/40 bg-[#FF6B00]/15 backdrop-blur-xs rounded-full">
+            <span className="w-2 h-2 rounded-full bg-[#FF6B00] animate-ping"></span>
+            <span className="text-[#FF6B00] text-[11px] sm:text-xs font-black uppercase tracking-wider">
+              L'école de référence en Côte d'Ivoire
+            </span>
           </div>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-white leading-tight mb-4 shadow-sm">
-            Votre réussite, <br className="hidden md:block" />
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.15] mb-4 tracking-tight drop-shadow-md">
+            Votre réussite, <br className="hidden sm:block" />
             <span className="text-[#FF6B00]">notre priorité absolue.</span>
           </h1>
-          <p className="text-gray-200 text-sm md:text-base mb-8 max-w-lg leading-relaxed drop-shadow-md">
-            Préparez vos concours de la Magistrature, de l'ENA, du Greffe, du Notariat et de la Police avec les meilleurs formateurs de Côte d'Ivoire.
+          <p className="text-gray-100 text-sm sm:text-base md:text-lg mb-8 max-w-xl leading-relaxed drop-shadow-sm font-normal">
+            Préparez vos concours de la <strong>Magistrature</strong>, de l'<strong>ENA</strong>, du <strong>Greffe</strong>, du <strong>Notariat</strong> et de la <strong>Police</strong> avec les meilleurs formateurs et magistrats chevronnés.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link to="/students/new" className="px-6 py-2.5 bg-[#FF6B00] text-white font-bold text-sm rounded hover:bg-[#e65c00] transition-colors flex items-center justify-center gap-2 shadow-lg hover:shadow-orange-500/30">
-              Découvrir les formations <ArrowRight size={16} />
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <a
+              href="#formations"
+              className="px-6 py-3 bg-[#FF6B00] text-white font-bold text-sm sm:text-base rounded-xl hover:bg-[#e65c00] transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <span>Découvrir les formations</span>
+              <ArrowRight size={18} />
+            </a>
+            <Link
+              to="/students/new"
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-sm sm:text-base rounded-xl backdrop-blur-md border border-white/25 transition-all flex items-center justify-center gap-2 hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <span>S'inscrire en ligne</span>
             </Link>
           </div>
         </div>
