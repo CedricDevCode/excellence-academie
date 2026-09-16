@@ -43,9 +43,16 @@ if (!process.env.JWT_SECRET) {
 }
 
 // ─── Origines CORS autorisées ─────────────────────────────────────────────────
-const defaultOrigins = isProduction
-  ? [] // En prod, uniquement les origines explicitement configurées
-  : ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:5174'];
+const defaultOrigins = [
+  'https://exacademie.net',
+  'https://www.exacademie.net',
+  'http://exacademie.net',
+  'http://www.exacademie.net',
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+];
 
 const envOrigins = process.env.CORS_ORIGINS?.split(',').map(s => s.trim()).filter(Boolean) || [];
 const frontendUrl = process.env.FRONTEND_URL?.trim();
@@ -60,30 +67,35 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // nécessaire pour Vite en dev
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'", ...(frontendUrl ? [frontendUrl] : [])],
+      connectSrc: ["'self'", 'https://exacademie.net', 'https://www.exacademie.net', ...(frontendUrl ? [frontendUrl] : [])],
     },
   },
-  crossOriginEmbedderPolicy: false, // nécessaire pour PDFs / iframes
+  crossOriginEmbedderPolicy: false,
 }));
 
-// ─── CORS strict ──────────────────────────────────────────────────────────────
+// ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: (origin, callback) => {
-    // Requêtes sans origine (curl, mobile apps, Postman en dev)
+    // Requêtes sans header origin (même origine, curl, serveurs)
     if (!origin) {
-      if (!isProduction) return callback(null, true);
-      // En production, bloquer les requêtes sans origine si elles ne sont pas du serveur lui-même
-      return callback(null, true); // servers-to-server OK
+      return callback(null, true);
     }
-    if (allowedOrigins.includes(origin)) {
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.exacademie.net') ||
+      origin.includes('exacademie.net') ||
+      (!isProduction && origin.includes('localhost'));
+
+    if (isAllowed) {
       return callback(null, true);
     }
     console.warn(`[CORS] Origine bloquée: ${origin}`);
-    return callback(new Error(`CORS: Origine non autorisée: ${origin}`));
+    // callback(null, false) refuse l'accès sans déclencher d'exception 500 interne Express
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

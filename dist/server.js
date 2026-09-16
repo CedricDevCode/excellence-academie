@@ -4371,7 +4371,16 @@ if (!process.env.JWT_SECRET) {
   console.error("\u274C FATAL: JWT_SECRET est manquant dans les variables d'environnement.");
   process.exit(1);
 }
-var defaultOrigins = isProduction2 ? [] : ["http://localhost:5173", "http://localhost:4173", "http://localhost:5174"];
+var defaultOrigins = [
+  "https://exacademie.net",
+  "https://www.exacademie.net",
+  "http://exacademie.net",
+  "http://www.exacademie.net",
+  "http://localhost:5173",
+  "http://localhost:4173",
+  "http://localhost:5174",
+  "http://localhost:3000"
+];
 var envOrigins = process.env.CORS_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) || [];
 var frontendUrl = process.env.FRONTEND_URL?.trim();
 var allowedOrigins = Array.from(/* @__PURE__ */ new Set([
@@ -4384,27 +4393,25 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
-      // nécessaire pour Vite en dev
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", ...frontendUrl ? [frontendUrl] : []]
+      connectSrc: ["'self'", "https://exacademie.net", "https://www.exacademie.net", ...frontendUrl ? [frontendUrl] : []]
     }
   },
   crossOriginEmbedderPolicy: false
-  // nécessaire pour PDFs / iframes
 }));
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) {
-      if (!isProduction2) return callback(null, true);
       return callback(null, true);
     }
-    if (allowedOrigins.includes(origin)) {
+    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".exacademie.net") || origin.includes("exacademie.net") || !isProduction2 && origin.includes("localhost");
+    if (isAllowed) {
       return callback(null, true);
     }
     console.warn(`[CORS] Origine bloqu\xE9e: ${origin}`);
-    return callback(new Error(`CORS: Origine non autoris\xE9e: ${origin}`));
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
