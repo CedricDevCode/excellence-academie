@@ -30,7 +30,7 @@ function useInView(threshold = 0.1) {
 
 function Hero() {
   return (
-    <section id="hero" className="pt-20 sm:pt-28 md:pt-36 pb-12 sm:pb-16 md:pb-24 relative overflow-hidden flex items-center min-h-[480px] sm:min-h-[540px] md:min-h-[620px]">
+    <section id="hero" className="pt-16 sm:pt-20 md:pt-24 pb-8 sm:pb-10 md:pb-12 relative overflow-hidden flex items-center min-h-[380px] sm:min-h-[420px] md:min-h-[460px]">
       {/* Arrière-plan avec image optimisée */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-position-[center_25%] bg-no-repeat"
@@ -44,17 +44,17 @@ function Hero() {
 
       <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-4 border border-[#FF6B00]/40 bg-[#FF6B00]/15 backdrop-blur-xs rounded-full">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 border border-[#FF6B00]/40 bg-[#FF6B00]/15 backdrop-blur-xs rounded-full">
             <span className="w-2 h-2 rounded-full bg-[#FF6B00] animate-ping"></span>
             <span className="text-[#FF6B00] text-[11px] sm:text-xs font-black uppercase tracking-wider">
               L'école de référence en Côte d'Ivoire
             </span>
           </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.15] mb-4 tracking-tight drop-shadow-md">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.15] mb-3 tracking-tight drop-shadow-md">
             Votre réussite, <br className="hidden sm:block" />
             <span className="text-[#FF6B00]">notre priorité absolue.</span>
           </h1>
-          <p className="text-gray-100 text-sm sm:text-base md:text-lg mb-8 max-w-xl leading-relaxed drop-shadow-sm font-normal">
+          <p className="text-gray-100 text-sm sm:text-base md:text-lg mb-6 max-w-xl leading-relaxed drop-shadow-sm font-normal">
             Préparez vos concours de la <strong>Magistrature</strong>, de l'<strong>ENA</strong>, du <strong>Greffe</strong>, du <strong>Notariat</strong> et de la <strong>Police</strong> avec les meilleurs formateurs et magistrats chevronnés.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
@@ -86,7 +86,7 @@ function StatsRibbon() {
     { n: "100%", l: "En ligne et présentiel" },
   ];
   return (
-    <div className="bg-white border-b border-gray-100 py-6">
+    <div className="bg-white border-b border-gray-100 py-3.5 sm:py-4">
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 divide-x divide-gray-100">
           {stats.map((s, i) => (
@@ -161,9 +161,9 @@ function Actualite() {
   };
 
   return (
-    <section id="actualite" className="py-12 bg-gray-50/70 border-b border-gray-100">
+    <section id="actualite" className="py-8 bg-gray-50/70 border-b border-gray-100">
       <div ref={ref} className={`max-w-4xl mx-auto px-4 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="text-center mb-8">
+        <div className="text-center mb-4 sm:mb-6">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-2 border border-orange-200 bg-orange-50 rounded-full text-[#FF6B00] text-[11px] font-black uppercase tracking-wider">
             <Sparkles size={12} />
             <span>Actualités & Événements</span>
@@ -269,9 +269,9 @@ function Atouts() {
     { icon: <Globe size={20} />, title: "En ligne & Présentiel", desc: "Suivez nos cours en présentiel dans nos centres ou 100% en ligne via Google Meet / Zoom, où que vous soyez." },
   ];
   return (
-    <section id="atouts" className="py-12 bg-white">
+    <section id="atouts" className="py-8 bg-white">
       <div ref={ref} className={`max-w-7xl mx-auto px-4 transition-all duration-700 ${inView ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="text-center mb-8">
+        <div className="text-center mb-5">
           <h2 className="text-2xl font-bold text-[#002855]">Pourquoi Excellence Académie ?</h2>
           <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2"></div>
         </div>
@@ -338,24 +338,20 @@ function AdmisSection() {
   const displayed = admisList.length > 0 ? admisList : defaultAdmis;
 
   return (
-    <section id="admis" className="py-14 sm:py-20 bg-gradient-to-b from-white via-orange-50/20 to-white relative overflow-hidden border-b border-gray-100">
+    <section id="admis" className="py-8 sm:py-12 bg-gradient-to-b from-white via-orange-50/15 to-white relative overflow-hidden border-b border-gray-100">
       <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div ref={ref} className={`text-center mb-12 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 border border-orange-200 bg-orange-50 rounded-full text-[#FF6B00] text-[11px] sm:text-xs font-black uppercase tracking-wider">
-            <Trophy size={13} />
-            <span>Preuve Sociale & Réussite</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#002855] tracking-tight">
+        <div ref={ref} className={`text-center mb-6 sm:mb-8 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <h2 className="text-2xl sm:text-3xl font-black text-[#002855] tracking-tight">
             Nos Lauréats & Admis aux Concours
           </h2>
-          <div className="w-14 h-1 bg-[#FF6B00] mx-auto mt-3 rounded-full"></div>
-          <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto mt-3 font-normal">
+          <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2 rounded-full"></div>
+          <p className="text-gray-600 text-xs sm:text-sm max-w-xl mx-auto mt-2 font-normal">
             Ils ont fait confiance à <strong>Excellence Académie</strong> et sont aujourd'hui Magistrats, Administrateurs civils à l'ENA et Greffiers en chef.
           </p>
         </div>
 
         {/* Grille des admis */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
           {displayed.map((admis, idx) => {
             const hasPhoto = admis.images && admis.images.length > 0 && admis.images[0];
             return (
@@ -437,10 +433,10 @@ function AdmisSection() {
         </div>
 
         {/* CTA sous les lauréats */}
-        <div className="mt-10 text-center">
+        <div className="mt-6 text-center">
           <Link
             to="/students/new"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#002855] to-[#004080] hover:from-[#FF6B00] hover:to-[#ff8533] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all hover:scale-105"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#002855] to-[#004080] hover:from-[#FF6B00] hover:to-[#ff8533] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all hover:scale-105"
           >
             <span>Rejoindre la prochaine promotion d'admis</span>
             <ArrowRight size={16} />
@@ -493,11 +489,11 @@ function Formations() {
   };
 
   return (
-    <section id="formations" className="py-12 bg-gray-50 border-y border-gray-100">
+    <section id="formations" className="py-8 bg-gray-50 border-y border-gray-100">
       <div ref={ref} className={`max-w-7xl mx-auto px-4 transition-all duration-700 ${inView ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="text-center mb-8">
+        <div className="text-center mb-5">
           <h2 className="text-2xl font-bold text-[#002855]">Nos Formations & Concours</h2>
-          <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2 mb-3"></div>
+          <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2 mb-2"></div>
           <p className="text-xs text-gray-600 max-w-xl mx-auto">
             Découvrez nos cycles préparatoires d'excellence encadrés par des magistrats, hauts fonctionnaires et experts du domaine.
           </p>
@@ -561,13 +557,13 @@ function Tarifs() {
   ];
 
   return (
-    <section id="tarifs" className="py-12 bg-white">
+    <section id="tarifs" className="py-8 bg-white">
       <div ref={ref} className={`max-w-5xl mx-auto px-4 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        <div className="text-center mb-8">
+        <div className="text-center mb-5">
           <h2 className="text-2xl font-bold text-[#002855]">Tarifs & Inscription</h2>
           <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2"></div>
         </div>
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 gap-4 mb-5">
           <div className="bg-gray-50 border border-gray-100 rounded-lg p-5">
             <h3 className="font-bold text-sm mb-4 flex items-center gap-2"><CheckCircle size={16} className="text-[#FF6B00]" /> Frais d'Inscription</h3>
             <ul className="space-y-2 text-xs text-gray-600">
@@ -730,15 +726,15 @@ function Testimonials() {
   if (data.length === 0) return null;
 
   return (
-    <section className="py-16 md:py-24 bg-linear-to-b from-gray-50 to-white relative overflow-hidden border-t border-gray-100">
+    <section className="py-10 sm:py-12 bg-linear-to-b from-gray-50 to-white relative overflow-hidden border-t border-gray-100">
       <div className="absolute top-0 left-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 opacity-60"></div>
       <div className="absolute bottom-0 right-0 w-80 h-80 bg-orange-50 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 opacity-60"></div>
 
       <div className="max-w-4xl mx-auto px-4 relative z-10">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-black text-[#002855] mb-4">Ils nous font confiance</h2>
-          <div className="w-16 h-1.5 bg-[#FF6B00] mx-auto rounded-full mb-4"></div>
-          <p className="text-gray-500 text-sm md:text-base max-w-2xl mx-auto">
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-black text-[#002855] mb-2">Ils nous font confiance</h2>
+          <div className="w-14 h-1 bg-[#FF6B00] mx-auto rounded-full mb-2"></div>
+          <p className="text-gray-500 text-xs sm:text-sm max-w-xl mx-auto">
             Découvrez les retours d'expérience de nos étudiants qui ont préparé et réussi leurs concours avec Excellence Académie.
           </p>
         </div>
