@@ -284,6 +284,31 @@ async function initDatabaseDefaults() {
     // Initialiser la table Category si elle n'existe pas
     await ensureCategoryTable();
 
+    // Créer la table PendingRegistration si elle n'existe pas
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "PendingRegistration" (
+        "id" TEXT NOT NULL,
+        "token" TEXT NOT NULL,
+        "email" TEXT NOT NULL,
+        "passwordHash" TEXT NOT NULL,
+        "name" TEXT,
+        "telephone" TEXT,
+        "pays" TEXT,
+        "ville" TEXT,
+        "courseIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+        "mode" TEXT,
+        "coursParticuliers" BOOLEAN NOT NULL DEFAULT false,
+        "monthlyAmount" DOUBLE PRECISION,
+        "dateNaissance" TEXT,
+        "geniusPhone" TEXT,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "PendingRegistration_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PendingRegistration_token_key" ON "PendingRegistration"("token")`);
+    console.log('✅ Table PendingRegistration vérifiée/créée');
+
     const adminExists = await prisma.user.findUnique({
       where: { email: 'admin@excellence.ci' },
     });
