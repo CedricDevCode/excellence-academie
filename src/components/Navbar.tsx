@@ -79,36 +79,36 @@ export default function Navbar() {
       <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto px-3.5 sm:px-6 lg:px-8 flex items-center justify-between">
         {/* Logo & Titre */}
         <a href="/#hero" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-          <div className="relative">
+          <div className="relative shrink-0">
             <img
               src="/images/logo exacademy.jpeg"
               alt="Logo Excellence Académie"
               className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-lg border border-gray-100 shadow-xs group-hover:scale-105 transition-transform"
             />
-            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF6B00] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#FF6B00]"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF6B00]"></span>
             </span>
           </div>
-          <div>
-            <div className="font-extrabold text-[#002855] tracking-tight leading-tight text-xs sm:text-sm md:text-base group-hover:text-[#FF6B00] transition-colors">
+          <div className="shrink-0">
+            <div className="font-extrabold text-[#002855] tracking-tight leading-tight text-xs sm:text-sm md:text-base group-hover:text-[#FF6B00] transition-colors whitespace-nowrap">
               EXCELLENCE ACADÉMIE
             </div>
-            <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-wider flex items-center gap-1">
+            <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-wider flex items-center gap-1.5 whitespace-nowrap">
               <span>Formation Concours</span>
               <span className="hidden sm:inline text-gray-300">•</span>
-              <span className="hidden sm:inline text-[#FF6B00] font-semibold">CI & Diaspora</span>
+              <span className="hidden sm:inline text-[#FF6B00] font-semibold">En ligne & Présentiel</span>
             </div>
           </div>
         </a>
 
-        {/* Liens de navigation (Desktop & Grand écran) */}
-        <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+        {/* Liens de navigation (Desktop) */}
+        <div className="hidden lg:flex items-center gap-1 xl:gap-1.5 2xl:gap-2">
           {links.map((l) => (
             <a
               key={l.label}
               href={l.href}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 hover:text-[#FF6B00] hover:bg-orange-50/60 uppercase tracking-wide transition-all"
+              className="px-2.5 xl:px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 hover:text-[#FF6B00] hover:bg-orange-50/70 transition-all whitespace-nowrap tracking-wide"
             >
               {l.label}
             </a>
@@ -116,32 +116,32 @@ export default function Navbar() {
         </div>
 
         {/* Actions & Boutons (Desktop & Grand écran) */}
-        <div className="hidden lg:flex items-center gap-2 xl:gap-3">
-          {/* Numéro de téléphone */}
+        <div className="hidden lg:flex items-center gap-1.5 xl:gap-2.5 shrink-0">
+          {/* Numéro de téléphone Conseiller - Toujours sur 1 seule ligne */}
           <a
             href="tel:0747439443"
-            className="hidden xl:flex items-center gap-2 px-2.5 py-1 rounded-lg hover:bg-gray-50 transition-colors text-right"
-            title="Appeler notre équipe"
+            className="hidden 2xl:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50/80 hover:bg-orange-50 border border-gray-100 hover:border-orange-200 transition-all shrink-0 whitespace-nowrap text-left"
+            title="Appeler un conseiller"
           >
-            <div className="w-7 h-7 rounded-full bg-orange-100 text-[#FF6B00] flex items-center justify-center">
-              <Phone size={13} />
+            <div className="w-6 h-6 rounded-full bg-orange-100 text-[#FF6B00] flex items-center justify-center shrink-0">
+              <Phone size={12} />
             </div>
-            <div className="text-left">
-              <div className="text-[8px] text-gray-400 uppercase font-black tracking-wider">Conseiller</div>
-              <div className="text-[#002855] font-extrabold text-xs">07 47 43 94 43</div>
+            <div className="whitespace-nowrap">
+              <div className="text-[8px] text-gray-400 uppercase font-black tracking-wider leading-none">Conseiller</div>
+              <div className="text-[#002855] font-extrabold text-xs leading-tight whitespace-nowrap">07 47 43 94 43</div>
             </div>
           </a>
 
           {/* Panier */}
           <button
             onClick={openCartDrawer}
-            className="relative p-2 rounded-xl text-gray-700 hover:text-[#FF6B00] hover:bg-orange-50 transition-colors flex items-center justify-center border border-transparent hover:border-orange-100"
+            className="relative p-2 rounded-lg text-gray-700 hover:text-[#FF6B00] hover:bg-orange-50 transition-colors flex items-center justify-center border border-transparent hover:border-orange-100 shrink-0"
             title="Mon panier"
             aria-label="Mon panier"
           >
-            <ShoppingCart size={19} />
+            <ShoppingCart size={18} />
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#FF6B00] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs animate-pulse">
+              <span className="absolute -top-1 -right-1 bg-[#FF6B00] text-white text-[10px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-xs animate-pulse">
                 {cartCount}
               </span>
             )}
@@ -149,21 +149,21 @@ export default function Navbar() {
 
           <Link
             to="/shop"
-            className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 text-gray-700 hover:border-[#FF6B00] hover:text-[#FF6B00] hover:bg-orange-50/40 transition-all shadow-2xs"
+            className="px-2.5 xl:px-3 py-1.5 text-xs font-bold rounded-lg text-gray-700 hover:text-[#FF6B00] hover:bg-gray-100/60 transition-all shrink-0 whitespace-nowrap"
           >
             Boutique
           </Link>
 
           <Link
             to="/student/login"
-            className="px-3 py-1.5 text-xs font-bold rounded-lg border border-[#002855]/20 text-[#002855] hover:bg-[#002855] hover:text-white transition-all shadow-2xs"
+            className="px-2.5 xl:px-3 py-1.5 text-xs font-bold rounded-lg border border-[#002855]/20 text-[#002855] hover:bg-[#002855] hover:text-white transition-all shadow-2xs shrink-0 whitespace-nowrap"
           >
             Espace Étudiant
           </Link>
 
           <Link
             to="/students/new"
-            className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-[#FF6B00] text-white hover:bg-[#e65c00] transition-all shadow-sm hover:shadow-orange-500/25 flex items-center gap-1.5"
+            className="px-3 xl:px-3.5 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-[#FF6B00] to-[#ff8533] text-white hover:brightness-105 transition-all shadow-sm shadow-orange-500/20 flex items-center gap-1.5 shrink-0 whitespace-nowrap"
           >
             <Sparkles size={13} />
             <span>S'inscrire</span>

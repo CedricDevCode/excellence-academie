@@ -93,6 +93,7 @@ export const createTestimonial = async (req: Request, res: Response) => {
         course: course.trim(),
         message: message.trim(),
         rating: ratingValue,
+        images: imageUrls,
         isActive: false, // Requires admin approval
       }
     });
@@ -100,6 +101,35 @@ export const createTestimonial = async (req: Request, res: Response) => {
     res.status(201).json(testimonial);
   } catch (error) {
     res.status(500).json({ error: 'Erreur lors de la soumission de l\'avis.' });
+  }
+};
+
+// Admin: create an admitted student / testimonial directly
+export const createTestimonialAdmin = async (req: Request, res: Response) => {
+  try {
+    const { name, course, message, rating, images, isActive } = req.body;
+
+    if (!name || !course || !message) {
+      return res.status(400).json({ error: 'Nom, concours/promotion et message sont requis.' });
+    }
+
+    const ratingValue = Math.min(5, Math.max(1, Number(rating) || 5));
+    const imageUrls: string[] = Array.isArray(images) ? images : (images ? [images] : []);
+
+    const testimonial = await prisma.testimonial.create({
+      data: {
+        name: name.trim(),
+        course: course.trim(),
+        message: message.trim(),
+        rating: ratingValue,
+        images: imageUrls,
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
+      }
+    });
+
+    res.status(201).json(testimonial);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la création de l\'admis / avis.' });
   }
 };
 
@@ -115,15 +145,23 @@ export const getAllTestimonials = async (req: Request, res: Response) => {
   }
 };
 
-// Admin: toggle isActive
+// Admin: update testimonial / admitted student
 export const updateTestimonial = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { isActive } = req.body;
+    const { name, course, message, rating, images, isActive } = req.body;
+
+    const dataToUpdate: any = {};
+    if (isActive !== undefined) dataToUpdate.isActive = Boolean(isActive);
+    if (name !== undefined) dataToUpdate.name = name.trim();
+    if (course !== undefined) dataToUpdate.course = course.trim();
+    if (message !== undefined) dataToUpdate.message = message.trim();
+    if (rating !== undefined) dataToUpdate.rating = Math.min(5, Math.max(1, Number(rating) || 5));
+    if (images !== undefined) dataToUpdate.images = Array.isArray(images) ? images : (images ? [images] : []);
 
     const testimonial = await prisma.testimonial.update({
       where: { id },
-      data: { isActive }
+      data: dataToUpdate
     });
 
     res.json(testimonial);

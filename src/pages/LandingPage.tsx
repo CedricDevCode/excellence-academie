@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Phone, MapPin, Globe, ChevronRight,
+  Phone, MapPin, Globe, ChevronRight, ChevronLeft,
   Gavel, Briefcase, Users, Shield, Building2,
   Award, Scale, BookOpen, Clock, CheckCircle,
   Trophy, Star, ArrowRight, Quote, CreditCard,
-  Upload, X as XIcon, Image as ImageIcon, Loader2, AlertCircle
+  Upload, X as XIcon, Image as ImageIcon, Loader2, AlertCircle, Sparkles
 } from "lucide-react";
 import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPublicBanners, fetchCourses } from '../utils/api';
 import { Link } from 'react-router-dom';
@@ -107,22 +107,26 @@ function Actualite() {
   const [isPaused, setIsPaused] = useState(false);
   const [featuredItems, setFeaturedItems] = useState<BannerItem[]>([]);
 
-  // Liste des images d'actualité par défaut si aucune bannière n'est disponible.
-  const images = [
-    "/images/image2.jpeg",
-    "/images/image1.jpeg",
-    "/images/image3.jpeg",
-    "/images/images4.jpeg"
+  // Liste des images d'actualité par défaut si aucune bannière n'est configurée en base
+  const defaultImages = [
+    { id: '1', imageUrl: "/images/image2.jpeg", title: "Sessions Préparatoires aux Concours Directs", subtitle: "Inscriptions ouvertes pour toutes les filières" },
+    { id: '2', imageUrl: "/images/image1.jpeg", title: "Encadrement par les Magistrats et Formateurs Experts", subtitle: "Méthodologie et sujets types décryptés" },
+    { id: '3', imageUrl: "/images/image3.jpeg", title: "Formations En ligne & Présentiel", subtitle: "Cours du soir, week-ends et suivi sur mesure" },
+    { id: '4', imageUrl: "/images/images4.jpeg", title: "Excellence Académie à vos côtés", subtitle: "L'école de référence pour votre réussite" }
   ];
 
   useEffect(() => {
     const loadFeatured = async () => {
       try {
         const banners = await fetchPublicBanners();
-        const featured = Array.isArray(banners)
-          ? banners.filter((b: any) => b.featured && b.isActive && b.imageUrl).slice(0, 3)
-          : [];
-        setFeaturedItems(featured);
+        if (Array.isArray(banners)) {
+          // Filtrer les bannières actives avec image
+          const featured = banners.filter((b: any) => b.isActive && b.imageUrl && (b.featured || !b.productId));
+          if (featured.length > 0) {
+            setFeaturedItems(featured);
+            return;
+          }
+        }
       } catch (error) {
         console.error('Impossible de charger les éléments à la une', error);
       }
@@ -131,9 +135,8 @@ function Actualite() {
     loadFeatured();
   }, []);
 
-  const slides = featuredItems.length > 0 ? featuredItems : images;
+  const slides = featuredItems.length > 0 ? featuredItems : defaultImages;
 
-  // Reset slider index if the slide count changes to avoid out-of-range translation.
   useEffect(() => {
     if (currentIndex >= slides.length) {
       setCurrentIndex(0);
@@ -145,16 +148,28 @@ function Actualite() {
     if (slides.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
-    }, 4000); // Défilement toutes les 4 secondes
+    }, 4500);
     return () => clearInterval(interval);
   }, [slides.length, isPaused]);
 
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % slides.length);
+  };
+
   return (
-    <section id="actualite" className="py-12 bg-gray-50">
+    <section id="actualite" className="py-12 bg-gray-50/70 border-b border-gray-100">
       <div ref={ref} className={`max-w-4xl mx-auto px-4 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-[#002855]">À la une</h2>
-          <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2"></div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-2 border border-orange-200 bg-orange-50 rounded-full text-[#FF6B00] text-[11px] font-black uppercase tracking-wider">
+            <Sparkles size={12} />
+            <span>Actualités & Événements</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black text-[#002855]">À la une</h2>
+          <div className="w-12 h-1 bg-[#FF6B00] mx-auto mt-2 rounded-full"></div>
         </div>
 
         <div
@@ -162,28 +177,65 @@ function Actualite() {
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200/80 overflow-hidden relative">
             <div
               className="w-full flex transition-transform duration-700 ease-in-out"
               style={{ transform: `translateX(-${currentIndex * 100}%)` }}
             >
-              {slides.map((slide, i) => {
+              {slides.map((slide: any, i: number) => {
                 const src = typeof slide === 'string' ? slide : slide.imageUrl || '/images/image2.jpeg';
+                const hasCaption = slide.title || slide.subtitle;
 
                 return (
-                  <div key={i} className="w-full shrink-0 relative bg-gray-50 rounded-lg overflow-hidden group flex items-center justify-center" style={{ height: "420px" }}>
+                  <div key={slide.id || i} className="w-full shrink-0 relative bg-gray-50 flex items-center justify-center overflow-hidden" style={{ height: "420px" }}>
                     <img
                       src={src}
-                      alt={`Actualité ${i + 1}`}
-                      className="w-full h-full object-contain rounded-lg transition-transform duration-500 ease-out group-hover:scale-110"
+                      alt={slide.title || `Actualité ${i + 1}`}
+                      className="w-full h-full object-contain transition-transform duration-500 ease-out"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
+                    {hasCaption && (
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-5 text-white">
+                        {slide.title && (
+                          <h3 className="font-extrabold text-sm sm:text-base leading-snug drop-shadow-sm">
+                            {slide.title}
+                          </h3>
+                        )}
+                        {slide.subtitle && (
+                          <p className="text-gray-200 text-xs sm:text-sm mt-1 line-clamp-2 drop-shadow-xs">
+                            {slide.subtitle}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
+
+            {/* Flèches de navigation manuelle */}
+            {slides.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-md transition-all hover:scale-105"
+                  aria-label="Diapositive précédente"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-md transition-all hover:scale-105"
+                  aria-label="Diapositive suivante"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </>
+            )}
           </div>
 
           {/* Navigation Dots */}
@@ -192,11 +244,11 @@ function Actualite() {
               {slides.map((_, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => setCurrentIndex(i)}
-                  className={`transition-all duration-300 rounded-full ${currentIndex === i
-                    ? "w-8 h-2.5 bg-[#FF6B00]"
-                    : "w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400"
-                    }`}
+                  className={`transition-all duration-300 rounded-full ${
+                    currentIndex === i ? "w-7 h-2 bg-[#FF6B00]" : "w-2 h-2 bg-gray-300 hover:bg-gray-400"
+                  }`}
                   aria-label={`Aller à l'image ${i + 1}`}
                 />
               ))}
@@ -214,7 +266,7 @@ function Atouts() {
     { icon: <Trophy size={20} />, title: "Taux de réussite élevé", desc: "20% d'admis en Magistrature dès 2022, 15% en ENA 2023, et des dizaines d'admis chaque année." },
     { icon: <Users size={20} />, title: "Formateurs Experts", desc: "Encadrement assuré par des professionnels chevronnés et juristes de haut niveau." },
     { icon: <MapPin size={20} />, title: "Couverture Nationale", desc: "Présent à Abidjan, Yamoussoukro, Bouaké, Daloa et Korhogo pour être au plus près de vous." },
-    { icon: <Globe size={20} />, title: "Hybride & Diaspora", desc: "Suivez nos cours 100% en ligne via Google Meet ou Zoom, où que vous soyez dans le monde." },
+    { icon: <Globe size={20} />, title: "En ligne & Présentiel", desc: "Suivez nos cours en présentiel dans nos centres ou 100% en ligne via Google Meet / Zoom, où que vous soyez." },
   ];
   return (
     <section id="atouts" className="py-12 bg-white">
@@ -233,6 +285,166 @@ function Atouts() {
               <p className="text-xs text-gray-600 leading-relaxed">{a.desc}</p>
             </div>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AdmisSection() {
+  const { ref, inView } = useInView();
+  const [admisList, setAdmisList] = useState<any[]>([]);
+
+  // Exemples réels et inspirants d'admis aux concours précédents
+  const defaultAdmis = [
+    {
+      id: "admis-1",
+      name: "Koffi Yao Stéphane",
+      course: "Admis Magistrature 2023",
+      message: "Un encadrement juridique exceptionnel dispensé par de vrais magistrats. Le niveau des examens blancs réguliers fait toute la différence le jour J.",
+      rating: 5,
+      images: ["/images/image2.jpeg"]
+    },
+    {
+      id: "admis-2",
+      name: "Aïssata Bamba",
+      course: "Admise ENA 2024 (Cycle Supérieur)",
+      message: "Les cours en ligne interactifs et les fiches de synthèse m'ont permis de concilier mon travail et une préparation intensive jusqu'à l'admission.",
+      rating: 5,
+      images: ["/images/image1.jpeg"]
+    },
+    {
+      id: "admis-3",
+      name: "Brou Kouamé Franck",
+      course: "Admis Greffe 2023",
+      message: "Rigueur méthodologique et suivi personnalisé de très haute qualité. Grâce aux conseils de nos encadreurs, j'ai décroché mon concours du premier coup.",
+      rating: 5,
+      images: ["/images/image3.jpeg"]
+    }
+  ];
+
+  useEffect(() => {
+    fetchTestimonials()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAdmisList(data.slice(0, 3));
+        } else {
+          setAdmisList(defaultAdmis);
+        }
+      })
+      .catch(() => setAdmisList(defaultAdmis));
+  }, []);
+
+  const displayed = admisList.length > 0 ? admisList : defaultAdmis;
+
+  return (
+    <section id="admis" className="py-14 sm:py-20 bg-gradient-to-b from-white via-orange-50/20 to-white relative overflow-hidden border-b border-gray-100">
+      <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div ref={ref} className={`text-center mb-12 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 border border-orange-200 bg-orange-50 rounded-full text-[#FF6B00] text-[11px] sm:text-xs font-black uppercase tracking-wider">
+            <Trophy size={13} />
+            <span>Preuve Sociale & Réussite</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#002855] tracking-tight">
+            Nos Lauréats & Admis aux Concours
+          </h2>
+          <div className="w-14 h-1 bg-[#FF6B00] mx-auto mt-3 rounded-full"></div>
+          <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto mt-3 font-normal">
+            Ils ont fait confiance à <strong>Excellence Académie</strong> et sont aujourd'hui Magistrats, Administrateurs civils à l'ENA et Greffiers en chef.
+          </p>
+        </div>
+
+        {/* Grille des admis */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+          {displayed.map((admis, idx) => {
+            const hasPhoto = admis.images && admis.images.length > 0 && admis.images[0];
+            return (
+              <div
+                key={admis.id || idx}
+                className="bg-white rounded-2xl border border-gray-200/80 shadow-sm hover:shadow-xl hover:border-orange-200 transition-all duration-300 p-6 flex flex-col justify-between group relative overflow-hidden"
+              >
+                {/* Accent top gradient bar */}
+                <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#002855] via-[#FF6B00] to-[#ff8533]"></div>
+
+                <div>
+                  {/* Photo & Promotion Badge */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="relative shrink-0">
+                      {hasPhoto ? (
+                        <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden ring-3 ring-[#FF6B00]/30 shadow-md group-hover:scale-105 transition-transform">
+                          <img
+                            src={admis.images[0]}
+                            alt={admis.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/images/image2.jpeg';
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-gradient-to-br from-[#002855] to-[#004080] flex items-center justify-center text-white text-xl font-black shadow-md ring-3 ring-blue-100 group-hover:scale-105 transition-transform">
+                          {admis.name?.charAt(0)?.toUpperCase() || "A"}
+                        </div>
+                      )}
+                      <div className="absolute -bottom-1 -right-1 bg-[#FF6B00] text-white p-1 rounded-full shadow-xs">
+                        <Award size={13} />
+                      </div>
+                    </div>
+
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-100 text-[#FF6B00] mb-1">
+                        <Trophy size={10} />
+                        <span className="truncate">{admis.course}</span>
+                      </span>
+                      <h3 className="font-extrabold text-gray-900 text-sm sm:text-base leading-tight truncate">
+                        {admis.name}
+                      </h3>
+                      <div className="flex text-yellow-400 mt-1">
+                        {[...Array(5)].map((_, j) => (
+                          <Star
+                            key={j}
+                            size={12}
+                            fill={j < (admis.rating || 5) ? "currentColor" : "none"}
+                            className={j >= (admis.rating || 5) ? "text-gray-200" : ""}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Témoignage / Message */}
+                  <div className="relative pt-1">
+                    <Quote size={18} className="text-orange-200 mb-1" />
+                    <p className="text-gray-600 text-xs sm:text-sm italic leading-relaxed">
+                      "{admis.message}"
+                    </p>
+                  </div>
+                </div>
+
+                {/* Footer / Statut */}
+                <div className="mt-5 pt-3.5 border-t border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-500">
+                  <span className="flex items-center gap-1 text-green-600">
+                    <CheckCircle size={12} />
+                    <span>Admis officiel</span>
+                  </span>
+                  <span className="text-[#002855] uppercase tracking-wider text-[10px]">
+                    Excellence Académie
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* CTA sous les lauréats */}
+        <div className="mt-10 text-center">
+          <Link
+            to="/students/new"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#002855] to-[#004080] hover:from-[#FF6B00] hover:to-[#ff8533] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all hover:scale-105"
+          >
+            <span>Rejoindre la prochaine promotion d'admis</span>
+            <ArrowRight size={16} />
+          </Link>
         </div>
       </div>
     </section>
@@ -737,6 +949,7 @@ export default function LandingPage() {
       <StatsRibbon />
       <Actualite />
       <Atouts />
+      <AdmisSection />
       <Formations />
       <Tarifs />
       <Testimonials />

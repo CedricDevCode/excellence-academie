@@ -240,7 +240,19 @@ export const fetchAllTestimonials = async () => {
   return res.json();
 };
 
-export const updateTestimonial = async (id: string, data: { isActive: boolean }) => {
+export const createTestimonialAdmin = async (data: { name: string; course: string; message: string; rating?: number; images?: string[]; isActive?: boolean }) => {
+  const res = await authFetch(`${API_BASE_URL}/testimonials/admin`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || 'Erreur lors de la création de l\'admis / avis');
+  }
+  return res.json();
+};
+
+export const updateTestimonial = async (id: string, data: { name?: string; course?: string; message?: string; rating?: number; images?: string[]; isActive?: boolean }) => {
   const res = await authFetch(`${API_BASE_URL}/testimonials/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -360,6 +372,48 @@ export const deleteCourse = async (id: string) => {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete course');
+  return res.json();
+};
+
+// Course Categories
+export const fetchCourseCategories = async () => {
+  const res = await fetch(`${API_BASE_URL}/categories`);
+  if (!res.ok) throw new Error('Failed to fetch categories');
+  return res.json();
+};
+
+export const createCourseCategory = async (data: { name: string; description?: string; color?: string; displayOrder?: number }) => {
+  const res = await authFetch(`${API_BASE_URL}/categories`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || 'Failed to create category');
+  }
+  return res.json();
+};
+
+export const updateCourseCategory = async (id: string, data: { name?: string; description?: string; color?: string; displayOrder?: number }) => {
+  const res = await authFetch(`${API_BASE_URL}/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || 'Failed to update category');
+  }
+  return res.json();
+};
+
+export const deleteCourseCategory = async (id: string) => {
+  const res = await authFetch(`${API_BASE_URL}/categories/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || 'Failed to delete category');
+  }
   return res.json();
 };
 

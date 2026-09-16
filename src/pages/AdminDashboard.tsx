@@ -4,7 +4,7 @@ import {
   Users, TrendingUp, TrendingDown, DollarSign, Bell, Settings, LogOut,
   BarChart3, BookOpen, Menu, X, Home, CreditCard, FileText,
   GraduationCap, ChevronRight, ChevronDown, CheckCircle, Clock,
-  AlertCircle, Search, Plus, Mail, Calendar, Award, Edit, Trash2, Send, Save, User, Download, Filter, Loader2, MapPin, Shield, Heart, PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Camera, MessageSquare, Star, ShoppingCart
+  AlertCircle, Search, Plus, Mail, Calendar, Award, Edit, Trash2, Send, Save, User, Download, Filter, Loader2, MapPin, Shield, Heart, PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Camera, MessageSquare, Star, ShoppingCart, Layers, ArrowLeft, Tag, Sparkles, Upload
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
@@ -13,9 +13,11 @@ import {
   fetchCityBreakdown,
   fetchCities, createCity, updateCity, deleteCity,
   getMe, logout as apiLogout, registerStudent, registerAndPay, sendBulkNotification,
-  fetchCourses, createCourse, updateCourse, deleteCourse, createUser, updateUser, deleteUser,
+  fetchCourses, createCourse, updateCourse, deleteCourse,
+  fetchCourseCategories, createCourseCategory, updateCourseCategory, deleteCourseCategory,
+  createUser, updateUser, deleteUser,
   fetchAllContracts, fetchContractByUserId, getSignedContractPdfUrl,
-  fetchAllTestimonials, updateTestimonial, deleteTestimonial,
+  fetchAllTestimonials, createTestimonialAdmin, updateTestimonial, deleteTestimonial, uploadTestimonialImages,
   fetchShopOrders,
   fetchBlogPosts, deleteBlogPost
 } from "../utils/api";
@@ -81,11 +83,12 @@ const NAV_GROUPS = [
     items: [
       { icon: <Home size={18} />, label: "Tableau de bord", id: "dashboard" },
       { icon: <GraduationCap size={18} />, label: "Formations", id: "courses" },
+      { icon: <Layers size={18} />, label: "Catégories", id: "categories" },
       { icon: <Users size={18} />, label: "Étudiants", id: "students" },
       { icon: <Clock size={18} />, label: "Séances", id: "sessions" },
       { icon: <FileText size={18} />, label: "Contrats", id: "contracts" },
-      { icon: <MessageSquare size={18} />, label: "Avis & Témoignages", id: "testimonials" },
-      { icon: <ShoppingCart size={18} />, label: "À la une", id: "home_featured" },
+      { icon: <Award size={18} />, label: "Lauréats & Avis", id: "testimonials" },
+      { icon: <Sparkles size={18} />, label: "Actualités À la une", id: "home_featured" },
     ]
   },
   {
@@ -1812,8 +1815,8 @@ function FormationsView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   
-  // Modal states
-  const [showModal, setShowModal] = useState(false);
+  // Inline panel states (replaces modal)
+  const [showPanel, setShowPanel] = useState(false);
   const [form, setForm] = useState({
     id: '',
     title: '',
@@ -1827,8 +1830,9 @@ function FormationsView() {
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategory, setCustomCategory] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
 
-  // Delete Confirmation Modal state
+  // Delete Confirmation state
   const [courseToDelete, setCourseToDelete] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -1847,8 +1851,9 @@ function FormationsView() {
   const loadCourses = async () => {
     setLoading(true);
     try {
-      const data = await fetchCourses();
+      const [data, cats] = await Promise.all([fetchCourses(), fetchCourseCategories()]);
       setCourses(data || []);
+      setDbCategories(cats || []);
     } catch (err) {
       console.error('Erreur lors du chargement des formations :', err);
       toast('error', 'Erreur lors du chargement des formations');
@@ -1861,12 +1866,19 @@ function FormationsView() {
     loadCourses();
   }, []);
 
-  // Compute unique categories from existing courses + presets
+  // Compute categories: prefer DB categories, fallback to presets + course categories
   const availableCategories = useMemo(() => {
+    if (dbCategories.length > 0) return dbCategories.map((c: any) => c.name);
     const fromCourses = courses.map(c => c.category || 'Général').filter(Boolean);
     const combined = Array.from(new Set([...CATEGORY_PRESETS, ...fromCourses]));
     return combined;
-  }, [courses]);
+  }, [courses, dbCategories]);
+
+  // All category names for the form select
+  const formCategoryOptions = useMemo(() => {
+    if (dbCategories.length > 0) return dbCategories.map((c: any) => c.name);
+    return CATEGORY_PRESETS;
+  }, [dbCategories]);
 
   // Filtered courses
   const filteredCourses = useMemo(() => {
@@ -1896,7 +1908,7 @@ function FormationsView() {
     setForm({
       id: '',
       title: '',
-      category: CATEGORY_PRESETS[0],
+      category: formCategoryOptions[0] || CATEGORY_PRESETS[0],
       description: '',
       registrationFee: '35000',
       monthlyFee: '30000',
@@ -1905,29 +1917,29 @@ function FormationsView() {
     });
     setIsCustomCategory(false);
     setCustomCategory('');
-    setShowModal(true);
+    setShowPanel(true);
   };
 
   const handleEdit = (c: any) => {
-    const isPreset = CATEGORY_PRESETS.includes(c.category);
+    const isKnown = formCategoryOptions.includes(c.category);
     setForm({
       id: c.id,
       title: c.title || '',
-      category: isPreset ? c.category : 'CUSTOM',
+      category: isKnown ? c.category : 'CUSTOM',
       description: c.description || '',
       registrationFee: String(c.registrationFee !== undefined ? c.registrationFee : (c.price || 35000)),
       monthlyFee: String(c.monthlyFee !== undefined ? c.monthlyFee : 30000),
       hasPresentiel: c.hasPresentiel !== undefined ? c.hasPresentiel : true,
       hasOnline: c.hasOnline !== undefined ? c.hasOnline : true,
     });
-    if (!isPreset && c.category) {
+    if (!isKnown && c.category) {
       setIsCustomCategory(true);
       setCustomCategory(c.category);
     } else {
       setIsCustomCategory(false);
       setCustomCategory('');
     }
-    setShowModal(true);
+    setShowPanel(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1970,7 +1982,7 @@ function FormationsView() {
       }
 
       await loadCourses();
-      setShowModal(false);
+      setShowPanel(false);
     } catch (err: any) {
       console.error('Erreur enregistrement formation :', err);
       toast('error', err.message || 'Erreur lors de l\'enregistrement de la formation');
@@ -1998,7 +2010,9 @@ function FormationsView() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="space-y-6">
+    <div className="flex gap-6">
+      {/* Main list column */}
+      <div className={`flex-1 min-w-0 space-y-6 transition-all duration-300 ${showPanel ? 'hidden xl:block' : ''}`}>
       {/* Top Banner & Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div>
@@ -2251,30 +2265,32 @@ function FormationsView() {
           })}
         </div>
       )}
+      </div>{/* end main list column */}
 
-      {/* MODAL: Ajouter / Modifier une formation */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-gray-100 bg-gray-50/70 shrink-0 flex items-center justify-between">
+      {/* ─── Inline Side Panel: Ajouter / Modifier une formation ─── */}
+      {showPanel && (
+        <div className="w-full xl:w-[420px] shrink-0">
+          <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col sticky top-4" style={{maxHeight: 'calc(100vh - 7rem)'}}>
+            <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-[#0056B3]/5 to-blue-50/50 shrink-0 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-blue-50 text-[#0056B3]">
-                  <GraduationCap size={20} />
+                <span className="p-2 rounded-xl bg-[#0056B3] text-white shadow-sm">
+                  <GraduationCap size={18} />
                 </span>
                 <div>
-                  <h3 className="font-black text-gray-900 text-base">
-                    {form.id ? 'Modifier la formation' : 'Ajouter une nouvelle formation'}
+                  <h3 className="font-black text-gray-900 text-sm">
+                    {form.id ? 'Modifier la formation' : 'Nouvelle formation'}
                   </h3>
-                  <p className="text-xs text-gray-500">
-                    {form.id ? 'Mettez à jour les informations, tarifs et modes de la filière' : 'Définissez une nouvelle filière avec ses tarifs réels'}
+                  <p className="text-[11px] text-gray-400">
+                    {form.id ? 'Modifier les informations et tarifs' : 'Renseigner les informations de la filière'}
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                onClick={() => setShowPanel(false)}
+                className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                title="Fermer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
@@ -2312,7 +2328,7 @@ function FormationsView() {
                     }}
                     className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none bg-white transition-colors"
                   >
-                    {CATEGORY_PRESETS.map(cat => (
+                    {formCategoryOptions.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                     <option value="CUSTOM">+ Autre catégorie personnalisée...</option>
@@ -2428,22 +2444,22 @@ function FormationsView() {
                 </div>
               </div>
 
-              {/* Modal footer */}
-              <div className="p-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50">
+              {/* Panel footer */}
+              <div className="p-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50/70">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-gray-200 rounded-xl transition-colors"
+                  onClick={() => setShowPanel(false)}
+                  className="px-4 py-2 text-gray-500 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 bg-[#0056B3] text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center gap-2 bg-[#0056B3] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm disabled:opacity-50"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>{form.id ? 'Mettre à jour' : 'Enregistrer la formation'}</span>
+                  <span>{form.id ? 'Mettre à jour' : 'Enregistrer'}</span>
                 </button>
               </div>
             </form>
@@ -2453,7 +2469,7 @@ function FormationsView() {
 
       {/* MODAL: Confirmation de suppression */}
       {courseToDelete && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay animate-fadeIn">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6">
             <div className="flex items-center gap-3 text-red-600 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
@@ -2467,7 +2483,7 @@ function FormationsView() {
 
             <p className="text-sm text-gray-600 mb-6 leading-relaxed">
               Êtes-vous sûr de vouloir supprimer définitivement la formation{' '}
-              <strong className="text-gray-900">« {courseToDelete.title} »</strong> ({Number(courseToDelete.price || 0).toLocaleString('fr-FR')} FCFA) ?
+              <strong className="text-gray-900">« {courseToDelete.title} »</strong> ?
               Elle sera retirée des formulaires d'inscription et du catalogue du site.
             </p>
 
@@ -2499,6 +2515,388 @@ function FormationsView() {
 
 // Alias for backward compatibility
 const ConcoursView = FormationsView;
+
+// ─── Categories View ────────────────────────────────────────────────
+function CategoriesView() {
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showPanel, setShowPanel] = useState(false);
+  const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [form, setForm] = useState({ name: '', description: '', color: '#0056B3', displayOrder: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
+
+  const COLOR_PRESETS = [
+    { hex: '#4F46E5', label: 'Indigo' },
+    { hex: '#0056B3', label: 'Bleu' },
+    { hex: '#D97706', label: 'Ambre' },
+    { hex: '#059669', label: 'Vert' },
+    { hex: '#DC2626', label: 'Rouge' },
+    { hex: '#7C3AED', label: 'Violet' },
+    { hex: '#0284C7', label: 'Cyan' },
+    { hex: '#DB2777', label: 'Rose' },
+    { hex: '#65A30D', label: 'Lime' },
+    { hex: '#EA580C', label: 'Orange' },
+  ];
+
+  const loadCategories = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchCourseCategories();
+      setCategories(data || []);
+    } catch (err) {
+      toast('error', 'Erreur lors du chargement des catégories');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadCategories(); }, []);
+
+  const openAdd = () => {
+    setEditTarget(null);
+    setForm({ name: '', description: '', color: '#0056B3', displayOrder: String(categories.length + 1) });
+    setShowPanel(true);
+  };
+
+  const openEdit = (cat: any) => {
+    setEditTarget(cat);
+    setForm({
+      name: cat.name || '',
+      description: cat.description || '',
+      color: cat.color || '#0056B3',
+      displayOrder: String(cat.displayOrder ?? ''),
+    });
+    setShowPanel(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) { toast('error', 'Le nom est obligatoire'); return; }
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        color: form.color || '#0056B3',
+        displayOrder: form.displayOrder ? Number(form.displayOrder) : undefined,
+      };
+      if (editTarget) {
+        await updateCourseCategory(editTarget.id, payload);
+        toast('success', 'Catégorie modifiée avec succès');
+      } else {
+        await createCourseCategory(payload);
+        toast('success', 'Catégorie créée avec succès');
+      }
+      await loadCategories();
+      setShowPanel(false);
+    } catch (err: any) {
+      toast('error', err.message || 'Erreur lors de l\'enregistrement');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteCourseCategory(deleteTarget.id);
+      toast('success', `Catégorie "${deleteTarget.name}" supprimée`);
+      setDeleteTarget(null);
+      await loadCategories();
+    } catch (err: any) {
+      toast('error', err.message || 'Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div className="flex gap-6">
+      {/* ── Main List ── */}
+      <div className={`flex-1 min-w-0 space-y-6 ${showPanel ? 'hidden xl:block' : ''}`}>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-blue-50 text-[#0056B3]"><Layers size={22} /></span>
+              <h2 className="text-xl font-black text-gray-900">Catégories de Formations</h2>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Organisez vos formations par catégories thématiques. Les catégories s'appliquent automatiquement au catalogue et aux formulaires d'inscription.
+            </p>
+          </div>
+          <button
+            onClick={openAdd}
+            className="flex items-center justify-center gap-2 bg-[#0056B3] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm shrink-0"
+          >
+            <Plus size={18} /><span>Nouvelle catégorie</span>
+          </button>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0056B3] flex items-center justify-center"><Layers size={24} /></div>
+            <div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Catégories</div>
+              <div className="text-2xl font-black text-gray-900">{categories.length}</div>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><BookOpen size={24} /></div>
+            <div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Formations Classées</div>
+              <div className="text-2xl font-black text-gray-900">{categories.reduce((a: number, c: any) => a + (c.coursesCount || 0), 0)}</div>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center"><Tag size={24} /></div>
+            <div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories Actives</div>
+              <div className="text-2xl font-black text-gray-900">{categories.filter((c: any) => (c.coursesCount || 0) > 0).length}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Categories grid */}
+        {categories.length === 0 ? (
+          <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
+            <div className="w-16 h-16 bg-blue-50 text-[#0056B3] rounded-full flex items-center justify-center mx-auto mb-3">
+              <Layers size={32} />
+            </div>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Aucune catégorie</h3>
+            <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">Les catégories par défaut seront créées automatiquement au prochain chargement.</p>
+            <button onClick={openAdd} className="bg-[#0056B3] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#003d80]">Créer une catégorie</button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {categories.map((cat: any) => (
+              <div
+                key={cat.id}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all group relative overflow-hidden"
+              >
+                {/* Color accent strip */}
+                <div
+                  className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
+                  style={{ background: cat.color || '#0056B3' }}
+                />
+                <div className="flex items-start justify-between gap-2 mt-1">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                      style={{ backgroundColor: `${cat.color || '#0056B3'}18`, color: cat.color || '#0056B3' }}
+                    >
+                      <Tag size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-black text-gray-900 text-sm leading-tight truncate">{cat.name}</h3>
+                      <span className="text-[11px] text-gray-400">{cat.coursesCount || 0} formation{(cat.coursesCount || 0) > 1 ? 's' : ''}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      onClick={() => openEdit(cat)}
+                      className="w-8 h-8 rounded-lg bg-blue-50 text-[#0056B3] flex items-center justify-center hover:bg-blue-100 transition-colors"
+                      title="Modifier"
+                    ><Edit size={14} /></button>
+                    <button
+                      onClick={() => setDeleteTarget(cat)}
+                      className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors"
+                      title="Supprimer"
+                    ><Trash2 size={14} /></button>
+                  </div>
+                </div>
+
+                {cat.description && (
+                  <p className="text-xs text-gray-500 mt-3 leading-relaxed line-clamp-2">{cat.description}</p>
+                )}
+
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200" style={{ backgroundColor: cat.color || '#0056B3' }} />
+                    <span className="text-[10px] text-gray-400 font-mono">{cat.color || '#0056B3'}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-300">Ordre : {cat.displayOrder ?? '–'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Inline Panel ── */}
+      {showPanel && (
+        <div className="w-full xl:w-[380px] shrink-0">
+          <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 sticky top-4" style={{maxHeight: 'calc(100vh - 7rem)'}}>
+            {/* Panel header */}
+            <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-[#0056B3]/5 to-blue-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-[#0056B3] text-white shadow-sm"><Layers size={16} /></span>
+                <div>
+                  <h3 className="font-black text-gray-900 text-sm">{editTarget ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</h3>
+                  <p className="text-[11px] text-gray-400">{editTarget ? 'Mettre à jour les informations' : 'Définir une nouvelle thématique'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPanel(false)}
+                className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+              ><X size={18} /></button>
+            </div>
+
+            {/* Panel form */}
+            <form onSubmit={handleSubmit} className="overflow-y-auto" style={{maxHeight: 'calc(100vh - 15rem)'}}>
+              <div className="p-5 space-y-5">
+                {/* Nom */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Nom de la catégorie *</label>
+                  <input
+                    required
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm({ ...form, name: e.target.value })}
+                    placeholder="Ex: Concours Juridiques & Judiciaires"
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Description</label>
+                  <textarea
+                    rows={3}
+                    value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    placeholder="Brève description de la catégorie..."
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none resize-none transition-colors"
+                  />
+                </div>
+
+                {/* Couleur */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">Couleur d'identification</label>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {COLOR_PRESETS.map(c => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        onClick={() => setForm({ ...form, color: c.hex })}
+                        title={c.label}
+                        className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
+                          form.color === c.hex ? 'border-gray-900 scale-110 shadow-md' : 'border-transparent'
+                        }`}
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={form.color}
+                      onChange={e => setForm({ ...form, color: e.target.value })}
+                      className="w-10 h-10 rounded-xl border-2 border-gray-200 cursor-pointer p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={form.color}
+                      onChange={e => setForm({ ...form, color: e.target.value })}
+                      placeholder="#0056B3"
+                      className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-mono focus:border-[#0056B3] focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Ordre d'affichage */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Ordre d'affichage</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.displayOrder}
+                    onChange={e => setForm({ ...form, displayOrder: e.target.value })}
+                    placeholder="Ex: 1"
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Les catégories s'affichent du plus petit au plus grand numéro.</p>
+                </div>
+
+                {/* Preview */}
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Aperçu</div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center"
+                      style={{ backgroundColor: `${form.color}20`, color: form.color }}
+                    >
+                      <Tag size={16} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-gray-900">{form.name || 'Nom de la catégorie'}</div>
+                      <div className="text-[11px] text-gray-400">{form.description || 'Aucune description'}</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 h-1 rounded-full" style={{ backgroundColor: form.color }} />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/70">
+                <button
+                  type="button"
+                  onClick={() => setShowPanel(false)}
+                  className="px-4 py-2 text-gray-500 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors"
+                >Annuler</button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center gap-2 bg-[#0056B3] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>{editTarget ? 'Mettre à jour' : 'Créer la catégorie'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                <AlertCircle size={26} className="text-red-500" />
+              </div>
+              <div>
+                <h3 className="font-black text-gray-900 text-base">Supprimer la catégorie ?</h3>
+                <p className="text-xs text-gray-500">Les formations associées seront déplacées vers « Général »</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Supprimer définitivement <strong className="text-gray-900">« {deleteTarget.name} »</strong> ?{' '}
+              {(deleteTarget.coursesCount || 0) > 0 && (
+                <span className="text-amber-600 font-semibold">{deleteTarget.coursesCount} formation(s) seront recatégorisées.</span>
+              )}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors">Annuler</button>
+              <button onClick={confirmDelete} disabled={deleting} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 disabled:opacity-50">
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Users View ─────────────────────────────────────────────────────
 function UsersView() {
@@ -3336,9 +3734,11 @@ function LoadingSpinner() {
 }
 
 // ─── Tab Title Map ───────────────────────────────────────────────────
+// ─── Tab Title Map ───────────────────────────────────────────────────
 const TAB_TITLES: Record<string, string> = {
   dashboard: "Tableau de bord",
   courses: "Gestion des formations",
+  categories: "Gestion des catégories",
   students: "Gestion des étudiants",
   payments: "Gestion des paiements",
   contracts: "Contrats signés",
@@ -3347,13 +3747,36 @@ const TAB_TITLES: Record<string, string> = {
   notifs: "Notifications",
   reports: "Rapports",
   settings: "Paramètres",
+  testimonials: "Lauréats Admis & Avis",
+  home_featured: "Actualités & Affiches À la une",
+  shop_products: "Boutique - Produits",
+  shop_orders: "Boutique - Commandes",
+  shop_banners: "Bannières boutique",
+  blog: "Articles de blog",
+  users: "Gestion des utilisateurs",
 };
 
-// ─── Testimonials View ───────────────────────────────────────────────────
+// ─── Testimonials & Admis View ───────────────────────────────────────────
 function TestimonialsView() {
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const emptyForm = {
+    name: "",
+    course: "",
+    message: "",
+    rating: 5,
+    imageUrl: "",
+    isActive: true,
+  };
+
+  const [form, setForm] = useState(emptyForm);
 
   const loadTestimonials = () => {
     setLoading(true);
@@ -3365,10 +3788,85 @@ function TestimonialsView() {
 
   useEffect(() => { loadTestimonials(); }, []);
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  };
+
+  const openEdit = (t: any) => {
+    setEditingId(t.id);
+    setForm({
+      name: t.name || "",
+      course: t.course || "",
+      message: t.message || "",
+      rating: t.rating || 5,
+      imageUrl: (t.images && t.images[0]) || "",
+      isActive: t.isActive !== undefined ? t.isActive : true,
+    });
+    setShowForm(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const urls = await uploadTestimonialImages([file]);
+      if (urls && urls.length > 0) {
+        setForm(prev => ({ ...prev, imageUrl: urls[0] }));
+        toast("success", "Photo de l'admis téléchargée avec succès");
+      }
+    } catch (err: any) {
+      toast("error", err.message || "Erreur lors du téléchargement de l'image");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.course || !form.message) {
+      toast("error", "Veuillez renseigner le nom, la promotion/concours et le témoignage.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        course: form.course.trim(),
+        message: form.message.trim(),
+        rating: Number(form.rating) || 5,
+        images: form.imageUrl ? [form.imageUrl] : [],
+        isActive: form.isActive,
+      };
+
+      if (editingId) {
+        await updateTestimonial(editingId, payload);
+        toast("success", "Profil de l'admis mis à jour !");
+      } else {
+        await createTestimonialAdmin(payload);
+        toast("success", "Nouvel admis ajouté avec succès !");
+      }
+
+      setShowForm(false);
+      setEditingId(null);
+      setForm(emptyForm);
+      loadTestimonials();
+    } catch (err: any) {
+      toast("error", err.message || "Erreur lors de l'enregistrement");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
     try {
       await updateTestimonial(id, { isActive: !currentStatus });
-      toast("success", `Avis ${!currentStatus ? 'publié' : 'masqué'} avec succès`);
+      toast("success", `Profil ${!currentStatus ? 'publié sur la page d\'accueil' : 'masqué'}`);
       loadTestimonials();
     } catch (err: any) {
       toast("error", err.message || "Erreur lors de la modification");
@@ -3376,10 +3874,10 @@ function TestimonialsView() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Voulez-vous vraiment supprimer cet avis ?")) return;
+    if (!window.confirm("Voulez-vous vraiment supprimer ce profil d'admis / avis ?")) return;
     try {
       await deleteTestimonial(id);
-      toast("success", "Avis supprimé");
+      toast("success", "Profil supprimé avec succès");
       loadTestimonials();
     } catch (err: any) {
       toast("error", err.message || "Erreur lors de la suppression");
@@ -3387,77 +3885,335 @@ function TestimonialsView() {
   };
 
   if (loading) {
-    return <div className="flex h-64 items-center justify-center"><div className="w-8 h-8 border-4 border-gray-200 border-t-[#0056B3] rounded-full animate-spin" /></div>;
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-[#FF6B00] rounded-full animate-spin" />
+      </div>
+    );
   }
 
+  const publishedCount = testimonials.filter(t => t.isActive).length;
+  const hiddenCount = testimonials.filter(t => !t.isActive).length;
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-        <h2 className="font-black text-gray-900 flex items-center gap-2"><MessageSquare size={18} className="text-[#0056B3]" /> Gestion des Avis</h2>
+    <div className="space-y-6">
+      {/* Top Banner Stats & Actions */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 rounded-lg bg-orange-100 text-[#FF6B00] flex items-center justify-center">
+              <Award size={18} />
+            </div>
+            <h2 className="text-xl font-black text-gray-900">Lauréats Admis & Témoignages</h2>
+          </div>
+          <p className="text-sm text-gray-500">
+            Mettez en avant les photos et promotions des admis (Magistrature, ENA, Greffe...) pour renforcer la crédibilité.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+            <span>{publishedCount} en ligne</span>
+            {hiddenCount > 0 && <span className="text-gray-400">· {hiddenCount} masqué(s)</span>}
+          </div>
+
+          <button
+            onClick={openCreate}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#FF6B00] to-[#ff8533] text-white font-bold rounded-xl hover:brightness-105 transition-all shadow-sm shadow-orange-500/20 text-sm whitespace-nowrap"
+          >
+            <Plus size={18} />
+            <span>Ajouter un admis</span>
+          </button>
+        </div>
       </div>
-      <div className="p-6 space-y-4">
-        {testimonials.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">Aucun avis soumis pour le moment.</p>
-        ) : (
-          testimonials.map(t => (
-            <div key={t.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  {t.images && t.images.length > 0 ? (
-                    <div className="flex -space-x-2">
-                      {t.images.slice(0, 3).map((img: string, idx: number) => (
-                        <div key={idx} className="w-8 h-8 rounded-full border-2 border-white overflow-hidden shadow-sm">
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-[#0056B3] flex items-center justify-center text-white text-xs font-bold">
-                      {t.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <h3 className="font-bold text-gray-900">{t.name}</h3>
-                  <span className="px-2 py-0.5 bg-orange-100 text-[#FF6B00] text-xs font-bold rounded-full">{t.course}</span>
-                  <div className="flex text-yellow-400">
-                    {[...Array(5)].map((_, j) => (
-                      <Star key={j} size={12} fill={j < t.rating ? "currentColor" : "none"} className={j >= t.rating ? "text-gray-300" : ""} />
-                    ))}
-                  </div>
-                </div>
-                <p className="text-gray-600 text-sm italic">"{t.message}"</p>
-                {t.images && t.images.length > 0 && (
-                  <div className="flex gap-2 mt-2">
-                    {t.images.map((img: string, idx: number) => (
-                      <a key={idx} href={img} target="_blank" rel="noopener noreferrer"
-                        className="w-14 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-[#0056B3] transition-colors">
-                        <img src={img} alt="" className="w-full h-full object-cover" />
-                      </a>
-                    ))}
-                  </div>
-                )}
-                <div className="text-xs text-gray-400 mt-2">Soumis le {new Date(t.createdAt).toLocaleDateString()}</div>
+
+      {/* Form Drawer / Card */}
+      {showForm && (
+        <div className="bg-white rounded-2xl shadow-xl border-2 border-orange-200 overflow-hidden animate-fadeIn">
+          <div className="bg-gradient-to-r from-orange-50 to-amber-50/50 p-5 border-b border-orange-100 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Award size={20} className="text-[#FF6B00]" />
+              <h3 className="font-black text-[#002855] text-base">
+                {editingId ? "Modifier le profil de l'admis" : "Ajouter un admis aux concours précédents"}
+              </h3>
+            </div>
+            <button
+              onClick={() => { setShowForm(false); setEditingId(null); }}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Nom & Prénom de l'étudiant *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ex: Kouamé Jean-Marc"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                />
               </div>
-              <div className="flex items-center gap-3 shrink-0 mt-4 md:mt-0">
-                <button
-                  onClick={() => handleToggleActive(t.id, t.isActive)}
-                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors flex items-center gap-2 ${t.isActive
-                    ? "bg-green-100 text-green-700 hover:bg-green-200"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
-                >
-                  {t.isActive ? <Eye size={16} /> : <EyeOff size={16} />}
-                  {t.isActive ? "Publié" : "Masqué"}
-                </button>
-                <button
-                  onClick={() => handleDelete(t.id)}
-                  className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                  title="Supprimer"
-                >
-                  <Trash2 size={18} />
-                </button>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Concours & Promotion / Statut *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={form.course}
+                  onChange={e => setForm({ ...form, course: e.target.value })}
+                  placeholder="Ex: Admis Magistrature 2023, Admise ENA 2024..."
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                />
+                {/* Suggestions rapides */}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap text-[11px]">
+                  <span className="text-gray-400">Suggestions :</span>
+                  {["Admis Magistrature 2023", "Admis ENA 2024", "Admis Greffe 2024", "Admis Police 2023"].map(sug => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => setForm({ ...form, course: sug })}
+                      className="px-2 py-0.5 bg-gray-100 hover:bg-orange-50 hover:text-[#FF6B00] rounded-md text-gray-600 font-medium transition-colors"
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          ))
+
+            {/* Photo de l'admis & Note */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Photo officielle de l'admis
+                </label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 overflow-hidden shrink-0 flex items-center justify-center relative">
+                    {form.imageUrl ? (
+                      <img src={form.imageUrl} alt="Aperçu" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera size={22} className="text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 border border-gray-200 hover:border-[#FF6B00] hover:text-[#FF6B00] bg-white rounded-xl text-xs font-bold text-gray-700 transition-colors shadow-2xs"
+                    >
+                      {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                      <span>{uploadingImage ? "Téléchargement..." : "Choisir une photo"}</span>
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <input
+                      type="text"
+                      value={form.imageUrl}
+                      onChange={e => setForm({ ...form, imageUrl: e.target.value })}
+                      placeholder="Ou collez l'URL de la photo"
+                      className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:border-[#FF6B00] outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Évaluation
+                </label>
+                <div className="flex items-center gap-2 mt-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setForm({ ...form, rating: star })}
+                      className="p-1 text-yellow-400 hover:scale-125 transition-transform"
+                    >
+                      <Star size={24} fill={star <= form.rating ? "currentColor" : "none"} className={star <= form.rating ? "" : "text-gray-300"} />
+                    </button>
+                  ))}
+                  <span className="text-xs font-bold text-gray-500 ml-2">{form.rating}/5 étoiles</span>
+                </div>
+
+                <div className="mt-4 flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="isActiveToggle"
+                    checked={form.isActive}
+                    onChange={e => setForm({ ...form, isActive: e.target.checked })}
+                    className="w-4 h-4 text-[#FF6B00] focus:ring-[#FF6B00] rounded"
+                  />
+                  <label htmlFor="isActiveToggle" className="text-xs font-bold text-gray-700 cursor-pointer">
+                    Afficher immédiatement sur la page d'accueil
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Message / Témoignage */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Témoignage / Retour d'expérience *
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={form.message}
+                onChange={e => setForm({ ...form, message: e.target.value })}
+                placeholder="Ex: Grâce à la rigueur des cours et aux examens blancs avec les magistrats formateurs, j'ai été reçu au concours dès ma première tentative..."
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none resize-none"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setEditingId(null); }}
+                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e65c00] text-white text-sm font-bold rounded-xl transition-all shadow-sm shadow-orange-500/25 disabled:opacity-50"
+              >
+                {submitting && <Loader2 size={16} className="animate-spin" />}
+                <span>{editingId ? "Enregistrer les modifications" : "Publier l'admis"}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Grid of Testimonials / Admis */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {testimonials.length === 0 ? (
+          <div className="col-span-full bg-white rounded-2xl p-12 text-center border border-gray-100">
+            <div className="w-16 h-16 rounded-full bg-orange-50 text-[#FF6B00] flex items-center justify-center mx-auto mb-3">
+              <Award size={28} />
+            </div>
+            <h3 className="font-bold text-gray-800 text-base mb-1">Aucun lauréat ou avis pour le moment</h3>
+            <p className="text-gray-500 text-xs max-w-md mx-auto mb-4">
+              Cliquez sur "Ajouter un admis" pour mettre en avant vos premiers lauréats avec leur photo et promotion.
+            </p>
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white font-bold rounded-xl text-xs hover:bg-[#e65c00] transition-colors"
+            >
+              <Plus size={16} />
+              <span>Ajouter un premier admis</span>
+            </button>
+          </div>
+        ) : (
+          testimonials.map(t => {
+            const hasPhoto = t.images && t.images.length > 0;
+            const photoUrl = hasPhoto ? t.images[0] : null;
+
+            return (
+              <div
+                key={t.id}
+                className={`bg-white rounded-2xl p-5 border transition-all flex flex-col justify-between ${
+                  t.isActive ? "border-gray-100 shadow-sm hover:shadow-md" : "border-dashed border-gray-300 opacity-70 bg-gray-50/50"
+                }`}
+              >
+                <div>
+                  {/* Card Header: Avatar & Info */}
+                  <div className="flex items-start gap-3.5 mb-3.5">
+                    <div className="relative shrink-0">
+                      {photoUrl ? (
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-[#FF6B00]/40 shadow-sm">
+                          <img src={photoUrl} alt={t.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#002855] to-[#004080] flex items-center justify-center text-white text-lg font-black shadow-sm ring-2 ring-blue-100">
+                          {t.name?.charAt(0)?.toUpperCase() || "A"}
+                        </div>
+                      )}
+                      {t.isActive && (
+                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 ring-2 ring-white" title="En ligne sur le site" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="font-extrabold text-gray-900 text-sm truncate">{t.name}</h4>
+                        <div className="flex text-yellow-400 shrink-0">
+                          {[...Array(5)].map((_, j) => (
+                            <Star key={j} size={11} fill={j < (t.rating || 5) ? "currentColor" : "none"} className={j >= (t.rating || 5) ? "text-gray-200" : ""} />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Course / Promotion Badge */}
+                      <div className="mt-1">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-100 text-[#FF6B00]">
+                          {t.course}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Message Quote */}
+                  <p className="text-gray-600 text-xs italic line-clamp-4 leading-relaxed mb-4">
+                    "{t.message}"
+                  </p>
+                </div>
+
+                {/* Card Footer Actions */}
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${t.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    {t.isActive ? "En ligne" : "Masqué"}
+                  </span>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleToggleActive(t.id, t.isActive)}
+                      className={`p-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        t.isActive ? "text-green-600 hover:bg-green-50" : "text-gray-400 hover:bg-gray-100"
+                      }`}
+                      title={t.isActive ? "Masquer ce profil" : "Publier sur le site"}
+                    >
+                      {t.isActive ? <Eye size={16} /> : <EyeOff size={16} />}
+                    </button>
+
+                    <button
+                      onClick={() => openEdit(t)}
+                      className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                      title="Modifier"
+                    >
+                      <Edit size={16} />
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
@@ -3584,6 +4340,7 @@ export default function AdminDashboard() {
     switch (activeTab) {
       case 'dashboard': return <DashboardView apiStats={apiStats} />;
       case 'courses': return <FormationsView />;
+      case 'categories': return <CategoriesView />;
       case 'students': return <StudentsView />;
       case 'payments': return <PaymentsView />;
       case 'contracts': return <ContractsView />;

@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { getTestimonials, createTestimonial, getAllTestimonials, updateTestimonial, deleteTestimonial, uploadTestimonialImage } from '../controllers/testimonialController';
+import { getTestimonials, createTestimonial, createTestimonialAdmin, getAllTestimonials, updateTestimonial, deleteTestimonial, uploadTestimonialImage } from '../controllers/testimonialController';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +32,7 @@ router.post('/upload', upload.array('images', 3), uploadTestimonialImage);
 
 // Admin routes
 router.get('/admin/all', authenticateToken, requireRole(['ADMIN']), getAllTestimonials);
+router.post('/admin', authenticateToken, requireRole(['ADMIN']), createTestimonialAdmin);
 router.put('/:id', authenticateToken, requireRole(['ADMIN']), updateTestimonial);
 router.delete('/:id', authenticateToken, requireRole(['ADMIN']), deleteTestimonial);
 
