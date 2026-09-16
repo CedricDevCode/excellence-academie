@@ -94,7 +94,7 @@ function Hero() {
               <strong className="text-white">ENA</strong>, du{" "}
               <strong className="text-white">Greffe</strong>, du{" "}
               <strong className="text-white">Notariat</strong> et de la{" "}
-              <strong className="text-white">Police</strong> avec les meilleurs formateurs.
+              <strong className="text-white">Agent pénitentiaire</strong> avec les meilleurs formateurs.
             </motion.p>
 
             <motion.div variants={staggerItem} className="flex flex-col sm:flex-row gap-4 mb-10">
@@ -185,7 +185,7 @@ function Hero() {
                     { icon: <Gavel size={28} />, label: "Magistrature", color: "from-blue-500/20 to-blue-600/20" },
                     { icon: <Building2 size={28} />, label: "ENA", color: "from-purple-500/20 to-purple-600/20" },
                     { icon: <Scale size={28} />, label: "Notariat", color: "from-green-500/20 to-green-600/20" },
-                    { icon: <Shield size={28} />, label: "Police", color: "from-red-500/20 to-red-600/20" },
+                    { icon: <Shield size={28} />, label: "Greffe", color: "from-red-500/20 to-red-600/20" },
                   ].map((item, i) => (
                     <motion.div
                       key={i}
@@ -586,7 +586,7 @@ function Formations() {
     { title: "Magistrature", category: "Concours Juridiques & Judiciaires", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
     { title: "ENA (Tous cycles)", category: "Administration Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
     { title: "Greffe", category: "Concours Juridiques & Judiciaires", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
-    { title: "Police", category: "Sécurité & Force Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Agent pénitentiaire", category: "Sécurité & Force Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
     { title: "Avocature & Notariat", category: "Concours Juridiques & Judiciaires", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
     { title: "Fonction Publique", category: "Administration Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
     { title: "EPPJEJ & EPP", category: "Administration Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },

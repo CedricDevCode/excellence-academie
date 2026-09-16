@@ -528,7 +528,7 @@ function FormationsView() {
                     type="text"
                     value={form.title}
                     onChange={e => setForm({ ...form, title: e.target.value })}
-                    placeholder="Ex: Magistrature, ENA, Police, Greffe..."
+                    placeholder="Ex: Magistrature, ENA, Agent pénitentiaire, Greffe..."
                     className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
                   />
                 </div>

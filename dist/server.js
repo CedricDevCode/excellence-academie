@@ -22,6 +22,8 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
+import rateLimit6 from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import bcrypt3 from "bcrypt";
 
@@ -259,6 +261,22 @@ var deleteUser = async (req, res) => {
 
 // server/middleware/authMiddleware.ts
 import jwt from "jsonwebtoken";
+var userCache = /* @__PURE__ */ new Map();
+var CACHE_TTL_MS = 3e4;
+var cleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of userCache.entries()) {
+    if (entry.expiresAt <= now) userCache.delete(key);
+  }
+}, 6e4);
+if (cleanupInterval.unref) cleanupInterval.unref();
+function invalidateUserCache(userId) {
+  if (userId) {
+    userCache.delete(userId);
+  } else {
+    userCache.clear();
+  }
+}
 var authenticateToken = async (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
@@ -267,6 +285,12 @@ var authenticateToken = async (req, res, next) => {
   try {
     const secret = process.env.JWT_SECRET;
     const decoded = jwt.verify(token, secret);
+    const now = Date.now();
+    const cached = userCache.get(decoded.userId);
+    if (cached && cached.expiresAt > now) {
+      req.user = cached.data;
+      return next();
+    }
     const user = await prisma_default.user.findUnique({
       where: { id: decoded.userId },
       select: {
@@ -284,6 +308,7 @@ var authenticateToken = async (req, res, next) => {
     if (!user.isActive) {
       return res.status(403).json({ error: "Compte d\xE9sactiv\xE9. Contactez l'administration." });
     }
+    userCache.set(decoded.userId, { data: user, expiresAt: now + CACHE_TTL_MS });
     req.user = user;
     next();
   } catch (error) {
@@ -296,7 +321,6 @@ var authenticateToken = async (req, res, next) => {
     return res.status(500).json({ error: "Erreur d'authentification." });
   }
 };
-var authMiddleware = authenticateToken;
 var requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -343,6 +367,7 @@ var userRoutes_default = router;
 
 // server/routes/paymentRoutes.ts
 import { Router as Router2 } from "express";
+import rateLimit from "express-rate-limit";
 
 // server/constants.ts
 var COUNTRY_TO_ISO2 = {
@@ -537,14 +562,15 @@ var sendNotification = async (userId, title, message) => {
       createdAt: notif.createdAt
     });
     const fromAddress = process.env.SMTP_FROM || "noreply@excellence-academie.ci";
+    const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     await transporter.sendMail({
       from: `"Excellence Acad\xE9mie" <${fromAddress}>`,
       to: user.email,
       subject: title,
       html: `
         <div style="font-family: sans-serif; padding: 20px; background: #f4f7f6;">
-          <h2 style="color: #0056B3;">${title}</h2>
-          <p>${message}</p>
+          <h2 style="color: #0056B3;">${escapeHtml(title)}</h2>
+          <p>${escapeHtml(message)}</p>
           <hr />
           <p style="font-size: 12px; color: #888;">Ceci est un message automatique, merci de ne pas y r\xE9pondre.</p>
         </div>
@@ -664,7 +690,8 @@ var initializePayment = async (req, res) => {
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments`, {
       method: "POST",
       headers: geniusPayHeaders(),
-      body: JSON.stringify(geniusPayBody)
+      body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15e3)
     });
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
@@ -691,7 +718,8 @@ var verifyPayment = async (req, res) => {
   try {
     const { paymentId, reference } = req.body;
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments/${reference}`, {
-      headers: geniusPayHeaders()
+      headers: geniusPayHeaders(),
+      signal: AbortSignal.timeout(15e3)
     });
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
@@ -740,6 +768,26 @@ function generateReceiptNumber() {
 }
 async function generateMatricule() {
   const year = (/* @__PURE__ */ new Date()).getFullYear().toString();
+  const maxRetries = 5;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const last2 = await prisma_default.user.findFirst({
+      where: { matricule: { startsWith: `EA-${year}-` } },
+      orderBy: { matricule: "desc" },
+      select: { matricule: true }
+    });
+    let next2 = 1;
+    if (last2?.matricule) {
+      const parts = last2.matricule.split("-");
+      next2 = parseInt(parts[2], 10) + 1 + attempt;
+    }
+    const matricule = `EA-${year}-${String(next2).padStart(4, "0")}`;
+    try {
+      await prisma_default.user.findFirst({ where: { matricule }, select: { id: true } });
+      return matricule;
+    } catch {
+      continue;
+    }
+  }
   const last = await prisma_default.user.findFirst({
     where: { matricule: { startsWith: `EA-${year}-` } },
     orderBy: { matricule: "desc" },
@@ -756,18 +804,22 @@ async function generateMatricule() {
 // server/controllers/geniusPayController.ts
 var initPayment = async (req, res) => {
   try {
-    const { userId, courseId, formule, successUrl, errorUrl, paymentMethod } = req.body;
+    const { userId, courseId, formule, successUrl, errorUrl, paymentMethod, pays, ville, mode, coursParticuliers } = req.body;
     if (!userId || !courseId || !formule) {
       return res.status(400).json({ error: "userId, courseId et formule sont requis" });
     }
-    const amount = calcRegistrationPrice("", "presentiel", "", false);
     const user = await prisma_default.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, telephone: true }
+      select: { id: true, name: true, email: true, telephone: true, pays: true, ville: true }
     });
     if (!user) {
       return res.status(404).json({ error: "Utilisateur introuvable" });
     }
+    const userPays = pays || user.pays || "";
+    const userVille = ville || user.ville || "";
+    const userMode = mode || "presentiel";
+    const isCoursParticuliers = coursParticuliers || false;
+    const amount = calcRegistrationPrice(userPays, userMode, userVille, isCoursParticuliers);
     const course = await prisma_default.course.findUnique({ where: { id: courseId } });
     if (!course) {
       return res.status(404).json({ error: "Formation introuvable" });
@@ -1073,19 +1125,26 @@ var handleWebhook = async (req, res) => {
 
 // server/routes/paymentRoutes.ts
 var router2 = Router2();
-router2.post("/webhook", handleWebhook);
+var webhookLimiter = rateLimit({
+  windowMs: 60 * 1e3,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requ\xEAtes webhook." }
+});
+router2.post("/webhook", webhookLimiter, handleWebhook);
 router2.use(authenticateToken);
-router2.get("/geniuspay/status/:reference", checkPaymentStatus);
+router2.get("/geniuspay/status/:reference", requireRole(["ADMIN", "ACCOUNTANT"]), checkPaymentStatus);
 router2.get("/my-payments", getMyPayments);
 router2.get("/", requireRole(["ADMIN", "ACCOUNTANT"]), getPayments);
-router2.post("/initialize", initializePayment);
-router2.post("/verify", verifyPayment);
-router2.post("/geniuspay/init", initPayment);
+router2.post("/initialize", requireRole(["ADMIN", "ACCOUNTANT"]), initializePayment);
+router2.post("/verify", requireRole(["ADMIN", "ACCOUNTANT"]), verifyPayment);
+router2.post("/geniuspay/init", requireRole(["ADMIN", "ACCOUNTANT"]), initPayment);
 var paymentRoutes_default = router2;
 
 // server/routes/authRoutes.ts
 import { Router as Router3 } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit2 from "express-rate-limit";
 
 // server/controllers/authController.ts
 import bcrypt2 from "bcrypt";
@@ -1148,7 +1207,7 @@ async function retryWithNeonWakeup(fn, retries = 2, delayMs = 2e3) {
 }
 var register = async (req, res) => {
   try {
-    const { email, password, name, nom, prenom, role, telephone, pays, ville } = req.body;
+    const { email, password, name, nom, prenom, telephone, pays, ville } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email et mot de passe sont requis" });
     }
@@ -1170,7 +1229,7 @@ var register = async (req, res) => {
         telephone,
         pays,
         ville,
-        role: role || "STUDENT",
+        role: "STUDENT",
         isActive: true
       }
     });
@@ -1312,11 +1371,7 @@ var confirmPayment = async (req, res) => {
       return res.status(400).json({ error: "R\xE9f\xE9rence requise" });
     }
     const gpResponse = await fetch(`${GENIUSPAY_API_BASE}/payments/${reference}`, {
-      headers: {
-        "X-API-Key": process.env.GENIUSPAY_API_KEY || "",
-        "X-API-Secret": process.env.GENIUSPAY_SECRET_KEY || "",
-        Accept: "application/json"
-      },
+      headers: { ...geniusPayHeaders(), Accept: "application/json" },
       signal: AbortSignal.timeout(15e3)
     });
     const gpData = await handleGeniusPayResponse(gpResponse);
@@ -1341,25 +1396,6 @@ var confirmPayment = async (req, res) => {
         await prisma_default.pendingRegistration.delete({ where: { id: pending.id } });
         return res.status(400).json({ error: "Session d'inscription expir\xE9e. Veuillez recommencer." });
       }
-      let user = await prisma_default.user.findUnique({ where: { email: pending.email } });
-      if (!user) {
-        user = await prisma_default.user.create({
-          data: {
-            email: pending.email,
-            password: pending.passwordHash,
-            name: pending.name || pending.email,
-            telephone: pending.telephone || "",
-            pays: pending.pays || "",
-            ville: pending.ville || "",
-            role: "STUDENT",
-            isActive: true
-          }
-        });
-      }
-      if (!user.matricule && user.role === "STUDENT") {
-        const matricule = await generateMatricule();
-        await prisma_default.user.update({ where: { id: user.id }, data: { matricule } });
-      }
       const courseIdList = Array.isArray(pending.courseIds) ? pending.courseIds : [];
       const monthlyAmt = pending.monthlyAmount ?? 0;
       const inscriptionAmount = calcRegistrationPrice(
@@ -1369,46 +1405,68 @@ var confirmPayment = async (req, res) => {
         pending.coursParticuliers
       );
       const totalAmount = inscriptionAmount + monthlyAmt;
-      const existingPayment = await prisma_default.payment.findFirst({
-        where: { geniusPayReference: reference }
-      });
-      if (!existingPayment) {
-        const payment = await prisma_default.payment.create({
-          data: {
-            amount: gpData.amount || totalAmount,
-            userId: user.id,
-            status: "SUCCESS",
-            geniusPayReference: reference
-          }
-        });
-        const receiptNumber = generateReceiptNumber();
-        await prisma_default.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
-      }
-      for (const cId of courseIdList) {
-        const existingSub = await prisma_default.subscription.findFirst({
-          where: { userId: user.id, courseId: cId }
-        });
-        if (!existingSub) {
-          const nextPayment = /* @__PURE__ */ new Date();
-          nextPayment.setMonth(nextPayment.getMonth() + 1);
-          await prisma_default.subscription.create({
+      const result = await prisma_default.$transaction(async (tx) => {
+        let user = await tx.user.findUnique({ where: { email: pending.email } });
+        if (!user) {
+          user = await tx.user.create({
             data: {
-              userId: user.id,
-              courseId: cId,
-              amount: monthlyAmt,
-              status: "ACTIVE",
-              nextPayment,
-              formule: pending.mode || "presentiel",
-              coursParticuliers: pending.coursParticuliers
+              email: pending.email,
+              password: pending.passwordHash,
+              name: pending.name || pending.email,
+              telephone: pending.telephone || "",
+              pays: pending.pays || "",
+              ville: pending.ville || "",
+              role: "STUDENT",
+              isActive: true
             }
           });
         }
-      }
-      await prisma_default.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {
+        if (!user.matricule && user.role === "STUDENT") {
+          const matricule = await generateMatricule();
+          await tx.user.update({ where: { id: user.id }, data: { matricule } });
+        }
+        const existingPayment = await tx.payment.findFirst({
+          where: { geniusPayReference: reference }
+        });
+        if (!existingPayment) {
+          const payment = await tx.payment.create({
+            data: {
+              amount: gpData.amount || totalAmount,
+              userId: user.id,
+              status: "SUCCESS",
+              geniusPayReference: reference
+            }
+          });
+          const receiptNumber = generateReceiptNumber();
+          await tx.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
+        }
+        for (const cId of courseIdList) {
+          const existingSub = await tx.subscription.findFirst({
+            where: { userId: user.id, courseId: cId }
+          });
+          if (!existingSub) {
+            const nextPayment = /* @__PURE__ */ new Date();
+            nextPayment.setMonth(nextPayment.getMonth() + 1);
+            await tx.subscription.create({
+              data: {
+                userId: user.id,
+                courseId: cId,
+                amount: monthlyAmt,
+                status: "ACTIVE",
+                nextPayment,
+                formule: pending.mode || "presentiel",
+                coursParticuliers: pending.coursParticuliers
+              }
+            });
+          }
+        }
+        await tx.pendingRegistration.delete({ where: { id: pending.id } }).catch(() => {
+        });
+        return user;
       });
       try {
         await sendNotification(
-          user.id,
+          result.id,
           "Inscription et paiement valid\xE9s",
           `Votre paiement de ${totalAmount.toLocaleString("fr-FR")} FCFA a \xE9t\xE9 re\xE7u. Bienvenue !`
         );
@@ -1420,11 +1478,11 @@ var confirmPayment = async (req, res) => {
       } catch (err) {
         console.error("Notification error on payment confirmation:", err);
       }
-      setAuthCookie(res, user.id, user.role);
+      setAuthCookie(res, result.id, result.role);
       return res.json({
         success: true,
         status: gpData.status,
-        user: { id: user.id, email: user.email, name: user.name, role: user.role }
+        user: { id: result.id, email: result.email, name: result.name, role: result.role }
       });
     }
     res.json({
@@ -1497,6 +1555,7 @@ var login = async (req, res) => {
   }
 };
 var logout = (req, res) => {
+  if (req.user?.id) invalidateUserCache(req.user.id);
   clearAuthCookie(res);
   res.json({ message: "D\xE9connexion r\xE9ussie" });
 };
@@ -1525,7 +1584,7 @@ var getMe = async (req, res) => {
 
 // server/routes/authRoutes.ts
 var router3 = Router3();
-var loginLimiter = rateLimit({
+var loginLimiter = rateLimit2({
   windowMs: 15 * 60 * 1e3,
   max: 10,
   standardHeaders: true,
@@ -1536,7 +1595,7 @@ var loginLimiter = rateLimit({
   skipSuccessfulRequests: true
   // Ne compte que les échecs
 });
-var registerLimiter = rateLimit({
+var registerLimiter = rateLimit2({
   windowMs: 60 * 60 * 1e3,
   max: 5,
   standardHeaders: true,
@@ -1545,7 +1604,7 @@ var registerLimiter = rateLimit({
     error: "Trop d'inscriptions depuis cette adresse. Veuillez r\xE9essayer dans une heure."
   }
 });
-var paymentInitLimiter = rateLimit({
+var paymentInitLimiter = rateLimit2({
   windowMs: 60 * 60 * 1e3,
   max: 3,
   standardHeaders: true,
@@ -1558,8 +1617,8 @@ router3.post("/login", loginLimiter, login);
 router3.post("/logout", logout);
 router3.post("/register", registerLimiter, register);
 router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, registerAndPay);
-router3.post("/confirm-payment", confirmPayment);
 router3.get("/me", authenticateToken, getMe);
+router3.post("/confirm-payment", authenticateToken, confirmPayment);
 var authRoutes_default = router3;
 
 // server/routes/notificationRoutes.ts
@@ -1721,66 +1780,113 @@ var expenseRoutes_default = router5;
 import { Router as Router6 } from "express";
 
 // server/controllers/statsController.ts
+var MONTHS = ["Janvier", "F\xE9vrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Ao\xFBt", "Septembre", "Octobre", "Novembre", "D\xE9cembre"];
 var getDashboardStats = async (req, res) => {
   try {
-    const totalStudents = await prisma_default.user.count({ where: { role: "STUDENT" } });
-    const totalTeachers = await prisma_default.user.count({ where: { role: "TEACHER" } });
-    const payments = await prisma_default.payment.findMany({
-      where: { status: "SUCCESS" },
-      include: { course: true, user: { select: { ville: true } } }
-    });
-    const expenses = await prisma_default.expense.findMany({
-      where: { status: "PAID" }
-    });
-    const shopOrders = await prisma_default.shopOrder.findMany({
-      where: { status: { in: ["PAID", "DELIVERED"] } }
-    });
+    const [totalStudents, totalTeachers] = await Promise.all([
+      prisma_default.user.count({ where: { role: "STUDENT" } }),
+      prisma_default.user.count({ where: { role: "TEACHER" } })
+    ]);
+    const [paymentAgg, shopAgg, expenseAgg] = await Promise.all([
+      prisma_default.payment.groupBy({
+        by: ["courseId"],
+        where: { status: "SUCCESS" },
+        _sum: { amount: true },
+        _count: true
+      }),
+      prisma_default.shopOrder.aggregate({
+        where: { status: { in: ["PAID", "DELIVERED"] } },
+        _sum: { totalAmount: true },
+        _count: true
+      }),
+      prisma_default.expense.aggregate({
+        where: { status: "PAID" },
+        _sum: { amount: true }
+      })
+    ]);
+    const totalRevenueFromPayments = paymentAgg.reduce((s, g) => s + (g._sum.amount || 0), 0);
+    const totalRevenueFromShop = shopAgg._sum.totalAmount || 0;
+    const totalRevenue = totalRevenueFromPayments + totalRevenueFromShop;
+    const totalExpenses = expenseAgg._sum.amount || 0;
+    const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+    const [monthlyPayments, monthlyExpenses, monthlyShopOrders] = await Promise.all([
+      prisma_default.$queryRaw`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, SUM("amount")::float AS total
+        FROM "Payment" WHERE "status" = 'SUCCESS' AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `,
+      prisma_default.$queryRaw`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, SUM("amount")::float AS total
+        FROM "Expense" WHERE "status" = 'PAID' AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `,
+      prisma_default.$queryRaw`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, SUM("totalAmount")::float AS total
+        FROM "ShopOrder" WHERE "status" IN ('PAID','DELIVERED') AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `
+    ]);
+    const chartDataMap = {};
+    for (const m of MONTHS) chartDataMap[m] = { name: m, Revenus: 0, Depenses: 0 };
+    for (const row of monthlyPayments) {
+      const name = MONTHS[row.month - 1];
+      if (chartDataMap[name]) chartDataMap[name].Revenus += row.total;
+    }
+    for (const row of monthlyShopOrders) {
+      const name = MONTHS[row.month - 1];
+      if (chartDataMap[name]) chartDataMap[name].Revenus += row.total;
+    }
+    for (const row of monthlyExpenses) {
+      const name = MONTHS[row.month - 1];
+      if (chartDataMap[name]) chartDataMap[name].Depenses += row.total;
+    }
+    const chartData = Object.values(chartDataMap);
+    const courses = await prisma_default.course.findMany({ select: { id: true, title: true } });
+    const courseMap = new Map(courses.map((c) => [c.id, c.title]));
+    const revenueByCourseData = paymentAgg.filter((g) => g.courseId && courseMap.get(g.courseId)).map((g) => ({ name: courseMap.get(g.courseId), Revenus: g._sum.amount || 0 })).sort((a, b) => b.Revenus - a.Revenus);
+    const [enrollmentsByMonth] = await Promise.all([
+      prisma_default.$queryRaw`
+        SELECT EXTRACT(MONTH FROM "createdAt")::int AS month, COUNT(*)::int AS count
+        FROM "Payment" WHERE "status" = 'SUCCESS' AND EXTRACT(YEAR FROM "createdAt") = ${currentYear}
+        GROUP BY month
+      `
+    ]);
+    const enrollmentsData = enrollmentsByMonth.map((e) => ({
+      name: MONTHS[e.month - 1],
+      Inscriptions: Number(e.count)
+    }));
+    const [revenueByCityRaw, expenseByCityRaw] = await Promise.all([
+      prisma_default.$queryRaw`
+        SELECT COALESCE(u."ville", 'Non précisée') AS city, SUM(p."amount")::float AS revenue, COUNT(*)::int AS count
+        FROM "Payment" p LEFT JOIN "User" u ON p."userId" = u."id"
+        WHERE p."status" = 'SUCCESS'
+        GROUP BY city ORDER BY revenue DESC
+      `,
+      prisma_default.$queryRaw`
+        SELECT COALESCE("ville", 'Non précisée') AS city, SUM("amount")::float AS expense, COUNT(*)::int AS count
+        FROM "Expense" WHERE "status" = 'PAID'
+        GROUP BY city
+      `
+    ]);
+    const cityMap = /* @__PURE__ */ new Map();
+    for (const r of revenueByCityRaw) {
+      cityMap.set(r.city, { revenue: r.revenue, revenueCount: Number(r.count), expense: 0, expenseCount: 0 });
+    }
+    for (const e of expenseByCityRaw) {
+      const existing = cityMap.get(e.city) || { revenue: 0, revenueCount: 0, expense: 0, expenseCount: 0 };
+      existing.expense = e.expense;
+      existing.expenseCount = Number(e.count);
+      cityMap.set(e.city, existing);
+    }
+    const revenueByCityData = Array.from(cityMap.entries()).map(([city, data]) => ({
+      name: city,
+      Revenus: data.revenue
+    }));
     const recentPayments = await prisma_default.payment.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
       include: { user: { select: { name: true, email: true } } }
     });
-    const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0) + shopOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const months = ["Janvier", "F\xE9vrier", "Mars", "Avril", "Mai", "Juin", "Juillet", "Ao\xFBt", "Septembre", "Octobre", "Novembre", "D\xE9cembre"];
-    const chartDataMap = {};
-    const enrollmentsMap = {};
-    const revenueByCourseMap = {};
-    const revenueByCityMap = {};
-    payments.forEach((p) => {
-      const monthIndex = new Date(p.createdAt).getMonth();
-      const monthName = months[monthIndex];
-      if (!chartDataMap[monthName]) chartDataMap[monthName] = { name: monthName, Revenus: 0, Depenses: 0 };
-      chartDataMap[monthName].Revenus += p.amount;
-      if (!enrollmentsMap[monthName]) enrollmentsMap[monthName] = 0;
-      enrollmentsMap[monthName] += 1;
-      if (p.course) {
-        if (!revenueByCourseMap[p.course.title]) revenueByCourseMap[p.course.title] = 0;
-        revenueByCourseMap[p.course.title] += p.amount;
-      }
-      const city = p.user?.ville?.trim() || "Non pr\xE9cis\xE9e";
-      if (!revenueByCityMap[city]) revenueByCityMap[city] = 0;
-      revenueByCityMap[city] += p.amount;
-    });
-    expenses.forEach((e) => {
-      const monthIndex = new Date(e.createdAt).getMonth();
-      const monthName = months[monthIndex];
-      if (!chartDataMap[monthName]) chartDataMap[monthName] = { name: monthName, Revenus: 0, Depenses: 0 };
-      chartDataMap[monthName].Depenses += e.amount;
-    });
-    shopOrders.forEach((o) => {
-      const monthIndex = new Date(o.createdAt).getMonth();
-      const monthName = months[monthIndex];
-      if (!chartDataMap[monthName]) chartDataMap[monthName] = { name: monthName, Revenus: 0, Depenses: 0 };
-      chartDataMap[monthName].Revenus += o.totalAmount;
-      const city = o.city?.trim() || "Non pr\xE9cis\xE9e";
-      if (!revenueByCityMap[city]) revenueByCityMap[city] = 0;
-      revenueByCityMap[city] += o.totalAmount;
-    });
-    const chartData = Object.values(chartDataMap);
-    const enrollmentsData = Object.keys(enrollmentsMap).map((k) => ({ name: k, Inscriptions: enrollmentsMap[k] }));
-    const revenueByCourseData = Object.keys(revenueByCourseMap).map((k) => ({ name: k, Revenus: revenueByCourseMap[k] }));
-    const revenueByCityData = Object.keys(revenueByCityMap).map((k) => ({ name: k, Revenus: revenueByCityMap[k] }));
     res.json({
       totalStudents,
       totalTeachers,
@@ -1800,45 +1906,36 @@ var getDashboardStats = async (req, res) => {
 };
 var getCityBreakdown = async (req, res) => {
   try {
-    const payments = await prisma_default.payment.findMany({
-      where: { status: "SUCCESS" },
-      include: { user: { select: { ville: true } } }
-    });
-    const revenueByCity = {};
-    payments.forEach((p) => {
-      const city = p.user?.ville?.trim() || "Non pr\xE9cis\xE9e";
-      if (!revenueByCity[city]) revenueByCity[city] = { revenue: 0, count: 0 };
-      revenueByCity[city].revenue += p.amount;
-      revenueByCity[city].count += 1;
-    });
-    const shopOrders = await prisma_default.shopOrder.findMany({
-      where: { status: { in: ["PAID", "DELIVERED"] } }
-    });
-    shopOrders.forEach((o) => {
-      const city = o.city?.trim() || "Non pr\xE9cis\xE9e";
-      if (!revenueByCity[city]) revenueByCity[city] = { revenue: 0, count: 0 };
-      revenueByCity[city].revenue += o.totalAmount;
-      revenueByCity[city].count += 1;
-    });
-    const expenses = await prisma_default.expense.findMany({
-      where: { status: "PAID" },
-      select: { amount: true, ville: true }
-    });
-    const expenseByCity = {};
-    expenses.forEach((e) => {
-      const city = e.ville?.trim() || "Non pr\xE9cis\xE9e";
-      if (!expenseByCity[city]) expenseByCity[city] = { expense: 0, count: 0 };
-      expenseByCity[city].expense += e.amount;
-      expenseByCity[city].count += 1;
-    });
-    const allCities = /* @__PURE__ */ new Set([...Object.keys(revenueByCity), ...Object.keys(expenseByCity)]);
-    const cityData = Array.from(allCities).map((city) => ({
+    const [revenueByCityRaw, expenseByCityRaw] = await Promise.all([
+      prisma_default.$queryRaw`
+        SELECT COALESCE(u."ville", 'Non précisée') AS city, SUM(p."amount")::float AS revenue, COUNT(*)::int AS count
+        FROM "Payment" p LEFT JOIN "User" u ON p."userId" = u."id"
+        WHERE p."status" = 'SUCCESS'
+        GROUP BY city ORDER BY revenue DESC
+      `,
+      prisma_default.$queryRaw`
+        SELECT COALESCE("ville", 'Non précisée') AS city, SUM("amount")::float AS expense, COUNT(*)::int AS count
+        FROM "Expense" WHERE "status" = 'PAID'
+        GROUP BY city
+      `
+    ]);
+    const cityMap = /* @__PURE__ */ new Map();
+    for (const r of revenueByCityRaw) {
+      cityMap.set(r.city, { revenue: r.revenue, revenueCount: Number(r.count), expense: 0, expenseCount: 0 });
+    }
+    for (const e of expenseByCityRaw) {
+      const existing = cityMap.get(e.city) || { revenue: 0, revenueCount: 0, expense: 0, expenseCount: 0 };
+      existing.expense = e.expense;
+      existing.expenseCount = Number(e.count);
+      cityMap.set(e.city, existing);
+    }
+    const cityData = Array.from(cityMap.entries()).map(([city, data]) => ({
       city,
-      revenue: revenueByCity[city]?.revenue || 0,
-      revenueCount: revenueByCity[city]?.count || 0,
-      expense: expenseByCity[city]?.expense || 0,
-      expenseCount: expenseByCity[city]?.count || 0,
-      net: (revenueByCity[city]?.revenue || 0) - (expenseByCity[city]?.expense || 0)
+      revenue: data.revenue,
+      revenueCount: data.revenueCount,
+      expense: data.expense,
+      expenseCount: data.expenseCount,
+      net: data.revenue - data.expense
     })).sort((a, b) => b.revenue - a.revenue);
     res.json(cityData);
   } catch (error) {
@@ -1888,14 +1985,17 @@ var generateReceipt = async (req, res) => {
     if (payment.receipt) {
       return res.json(payment.receipt);
     }
+    const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const userName = escapeHtml(payment.user?.name || payment.user?.email || "");
+    const courseTitle = payment.course ? escapeHtml(payment.course.title) : "";
     const content = `
       <h1>Re\xE7u de Paiement</h1>
       <p><strong>Acad\xE9mie:</strong> Excellence Acad\xE9mie</p>
       <p><strong>Date:</strong> ${new Date(payment.createdAt).toLocaleDateString()}</p>
-      <p><strong>\xC9tudiant:</strong> ${payment.user?.name || payment.user?.email}</p>
+      <p><strong>\xC9tudiant:</strong> ${userName}</p>
       <p><strong>Montant:</strong> ${payment.amount} FCFA</p>
-      <p><strong>Statut:</strong> ${payment.status}</p>
-      ${payment.course ? `<p><strong>Cours:</strong> ${payment.course.title}</p>` : ""}
+      <p><strong>Statut:</strong> ${escapeHtml(payment.status)}</p>
+      ${payment.course ? `<p><strong>Cours:</strong> ${courseTitle}</p>` : ""}
     `;
     const receipt = await prisma_default.receipt.create({
       data: {
@@ -1920,15 +2020,13 @@ var receiptRoutes_default = router7;
 // server/routes/testimonialRoutes.ts
 import { Router as Router8 } from "express";
 import multer2 from "multer";
-import path4 from "path";
+import rateLimit3 from "express-rate-limit";
+import path3 from "path";
 import fs3 from "fs";
 import crypto3 from "crypto";
-import { fileURLToPath as fileURLToPath4 } from "url";
+import { fileURLToPath as fileURLToPath3 } from "url";
 
 // server/controllers/testimonialController.ts
-import path3 from "path";
-import { fileURLToPath as fileURLToPath3 } from "url";
-var __dirname3 = path3.dirname(fileURLToPath3(import.meta.url));
 var uploadTestimonialImage = async (req, res) => {
   try {
     const files = req.files;
@@ -2004,6 +2102,7 @@ var createTestimonial = async (req, res) => {
         course: course.trim(),
         message: message.trim(),
         rating: ratingValue,
+        images: imageUrls,
         isActive: false
         // Requires admin approval
       }
@@ -2011,6 +2110,29 @@ var createTestimonial = async (req, res) => {
     res.status(201).json(testimonial);
   } catch (error) {
     res.status(500).json({ error: "Erreur lors de la soumission de l'avis." });
+  }
+};
+var createTestimonialAdmin = async (req, res) => {
+  try {
+    const { name, course, message, rating, images, isActive } = req.body;
+    if (!name || !course || !message) {
+      return res.status(400).json({ error: "Nom, concours/promotion et message sont requis." });
+    }
+    const ratingValue = Math.min(5, Math.max(1, Number(rating) || 5));
+    const imageUrls = Array.isArray(images) ? images : images ? [images] : [];
+    const testimonial = await prisma_default.testimonial.create({
+      data: {
+        name: name.trim(),
+        course: course.trim(),
+        message: message.trim(),
+        rating: ratingValue,
+        images: imageUrls,
+        isActive: isActive !== void 0 ? Boolean(isActive) : true
+      }
+    });
+    res.status(201).json(testimonial);
+  } catch (error) {
+    res.status(500).json({ error: "Erreur lors de la cr\xE9ation de l'admis / avis." });
   }
 };
 var getAllTestimonials = async (req, res) => {
@@ -2026,10 +2148,17 @@ var getAllTestimonials = async (req, res) => {
 var updateTestimonial = async (req, res) => {
   try {
     const id = req.params.id;
-    const { isActive } = req.body;
+    const { name, course, message, rating, images, isActive } = req.body;
+    const dataToUpdate = {};
+    if (isActive !== void 0) dataToUpdate.isActive = Boolean(isActive);
+    if (name !== void 0) dataToUpdate.name = name.trim();
+    if (course !== void 0) dataToUpdate.course = course.trim();
+    if (message !== void 0) dataToUpdate.message = message.trim();
+    if (rating !== void 0) dataToUpdate.rating = Math.min(5, Math.max(1, Number(rating) || 5));
+    if (images !== void 0) dataToUpdate.images = Array.isArray(images) ? images : images ? [images] : [];
     const testimonial = await prisma_default.testimonial.update({
       where: { id },
-      data: { isActive }
+      data: dataToUpdate
     });
     res.json(testimonial);
   } catch (error) {
@@ -2047,24 +2176,32 @@ var deleteTestimonial = async (req, res) => {
 };
 
 // server/routes/testimonialRoutes.ts
-var __dirname4 = path4.dirname(fileURLToPath4(import.meta.url));
-var uploadsDir = path4.join(__dirname4, "..", "uploads", "testimonials");
+var __dirname3 = path3.dirname(fileURLToPath3(import.meta.url));
+var uploadsDir = path3.join(__dirname3, "..", "uploads", "testimonials");
 fs3.mkdirSync(uploadsDir, { recursive: true });
 var upload2 = multer2({
   storage: multer2.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
     filename: (_req, file, cb) => {
-      const ext = path4.extname(file.originalname);
+      const ext = path3.extname(file.originalname);
       cb(null, `${crypto3.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 5 * 1024 * 1024 }
 });
 var router8 = Router8();
+var testimonialUploadLimiter = rateLimit3({
+  windowMs: 60 * 60 * 1e3,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop d'uploads. R\xE9essayez dans une heure." }
+});
 router8.get("/", getTestimonials);
 router8.post("/", createTestimonial);
-router8.post("/upload", upload2.array("images", 3), uploadTestimonialImage);
+router8.post("/upload", authenticateToken, testimonialUploadLimiter, upload2.array("images", 3), uploadTestimonialImage);
 router8.get("/admin/all", authenticateToken, requireRole(["ADMIN"]), getAllTestimonials);
+router8.post("/admin", authenticateToken, requireRole(["ADMIN"]), createTestimonialAdmin);
 router8.put("/:id", authenticateToken, requireRole(["ADMIN"]), updateTestimonial);
 router8.delete("/:id", authenticateToken, requireRole(["ADMIN"]), deleteTestimonial);
 var testimonialRoutes_default = router8;
@@ -2077,6 +2214,22 @@ var asString = (value) => {
   if (Array.isArray(value)) return value[0];
   return value;
 };
+async function retryWithNeonWakeup2(fn, retries = 2, delayMs = 2e3) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isConnectionError = err?.code === "P1001" || err?.code === "P1017" || err?.message?.includes("ECONNREFUSED") || err?.message?.includes("\u8FDE\u63A5") || err?.message?.includes("timeout");
+      if (isConnectionError && attempt < retries) {
+        console.warn(`\u26A0\uFE0F [Neon Wakeup] Tentative ${attempt + 1}/${retries + 1} \xE9chou\xE9e, retry dans ${delayMs}ms...`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Unreachable");
+}
 var getAllCourses = async (req, res) => {
   try {
     const { category } = req.query;
@@ -2084,18 +2237,20 @@ var getAllCourses = async (req, res) => {
     if (category && typeof category === "string" && category.trim() !== "") {
       where.category = category.trim();
     }
-    const courses = await prisma_default.course.findMany({
-      where,
-      orderBy: [{ category: "asc" }, { title: "asc" }],
-      include: {
-        _count: {
-          select: {
-            subscriptions: true,
-            payments: true
+    const courses = await retryWithNeonWakeup2(
+      () => prisma_default.course.findMany({
+        where,
+        orderBy: [{ category: "asc" }, { title: "asc" }],
+        include: {
+          _count: {
+            select: {
+              subscriptions: true,
+              payments: true
+            }
           }
         }
-      }
-    });
+      })
+    );
     res.json(courses);
   } catch (error) {
     console.error(error);
@@ -2110,18 +2265,20 @@ var createCourse = async (req, res) => {
     }
     const regFee = registrationFee !== void 0 ? Number(registrationFee) : price !== void 0 ? Number(price) : 35e3;
     const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : 3e4;
-    const course = await prisma_default.course.create({
-      data: {
-        title: title.trim(),
-        description: description ? description.trim() : null,
-        price: regFee,
-        registrationFee: regFee,
-        monthlyFee: mFee,
-        hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : true,
-        hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : true,
-        category: category && category.trim() ? category.trim() : "G\xE9n\xE9ral"
-      }
-    });
+    const course = await retryWithNeonWakeup2(
+      () => prisma_default.course.create({
+        data: {
+          title: title.trim(),
+          description: description ? description.trim() : null,
+          price: regFee,
+          registrationFee: regFee,
+          monthlyFee: mFee,
+          hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : true,
+          hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : true,
+          category: category && category.trim() ? category.trim() : "G\xE9n\xE9ral"
+        }
+      })
+    );
     res.status(201).json(course);
   } catch (error) {
     console.error(error);
@@ -2138,19 +2295,21 @@ var updateCourse = async (req, res) => {
     const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
     const regFee = registrationFee !== void 0 ? Number(registrationFee) : price !== void 0 ? Number(price) : void 0;
     const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : void 0;
-    const course = await prisma_default.course.update({
-      where: { id },
-      data: {
-        title: title !== void 0 ? title.trim() : void 0,
-        description: description !== void 0 ? description.trim() : void 0,
-        price: regFee !== void 0 ? regFee : void 0,
-        registrationFee: regFee !== void 0 ? regFee : void 0,
-        monthlyFee: mFee !== void 0 ? mFee : void 0,
-        hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : void 0,
-        hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : void 0,
-        category: category !== void 0 ? category ? category.trim() : "G\xE9n\xE9ral" : void 0
-      }
-    });
+    const course = await retryWithNeonWakeup2(
+      () => prisma_default.course.update({
+        where: { id },
+        data: {
+          title: title !== void 0 ? title.trim() : void 0,
+          description: description !== void 0 ? description.trim() : void 0,
+          price: regFee !== void 0 ? regFee : void 0,
+          registrationFee: regFee !== void 0 ? regFee : void 0,
+          monthlyFee: mFee !== void 0 ? mFee : void 0,
+          hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : void 0,
+          hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : void 0,
+          category: category !== void 0 ? category ? category.trim() : "G\xE9n\xE9ral" : void 0
+        }
+      })
+    );
     res.json(course);
   } catch (error) {
     console.error(error);
@@ -2164,7 +2323,7 @@ var deleteCourse = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "id de la formation requis" });
     }
-    await prisma_default.course.delete({ where: { id } });
+    await retryWithNeonWakeup2(() => prisma_default.course.delete({ where: { id } }));
     res.json({ message: "Formation supprim\xE9e avec succ\xE8s" });
   } catch (error) {
     console.error(error);
@@ -2420,6 +2579,7 @@ var cityRoutes_default = router12;
 // server/routes/sessionRoutes.ts
 import { Router as Router13 } from "express";
 import multer3 from "multer";
+import rateLimit4 from "express-rate-limit";
 
 // server/controllers/sessionController.ts
 import crypto4 from "crypto";
@@ -2862,7 +3022,8 @@ var getMonthlySalaryReport = async (req, res) => {
 async function processGeniusPayPayout(teacher, amount, description, phone) {
   try {
     const walletRes = await fetch(`${GENIUSPAY_API_BASE}/wallets`, {
-      headers: geniusPayHeaders()
+      headers: geniusPayHeaders(),
+      signal: AbortSignal.timeout(15e3)
     });
     const walletBody = await walletRes.json();
     let walletId = walletBody.data?.wallets?.[0]?.id;
@@ -2874,7 +3035,8 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
           name: "Wallet Salaires",
           type: "payout",
           currency: "XOF"
-        })
+        }),
+        signal: AbortSignal.timeout(15e3)
       });
       const createBody = await createRes.json();
       walletId = createBody.data?.id;
@@ -2902,7 +3064,8 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
         description,
         metadata: { teacher_id: teacher.id, type: "salary" },
         idempotency_key: crypto4.randomUUID()
-      })
+      }),
+      signal: AbortSignal.timeout(15e3)
     });
     const result = await payoutRes.json();
     if (result.success) {
@@ -3056,6 +3219,13 @@ var getStudentSessions = async (req, res) => {
 // server/routes/sessionRoutes.ts
 var router13 = Router13();
 var upload3 = multer3({ storage: multer3.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+var sessionUploadLimiter = rateLimit4({
+  windowMs: 60 * 60 * 1e3,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop d'uploads de fichiers. R\xE9essayez dans une heure." }
+});
 router13.use(authenticateToken);
 router13.get("/salary-report", requireRole(["ADMIN", "ACCOUNTANT", "SECRETARY"]), getMonthlySalaryReport);
 router13.post("/pay-salary", requireRole(["ADMIN", "ACCOUNTANT"]), payTeacherSalary);
@@ -3067,7 +3237,7 @@ router13.delete("/:id", requireRole(["ADMIN", "ACCOUNTANT"]), deleteSession);
 router13.get("/files/:fileId/download", requireRole(["STUDENT", "TEACHER", "ADMIN", "SECRETARY"]), downloadSessionFile);
 router13.put("/:id/complete", requireRole(["TEACHER"]), completeSession);
 router13.put("/:id/validate", requireRole(["ADMIN", "SECRETARY"]), validateSession);
-router13.post("/:id/files", requireRole(["TEACHER"]), upload3.single("file"), uploadSessionFile);
+router13.post("/:id/files", requireRole(["TEACHER"]), sessionUploadLimiter, upload3.single("file"), uploadSessionFile);
 router13.get("/:id/files", requireRole(["STUDENT", "TEACHER", "ADMIN", "SECRETARY"]), getSessionFiles);
 var sessionRoutes_default = router13;
 
@@ -3172,7 +3342,8 @@ var paySubscription = async (req, res) => {
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments`, {
       method: "POST",
       headers: geniusPayHeaders(),
-      body: JSON.stringify(geniusPayBody)
+      body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15e3)
     });
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
@@ -3204,15 +3375,15 @@ import { Router as Router15 } from "express";
 
 // server/utils/contractPdf.ts
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import path5 from "path";
+import path4 from "path";
 import fs4 from "fs";
-import { fileURLToPath as fileURLToPath5 } from "url";
-var __dirname5 = path5.dirname(fileURLToPath5(import.meta.url));
+import { fileURLToPath as fileURLToPath4 } from "url";
+var __dirname4 = path4.dirname(fileURLToPath4(import.meta.url));
 function base64ToBytes(base64) {
   return Buffer.from(base64, "base64");
 }
 async function generateSignedContractPdf(signatureDataUrl, studentName) {
-  const pdfPath = path5.resolve(__dirname5, "..", "..", "public", "doc", "contrat_exacademy.pdf");
+  const pdfPath = path4.resolve(__dirname4, "..", "..", "public", "doc", "contrat_exacademy.pdf");
   const pdfBytes = fs4.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const base64Data = signatureDataUrl.split(",")[1];
@@ -3360,15 +3531,13 @@ var contractRoutes_default = router15;
 // server/routes/shopRoutes.ts
 import { Router as Router16 } from "express";
 import multer4 from "multer";
-import path7 from "path";
+import rateLimit5 from "express-rate-limit";
+import path5 from "path";
 import fs5 from "fs";
 import crypto5 from "crypto";
-import { fileURLToPath as fileURLToPath7 } from "url";
+import { fileURLToPath as fileURLToPath5 } from "url";
 
 // server/controllers/shopController.ts
-import path6 from "path";
-import { fileURLToPath as fileURLToPath6 } from "url";
-var __dirname6 = path6.dirname(fileURLToPath6(import.meta.url));
 var getProducts = async (req, res) => {
   try {
     const products = await prisma_default.product.findMany({
@@ -3516,6 +3685,9 @@ var createOrder = async (req, res) => {
       if (!product) {
         return res.status(404).json({ error: `Product ${item.productId} not found` });
       }
+      if (product.stock !== null && product.stock < item.quantity) {
+        return res.status(400).json({ error: `Stock insuffisant pour "${product.title}" (${product.stock} disponibles)` });
+      }
       totalAmount += product.price * item.quantity;
       orderItemsData.push({
         productId: product.id,
@@ -3539,6 +3711,14 @@ var createOrder = async (req, res) => {
         }
       }
     });
+    await prisma_default.$transaction(
+      items.map(
+        (item) => prisma_default.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } }
+        })
+      )
+    );
     if (paymentMethod === "ESPECES") {
       return res.status(200).json({
         success: true,
@@ -3570,7 +3750,8 @@ var createOrder = async (req, res) => {
     const response = await fetch(`${GENIUSPAY_API_BASE}/payments`, {
       method: "POST",
       headers: geniusPayHeaders(),
-      body: JSON.stringify(geniusPayBody)
+      body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15e3)
     });
     const gpData = await handleGeniusPayResponse(response);
     if (!gpData) {
@@ -3654,11 +3835,12 @@ var updateOrderStatus = async (req, res) => {
     });
     if (status === "SHIPPED" || status === "DELIVERED" || status === "TRAITEE") {
       try {
+        const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         const mailOptions = {
           to: order.customerEmail,
           subject: `Mise \xE0 jour de votre commande Excellence Acad\xE9mie - ${status}`,
-          html: `<p>Bonjour ${order.customerName},</p>
-                 <p>Le statut de votre commande (Ref: ${order.id}) est maintenant : <strong>${status}</strong>.</p>
+          html: `<p>Bonjour ${escapeHtml(order.customerName || "")},</p>
+                 <p>Le statut de votre commande (Ref: ${escapeHtml(order.id)}) est maintenant : <strong>${escapeHtml(status)}</strong>.</p>
                  <p>Merci pour votre achat !</p>
                  <p>L'\xE9quipe Excellence Acad\xE9mie</p>`
         };
@@ -3674,14 +3856,14 @@ var updateOrderStatus = async (req, res) => {
 };
 
 // server/routes/shopRoutes.ts
-var __dirname7 = path7.dirname(fileURLToPath7(import.meta.url));
-var uploadsDir2 = path7.join(__dirname7, "..", "uploads", "products");
+var __dirname5 = path5.dirname(fileURLToPath5(import.meta.url));
+var uploadsDir2 = path5.join(__dirname5, "..", "uploads", "products");
 fs5.mkdirSync(uploadsDir2, { recursive: true });
 var upload4 = multer4({
   storage: multer4.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir2),
     filename: (_req, file, cb) => {
-      const ext = path7.extname(file.originalname).toLowerCase();
+      const ext = path5.extname(file.originalname).toLowerCase();
       cb(null, `${crypto5.randomUUID()}${ext}`);
     }
   }),
@@ -3697,6 +3879,13 @@ var upload4 = multer4({
   }
 });
 var router16 = Router16();
+var uploadLimiter = rateLimit5({
+  windowMs: 60 * 60 * 1e3,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop d'uploads. R\xE9essayez dans une heure." }
+});
 router16.get("/products", getProducts);
 router16.get("/products/:id", getProductById);
 router16.post("/orders", createOrder);
@@ -3704,7 +3893,7 @@ router16.get("/products/:id/reviews", getProductReviews);
 router16.post("/products/:id/reviews", authenticateToken, createReview);
 router16.get("/my-orders", authenticateToken, getStudentOrders);
 router16.get("/admin/products", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), getAllProducts);
-router16.post("/admin/products/upload", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), upload4.single("image"), uploadProductImage);
+router16.post("/admin/products/upload", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), uploadLimiter, upload4.single("image"), uploadProductImage);
 router16.post("/admin/products", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), createProduct);
 router16.put("/admin/products/:id", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), updateProduct);
 router16.delete("/admin/products/:id", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), deleteProduct);
@@ -3863,25 +4052,22 @@ var deleteBanner = async (req, res) => {
 // server/routes/bannerRoutes.ts
 var router17 = Router17();
 router17.get("/public", getActiveBanners);
-router17.get("/", authMiddleware, getAllBanners);
-router17.get("/:id", authMiddleware, getBannerById);
-router17.post("/", authMiddleware, createBanner);
-router17.put("/:id", authMiddleware, updateBanner);
-router17.delete("/:id", authMiddleware, deleteBanner);
+router17.get("/", authenticateToken, requireRole(["ADMIN"]), getAllBanners);
+router17.get("/:id", authenticateToken, requireRole(["ADMIN"]), getBannerById);
+router17.post("/", authenticateToken, requireRole(["ADMIN"]), createBanner);
+router17.put("/:id", authenticateToken, requireRole(["ADMIN"]), updateBanner);
+router17.delete("/:id", authenticateToken, requireRole(["ADMIN"]), deleteBanner);
 var bannerRoutes_default = router17;
 
 // server/routes/blogRoutes.ts
 import { Router as Router18 } from "express";
 import multer5 from "multer";
-import path9 from "path";
+import path6 from "path";
 import fs6 from "fs";
 import crypto6 from "crypto";
-import { fileURLToPath as fileURLToPath9 } from "url";
+import { fileURLToPath as fileURLToPath6 } from "url";
 
 // server/controllers/blogController.ts
-import path8 from "path";
-import { fileURLToPath as fileURLToPath8 } from "url";
-var __dirname8 = path8.dirname(fileURLToPath8(import.meta.url));
 var asString2 = (value) => {
   if (Array.isArray(value)) return value[0];
   return value;
@@ -4199,14 +4385,14 @@ var evaluateSubmission = async (req, res) => {
 };
 
 // server/routes/blogRoutes.ts
-var __dirname9 = path9.dirname(fileURLToPath9(import.meta.url));
-var blogUploadsDir = path9.join(__dirname9, "..", "uploads", "blog");
+var __dirname6 = path6.dirname(fileURLToPath6(import.meta.url));
+var blogUploadsDir = path6.join(__dirname6, "..", "uploads", "blog");
 fs6.mkdirSync(blogUploadsDir, { recursive: true });
 var upload5 = multer5({
   storage: multer5.diskStorage({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
     filename: (_req, file, cb) => {
-      const ext = path9.extname(file.originalname);
+      const ext = path6.extname(file.originalname);
       cb(null, `${crypto6.randomUUID()}${ext}`);
     }
   }),
@@ -4239,9 +4425,219 @@ router18.get("/exercises/:id/submissions", requireRole(["ADMIN", "TEACHER", "SEC
 router18.put("/submissions/:id/evaluate", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), evaluateSubmission);
 var blogRoutes_default = router18;
 
+// server/routes/categoryRoutes.ts
+import { Router as Router19 } from "express";
+
+// server/controllers/categoryController.ts
+var DEFAULT_PRESETS = [
+  { name: "Concours Juridiques & Judiciaires", description: "Magistrature, Greffe, Avocature, Notariat", color: "#4F46E5", displayOrder: 1 },
+  { name: "Administration Publique", description: "ENA, Fonction Publique, EPPJEJ & EPP", color: "#0056B3", displayOrder: 2 },
+  { name: "S\xE9curit\xE9 & Force Publique", description: "Officiers et Sous-Officiers de Police, Gendarmerie", color: "#D97706", displayOrder: 3 },
+  { name: "Technologies & M\xE9tiers Num\xE9riques", description: "Informatique, Cybers\xE9curit\xE9, R\xE9seaux", color: "#059669", displayOrder: 4 },
+  { name: "Sant\xE9 & Param\xE9dical", description: "Concours INFAS, M\xE9decine, Pharmacie", color: "#DC2626", displayOrder: 5 },
+  { name: "\xC9ducation & Enseignement", description: "CAFOP, ENS, Enseignement secondaire", color: "#7C3AED", displayOrder: 6 },
+  { name: "Finances & Gestion", description: "Tr\xE9sor, Imp\xF4ts, Douanes, Comptabilit\xE9 publique", color: "#0284C7", displayOrder: 7 }
+];
+var categoryTableReady = null;
+async function isCategoryTableReady() {
+  if (categoryTableReady !== null) return categoryTableReady;
+  try {
+    await prisma_default.$queryRaw`SELECT 1 FROM "Category" LIMIT 1`;
+    categoryTableReady = true;
+  } catch {
+    categoryTableReady = false;
+  }
+  return categoryTableReady;
+}
+var ensureCategoryTable = async () => {
+  try {
+    await prisma_default.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Category" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "color" TEXT DEFAULT '#0056B3',
+        "displayOrder" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma_default.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Category_name_key" ON "Category"("name")`);
+    categoryTableReady = true;
+    console.log("\u2705 Table Category v\xE9rifi\xE9e/cr\xE9\xE9e");
+  } catch (err) {
+    console.warn("\u26A0\uFE0F Impossible de cr\xE9er la table Category:", err);
+    categoryTableReady = false;
+  }
+};
+async function ensureDefaultCategories() {
+  const tableReady = await isCategoryTableReady();
+  if (!tableReady) return;
+  try {
+    const count = await prisma_default.category.count();
+    if (count === 0) {
+      for (const preset of DEFAULT_PRESETS) {
+        await prisma_default.category.upsert({
+          where: { name: preset.name },
+          update: {},
+          create: preset
+        });
+      }
+      console.log("\u2705 Cat\xE9gories par d\xE9faut initialis\xE9es en base");
+    }
+  } catch (err) {
+    console.warn("\u26A0\uFE0F Erreur init cat\xE9gories par d\xE9faut:", err);
+  }
+}
+var getAllCategories = async (req, res) => {
+  try {
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.json(DEFAULT_PRESETS.map((c, i) => ({ ...c, id: `preset-${i}`, coursesCount: 0 })));
+    }
+    await ensureDefaultCategories();
+    const categories = await prisma_default.category.findMany({
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }]
+    });
+    const counts = {};
+    try {
+      const courses = await prisma_default.course.findMany({ select: { category: true } });
+      for (const c of courses) {
+        const catName = c.category?.trim();
+        if (catName) {
+          counts[catName] = (counts[catName] || 0) + 1;
+        }
+      }
+    } catch (dbErr) {
+      console.warn("\u26A0\uFE0F Impossible de compter les cours en base :", dbErr);
+    }
+    const result = categories.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      description: cat.description,
+      color: cat.color,
+      displayOrder: cat.displayOrder,
+      coursesCount: counts[cat.name] || 0
+    }));
+    res.json(result);
+  } catch (error) {
+    console.error("Erreur getAllCategories :", error);
+    res.json(DEFAULT_PRESETS.map((c, i) => ({ ...c, id: `preset-${i}`, coursesCount: 0 })));
+  }
+};
+var createCategory = async (req, res) => {
+  try {
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.status(503).json({ message: "La table Category n'est pas encore disponible. R\xE9essayez dans quelques instants." });
+    }
+    const { name, description, color, displayOrder } = req.body;
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ message: "Le nom de la cat\xE9gorie est obligatoire" });
+    }
+    const trimmedName = name.trim();
+    const existing = await prisma_default.category.findUnique({ where: { name: trimmedName } });
+    if (existing) {
+      return res.status(400).json({ message: "Une cat\xE9gorie avec ce nom existe d\xE9j\xE0" });
+    }
+    const count = await prisma_default.category.count();
+    const newCategory = await prisma_default.category.create({
+      data: {
+        name: trimmedName,
+        description: description?.trim() || null,
+        color: color?.trim() || "#0056B3",
+        displayOrder: Number(displayOrder) || count + 1
+      }
+    });
+    res.status(201).json({ ...newCategory, coursesCount: 0 });
+  } catch (error) {
+    console.error("Erreur createCategory :", error);
+    res.status(500).json({ message: "Erreur lors de la cr\xE9ation de la cat\xE9gorie" });
+  }
+};
+var updateCategory = async (req, res) => {
+  try {
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.status(503).json({ message: "La table Category n'est pas encore disponible." });
+    }
+    const { id } = req.params;
+    const { name, description, color, displayOrder } = req.body;
+    const existing = await prisma_default.category.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: "Cat\xE9gorie introuvable" });
+    }
+    const oldName = existing.name;
+    const newName = name !== void 0 ? name.trim() : oldName;
+    if (newName.toLowerCase() !== oldName.toLowerCase()) {
+      const duplicate = await prisma_default.category.findFirst({
+        where: { id: { not: id }, name: { equals: newName, mode: "insensitive" } }
+      });
+      if (duplicate) {
+        return res.status(400).json({ message: "Ce nom de cat\xE9gorie est d\xE9j\xE0 utilis\xE9" });
+      }
+      try {
+        await prisma_default.course.updateMany({
+          where: { category: oldName },
+          data: { category: newName }
+        });
+      } catch (dbErr) {
+        console.warn("\u26A0\uFE0F Erreur mise \xE0 jour des cours associ\xE9s :", dbErr);
+      }
+    }
+    const updatedCategory = await prisma_default.category.update({
+      where: { id },
+      data: {
+        name: newName,
+        description: description !== void 0 ? description?.trim() || null : void 0,
+        color: color !== void 0 ? color?.trim() || "#0056B3" : void 0,
+        displayOrder: displayOrder !== void 0 ? Number(displayOrder) : void 0
+      }
+    });
+    res.json(updatedCategory);
+  } catch (error) {
+    console.error("Erreur updateCategory :", error);
+    res.status(500).json({ message: "Erreur lors de la modification de la cat\xE9gorie" });
+  }
+};
+var deleteCategory = async (req, res) => {
+  try {
+    const tableReady = await isCategoryTableReady();
+    if (!tableReady) {
+      return res.status(503).json({ message: "La table Category n'est pas encore disponible." });
+    }
+    const { id } = req.params;
+    const existing = await prisma_default.category.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: "Cat\xE9gorie introuvable" });
+    }
+    try {
+      await prisma_default.course.updateMany({
+        where: { category: existing.name },
+        data: { category: "G\xE9n\xE9ral" }
+      });
+    } catch (dbErr) {
+      console.warn("\u26A0\uFE0F Erreur mise \xE0 jour des cours supprim\xE9s :", dbErr);
+    }
+    await prisma_default.category.delete({ where: { id } });
+    res.json({ message: "Cat\xE9gorie supprim\xE9e avec succ\xE8s" });
+  } catch (error) {
+    console.error("Erreur deleteCategory :", error);
+    res.status(500).json({ message: "Erreur lors de la suppression de la cat\xE9gorie" });
+  }
+};
+
+// server/routes/categoryRoutes.ts
+var router19 = Router19();
+router19.get("/", getAllCategories);
+router19.use(authenticateToken);
+router19.post("/", requireRole(["ADMIN"]), createCategory);
+router19.put("/:id", requireRole(["ADMIN"]), updateCategory);
+router19.delete("/:id", requireRole(["ADMIN"]), deleteCategory);
+var categoryRoutes_default = router19;
+
 // server/seed-courses.ts
-import { PrismaClient as PrismaClient2 } from "@prisma/client";
-var prisma2 = new PrismaClient2();
 var DEFAULT_FORMATIONS = [
   {
     title: "Magistrature",
@@ -4326,9 +4722,9 @@ var DEFAULT_FORMATIONS = [
 ];
 async function seedFormations() {
   for (const f of DEFAULT_FORMATIONS) {
-    const existing = await prisma2.course.findFirst({ where: { title: f.title } });
+    const existing = await prisma_default.course.findFirst({ where: { title: f.title } });
     if (existing) {
-      await prisma2.course.update({
+      await prisma_default.course.update({
         where: { id: existing.id },
         data: {
           category: f.category,
@@ -4342,7 +4738,7 @@ async function seedFormations() {
       });
       console.log(`[Formations] Mis \xE0 jour: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
     } else {
-      await prisma2.course.create({
+      await prisma_default.course.create({
         data: f
       });
       console.log(`[Formations] Cr\xE9\xE9: ${f.title} (${f.category} - Inscription: ${f.registrationFee} F / Mois: ${f.monthlyFee} F)`);
@@ -4352,18 +4748,18 @@ async function seedFormations() {
 if (process.argv[1]?.includes("seed-courses")) {
   seedFormations().then(() => {
     console.log("\u2705 Seeding des formations termin\xE9");
-    return prisma2.$disconnect();
+    return prisma_default.$disconnect();
   }).catch((err) => {
     console.error(err);
-    return prisma2.$disconnect();
+    return prisma_default.$disconnect();
   });
 }
 
 // server/index.ts
-import path10 from "path";
+import path7 from "path";
 import fs7 from "fs";
-import { fileURLToPath as fileURLToPath10 } from "url";
-var __dirname10 = path10.dirname(fileURLToPath10(import.meta.url));
+import { fileURLToPath as fileURLToPath7 } from "url";
+var __dirname7 = path7.dirname(fileURLToPath7(import.meta.url));
 var app = express();
 var port = process.env.PORT || 3001;
 var isProduction2 = process.env.NODE_ENV === "production";
@@ -4371,6 +4767,39 @@ if (!process.env.JWT_SECRET) {
   console.error("\u274C FATAL: JWT_SECRET est manquant dans les variables d'environnement.");
   process.exit(1);
 }
+var globalLimiter = rateLimit6({
+  windowMs: 15 * 60 * 1e3,
+  // 15 minutes
+  max: 200,
+  // 200 requêtes par fenêtre
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requ\xEAtes. R\xE9essayez dans 15 minutes." }
+});
+var authLimiter = rateLimit6({
+  windowMs: 15 * 60 * 1e3,
+  max: 20,
+  // 20 tentatives d'auth par fenêtre
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives. R\xE9essayez dans 15 minutes." }
+});
+var webhookLimiter2 = rateLimit6({
+  windowMs: 1 * 60 * 1e3,
+  max: 30,
+  // 30 webhooks par minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requ\xEAtes webhook." }
+});
+var uploadLimiter2 = rateLimit6({
+  windowMs: 60 * 60 * 1e3,
+  max: 20,
+  // 20 uploads par heure
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop d'uploads. R\xE9essayez dans une heure." }
+});
 var defaultOrigins = [
   "https://exacademie.net",
   "https://www.exacademie.net",
@@ -4392,7 +4821,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
@@ -4401,12 +4830,14 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false
 }));
+app.use(compression());
+app.use("/api", globalLimiter);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) {
       return callback(null, true);
     }
-    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".exacademie.net") || origin.includes("exacademie.net") || !isProduction2 && origin.includes("localhost");
+    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".exacademie.net") || !isProduction2 && /^https?:\/\/localhost:\d+$/.test(origin);
     if (isAllowed) {
       return callback(null, true);
     }
@@ -4429,7 +4860,7 @@ app.use("/api/payments/webhook", express.raw({ type: "application/json" }), (req
 });
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
-app.use("/api/auth", authRoutes_default);
+app.use("/api/auth", authLimiter, authRoutes_default);
 app.use("/api/users", userRoutes_default);
 app.use("/api/payments", paymentRoutes_default);
 app.use("/api/notifications", notificationRoutes_default);
@@ -4438,6 +4869,7 @@ app.use("/api/stats", statsRoutes_default);
 app.use("/api/receipts", receiptRoutes_default);
 app.use("/api/testimonials", testimonialRoutes_default);
 app.use("/api/courses", courseRoutes_default);
+app.use("/api/categories", categoryRoutes_default);
 app.use("/api/calendar", calendarRoutes_default);
 app.use("/api/evaluations", evaluationRoutes_default);
 app.use("/api/cities", cityRoutes_default);
@@ -4481,15 +4913,15 @@ app.get("/api/health", async (req, res) => {
   }
 });
 var projectRoot = process.cwd();
-var rootUploads = path10.resolve(projectRoot, "uploads");
-var serverUploads = path10.resolve(projectRoot, "server", "uploads");
-for (const sub of ["products", "testimonials", "blog", "users", "sessions"]) {
-  fs7.mkdirSync(path10.join(rootUploads, sub), { recursive: true });
+var rootUploads = path7.resolve(projectRoot, "uploads");
+var serverUploads = path7.resolve(projectRoot, "server", "uploads");
+for (const sub of ["products", "testimonials", "blog", "users", "sessions", "categories"]) {
+  fs7.mkdirSync(path7.join(rootUploads, sub), { recursive: true });
 }
 var candidateDistPaths = [
-  path10.resolve(projectRoot, "dist"),
-  path10.resolve(__dirname10, "..", "dist"),
-  path10.resolve(__dirname10, "dist")
+  path7.resolve(projectRoot, "dist"),
+  path7.resolve(__dirname7, "..", "dist"),
+  path7.resolve(__dirname7, "dist")
 ];
 var distPath = candidateDistPaths.find((p) => fs7.existsSync(p)) || candidateDistPaths[0];
 app.use(express.static(distPath));
@@ -4499,11 +4931,11 @@ if (fs7.existsSync(rootUploads)) {
 if (fs7.existsSync(serverUploads)) {
   app.use("/uploads", express.static(serverUploads));
 }
-app.use("/uploads", express.static(path10.join(__dirname10, "uploads")));
+app.use("/uploads", express.static(path7.join(__dirname7, "uploads")));
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (req.path.startsWith("/api/")) return next();
-  const indexPath = path10.join(distPath, "index.html");
+  const indexPath = path7.join(distPath, "index.html");
   if (fs7.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
@@ -4515,6 +4947,7 @@ async function initDatabaseDefaults() {
     await prisma.$connect();
     console.log("\u2705 Connexion Prisma active.");
     await ensureSessionTables();
+    await ensureCategoryTable();
     const adminExists = await prisma.user.findUnique({
       where: { email: "admin@excellence.ci" }
     });
@@ -4553,14 +4986,20 @@ async function initDatabaseDefaults() {
     console.error("Erreur initialisation admin / formations :", err);
   }
 }
-app.listen(port, () => {
-  console.log(`\u{1F680} Serveur d\xE9marr\xE9 sur le port ${port} [${isProduction2 ? "PRODUCTION" : "D\xC9VELOPPEMENT"}]`);
-  initDatabaseDefaults();
-  setInterval(async () => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-    } catch (err) {
-      console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping DB :", err?.message || err);
-    }
-  }, 180 * 1e3);
+async function startServer() {
+  await initDatabaseDefaults();
+  app.listen(port, () => {
+    console.log(`\u{1F680} Serveur d\xE9marr\xE9 sur le port ${port} [${isProduction2 ? "PRODUCTION" : "D\xC9VELOPPEMENT"}]`);
+    setInterval(async () => {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+      } catch (err) {
+        console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping DB :", err?.message || err);
+      }
+    }, 180 * 1e3);
+  });
+}
+startServer().catch((err) => {
+  console.error("\u274C Erreur fatale au d\xE9marrage du serveur:", err);
+  process.exit(1);
 });

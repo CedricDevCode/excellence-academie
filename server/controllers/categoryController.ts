@@ -4,9 +4,9 @@ import prisma from '../utils/prisma';
 const DEFAULT_PRESETS = [
   { name: 'Concours Juridiques & Judiciaires', description: 'Magistrature, Greffe, Avocature, Notariat', color: '#4F46E5', displayOrder: 1 },
   { name: 'Administration Publique', description: 'ENA, Fonction Publique, EPPJEJ & EPP', color: '#0056B3', displayOrder: 2 },
-  { name: 'Sécurité & Force Publique', description: 'Officiers et Sous-Officiers de Police, Gendarmerie', color: '#D97706', displayOrder: 3 },
+  { name: 'Sécurité & Force Publique', description: 'Officiers, Sous-Officiers de Police, Gendarmerie, Agent pénitentiaire', color: '#D97706', displayOrder: 3 },
   { name: 'Technologies & Métiers Numériques', description: 'Informatique, Cybersécurité, Réseaux', color: '#059669', displayOrder: 4 },
-  { name: 'Santé & Paramédical', description: 'Concours INFAS, Médecine, Pharmacie', color: '#DC2626', displayOrder: 5 },
+  { name: 'Santé & Paramédical', description: 'Concours INFAS', color: '#DC2626', displayOrder: 5 },
   { name: 'Éducation & Enseignement', description: 'CAFOP, ENS, Enseignement secondaire', color: '#7C3AED', displayOrder: 6 },
   { name: 'Finances & Gestion', description: 'Trésor, Impôts, Douanes, Comptabilité publique', color: '#0284C7', displayOrder: 7 },
 ];

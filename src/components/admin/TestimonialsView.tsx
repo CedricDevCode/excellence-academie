@@ -229,7 +229,7 @@ export default function TestimonialsView() {
                 {/* Suggestions rapides */}
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap text-[11px]">
                   <span className="text-gray-400">Suggestions :</span>
-                  {["Admis Magistrature 2023", "Admis ENA 2024", "Admis Greffe 2024", "Admis Police 2023"].map(sug => (
+                  {["Admis Magistrature 2023", "Admis ENA 2024", "Admis Greffe 2024", "Admis Agent pénitentiaire 2023"].map(sug => (
                     <button
                       key={sug}
                       type="button"

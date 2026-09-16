@@ -5,7 +5,7 @@ const initialCourses = [
   { title: "Magistrature", description: "Préparation au concours de la Magistrature", price: 150000 },
   { title: "ENA (Tous cycles)", description: "Préparation aux cycles Moyen, Moyen Supérieur et Supérieur de l'ENA", price: 100000 },
   { title: "Greffe", description: "Préparation au concours des greffiers", price: 120000 },
-  { title: "Police", description: "Préparation aux concours de la Police Nationale", price: 120000 },
+  { title: "Agent pénitentiaire", description: "Préparation aux concours de la Police Nationale et Agent pénitentiaire", price: 120000 },
   { title: "Avocature & Notariat", description: "Préparation au CAPA et concours de notariat", price: 150000 },
   { title: "Fonction Publique", description: "Préparation aux concours administratifs de la fonction publique", price: 80000 },
   { title: "EPPJEJ & EPP", description: "Préparation aux concours du personnel pénitentiaire", price: 100000 },

@@ -65,7 +65,7 @@ export default function Footer() {
                   { label: "Magistrature", href: "/#formations" },
                   { label: "ENA (Tous cycles)", href: "/#formations" },
                   { label: "Greffe & Notariat", href: "/#formations" },
-                  { label: "Police & Sécurité", href: "/#formations" },
+                  { label: "Sécurité & Force Publique", href: "/#formations" },
                   { label: "Informatique", href: "/#formations" },
                 ].map((l) => (
                   <li key={l.label}>

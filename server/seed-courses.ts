@@ -62,14 +62,14 @@ export const DEFAULT_FORMATIONS = [
     description: 'Protection judiciaire de l\'enfance, de la jeunesse et éducateurs'
   },
   {
-    title: 'Police',
+    title: 'Agent pénitentiaire',
     category: 'Sécurité & Force Publique',
     price: 35000,
     registrationFee: 35000,
     monthlyFee: 30000,
     hasPresentiel: true,
     hasOnline: true,
-    description: 'Préparation aux concours des Commissaires, Officiers et Sous-Officiers de Police'
+    description: 'Préparation aux concours des Commissaires, Officiers et Sous-Officiers de Police et Agent pénitentiaire'
   },
   {
     title: 'Informatique',
