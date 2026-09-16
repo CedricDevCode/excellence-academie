@@ -40,6 +40,9 @@ const app = express();
 const port = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// ─── Trust proxy (derrière un reverse proxy Hostinger) ────────────────────────
+app.set('trust proxy', 1);
+
 // ─── Vérification critique des variables d'environnement ──────────────────────
 if (!process.env.JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET est manquant dans les variables d\'environnement.');
@@ -89,6 +92,7 @@ const defaultOrigins = [
   'http://localhost:4173',
   'http://localhost:5174',
   'http://localhost:3000',
+  'https://coral-stork-926590.hostingersite.com',
 ];
 
 const envOrigins = process.env.CORS_ORIGINS?.split(',').map(s => s.trim()).filter(Boolean) || [];
@@ -108,7 +112,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'", 'https://exacademie.net', 'https://www.exacademie.net', ...(frontendUrl ? [frontendUrl] : [])],
+      connectSrc: ["'self'", 'https://exacademie.net', 'https://www.exacademie.net', 'https://*.hostingersite.com', ...(frontendUrl ? [frontendUrl] : [])],
     },
   },
   crossOriginEmbedderPolicy: false,
@@ -130,6 +134,7 @@ app.use(cors({
     const isAllowed =
       allowedOrigins.includes(origin) ||
       origin.endsWith('.exacademie.net') ||
+      origin.endsWith('.hostingersite.com') ||
       (!isProduction && /^https?:\/\/localhost:\d+$/.test(origin));
 
     if (isAllowed) {

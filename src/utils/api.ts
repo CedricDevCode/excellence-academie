@@ -120,7 +120,8 @@ export const fetchCityBreakdown = async () => {
 export const fetchUsers = async (): Promise<User[]> => {
   const res = await authFetch(`${API_BASE_URL}/users`);
   if (!res.ok) throw new Error('Failed to fetch users');
-  return res.json();
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.users || [];
 };
 
 export const createUser = async (data: CreateUserData) => {
