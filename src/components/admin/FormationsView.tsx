@@ -33,8 +33,8 @@ function FormationsView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   
-  // Inline panel states (replaces modal)
-  const [showPanel, setShowPanel] = useState(false);
+  // Full-page form states
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     id: '',
     title: '',
@@ -139,7 +139,7 @@ function FormationsView() {
     });
     setIsCustomCategory(false);
     setCustomCategory('');
-    setShowPanel(true);
+    setShowForm(true);
   };
 
   const handleEdit = (c: any) => {
@@ -161,7 +161,7 @@ function FormationsView() {
       setIsCustomCategory(false);
       setCustomCategory('');
     }
-    setShowPanel(true);
+    setShowForm(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,7 +204,7 @@ function FormationsView() {
       }
 
       await loadCourses();
-      setShowPanel(false);
+      setShowForm(false);
     } catch (err: any) {
       console.error('Erreur enregistrement formation :', err);
       toast('error', err.message || 'Erreur lors de l\'enregistrement de la formation');
@@ -231,10 +231,244 @@ function FormationsView() {
 
   if (loading) return <LoadingSpinner />;
 
+  // ─── Full-page form view ──────────────────────────────────────────────────
+  if (showForm) {
+    return (
+      <div className="min-h-[80vh]">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowForm(false)}
+              className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors"
+            >
+              ←
+            </button>
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 rounded-xl bg-[#0056B3] text-white shadow-sm">
+                <GraduationCap size={20} />
+              </span>
+              <div>
+                <h2 className="text-lg font-black text-gray-900">
+                  {form.id ? 'Modifier la formation' : 'Nouvelle formation'}
+                </h2>
+                <p className="text-xs text-gray-500">
+                  {form.id ? 'Modifier les informations et tarifs' : 'Renseigner les informations de la filière'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Form card */}
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-8 space-y-8 max-w-3xl">
+            {/* Titre */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                Titre de la formation / Concours *
+              </label>
+              <input
+                required
+                type="text"
+                value={form.title}
+                onChange={e => setForm({ ...form, title: e.target.value })}
+                placeholder="Ex: Magistrature, ENA, Agent pénitentiaire, Greffe..."
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Catégorie */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                Catégorie de la formation *
+              </label>
+              <select
+                value={isCustomCategory ? 'CUSTOM' : form.category}
+                onChange={e => {
+                  if (e.target.value === 'CUSTOM') {
+                    setIsCustomCategory(true);
+                  } else {
+                    setIsCustomCategory(false);
+                    setForm({ ...form, category: e.target.value });
+                  }
+                }}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none bg-white transition-colors"
+              >
+                {formCategoryOptions.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="CUSTOM">+ Autre catégorie personnalisée...</option>
+              </select>
+
+              {isCustomCategory && (
+                <div className="mt-3">
+                  <input
+                    type="text"
+                    required
+                    value={customCategory}
+                    onChange={e => setCustomCategory(e.target.value)}
+                    placeholder="Nom de la nouvelle catégorie..."
+                    className="w-full px-4 py-3 border-2 border-[#0056B3]/40 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none bg-blue-50/20"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Tarifs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                  Frais d'inscription (FCFA) *
+                </label>
+                <div className="relative">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={form.registrationFee}
+                    onChange={e => setForm({ ...form, registrationFee: e.target.value })}
+                    placeholder="Ex: 35000"
+                    className="w-full pl-4 pr-16 py-3 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:border-[#0056B3] focus:outline-none transition-colors"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-400">
+                    FCFA
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1.5">Frais uniques d'entrée</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                  Coût Mensualité (FCFA / mois) *
+                </label>
+                <div className="relative">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={form.monthlyFee}
+                    onChange={e => setForm({ ...form, monthlyFee: e.target.value })}
+                    placeholder="Ex: 30000"
+                    className="w-full pl-4 pr-16 py-3 border-2 border-gray-200 rounded-xl text-sm font-bold text-[#FF6B00] focus:border-[#0056B3] focus:outline-none transition-colors"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-400">
+                    FCFA/m
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1.5">Mensualité standard</p>
+              </div>
+            </div>
+
+            {/* Modes */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-3">
+                Modes de formation dispensés *
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${form.hasPresentiel ? "border-[#0056B3] bg-blue-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                  <input
+                    type="checkbox"
+                    checked={form.hasPresentiel}
+                    onChange={e => setForm({ ...form, hasPresentiel: e.target.checked })}
+                    className="w-5 h-5 accent-[#0056B3] rounded"
+                  />
+                  <div>
+                    <div className="text-sm font-bold text-gray-900">🏛️ Présentiel</div>
+                    <div className="text-[11px] text-gray-500">Cours en centre / salle</div>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${form.hasOnline ? "border-purple-500 bg-purple-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                  <input
+                    type="checkbox"
+                    checked={form.hasOnline}
+                    onChange={e => setForm({ ...form, hasOnline: e.target.checked })}
+                    className="w-5 h-5 accent-purple-600 rounded"
+                  />
+                  <div>
+                    <div className="text-sm font-bold text-gray-900">🌐 En Ligne</div>
+                    <div className="text-[11px] text-gray-500">À distance (Meet, visio)</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
+                Description & Programme
+              </label>
+              <textarea
+                rows={5}
+                value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="Détails sur les modules dispensés, durée, conditions d'accès, prérequis..."
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none resize-none transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-8 py-5 border-t border-gray-100 bg-gray-50/70 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="px-6 py-2.5 text-gray-500 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex items-center gap-2 bg-[#0056B3] text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm disabled:opacity-50"
+            >
+              {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              <span>{form.id ? 'Mettre à jour' : 'Enregistrer'}</span>
+            </button>
+          </div>
+        </form>
+
+        {/* Delete modal */}
+        {courseToDelete && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6">
+              <div className="flex items-center gap-3 text-red-600 mb-4">
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                  <AlertCircle size={26} />
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-900 text-base">Confirmer la suppression</h3>
+                  <p className="text-xs text-gray-500">Cette action est irréversible</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                Êtes-vous sûr de vouloir supprimer définitivement la formation{' '}
+                <strong className="text-gray-900">« {courseToDelete.title} »</strong> ?
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button onClick={() => setCourseToDelete(null)} disabled={deleting}
+                  className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors">
+                  Annuler
+                </button>
+                <button onClick={confirmDelete} disabled={deleting}
+                  className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50">
+                  {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  <span>Supprimer définitivement</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ─── List view ──────────────────────────────────────────────────────────
   return (
-    <div className="flex gap-6">
-      {/* Main list column */}
-      <div className={`flex-1 min-w-0 space-y-6 transition-all duration-300 ${showPanel ? 'hidden xl:block' : ''}`}>
+    <div className="space-y-6">
       {/* Top Banner & Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div>
@@ -485,250 +719,6 @@ function FormationsView() {
               </div>
             );
           })}
-        </div>
-      )}
-      </div>{/* end main list column */}
-
-      {/* ─── Inline Side Panel: Ajouter / Modifier une formation ─── */}
-      {showPanel && (
-        <div className="w-full xl:w-[420px] shrink-0">
-          <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 flex flex-col sticky top-4" style={{maxHeight: 'calc(100vh - 7rem)'}}>
-            <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-[#0056B3]/5 to-blue-50/50 shrink-0 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-[#0056B3] text-white shadow-sm">
-                  <GraduationCap size={18} />
-                </span>
-                <div>
-                  <h3 className="font-black text-gray-900 text-sm">
-                    {form.id ? 'Modifier la formation' : 'Nouvelle formation'}
-                  </h3>
-                  <p className="text-[11px] text-gray-400">
-                    {form.id ? 'Modifier les informations et tarifs' : 'Renseigner les informations de la filière'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowPanel(false)}
-                className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                title="Fermer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
-              <div className="p-6 space-y-4 overflow-y-auto flex-1">
-                {/* Titre */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                    Titre de la formation / Concours *
-                  </label>
-                  <input
-                    required
-                    type="text"
-                    value={form.title}
-                    onChange={e => setForm({ ...form, title: e.target.value })}
-                    placeholder="Ex: Magistrature, ENA, Agent pénitentiaire, Greffe..."
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
-                  />
-                </div>
-
-                {/* Catégorie */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                    Catégorie de la formation *
-                  </label>
-                  <select
-                    value={isCustomCategory ? 'CUSTOM' : form.category}
-                    onChange={e => {
-                      if (e.target.value === 'CUSTOM') {
-                        setIsCustomCategory(true);
-                      } else {
-                        setIsCustomCategory(false);
-                        setForm({ ...form, category: e.target.value });
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none bg-white transition-colors"
-                  >
-                    {formCategoryOptions.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                    <option value="CUSTOM">+ Autre catégorie personnalisée...</option>
-                  </select>
-
-                  {isCustomCategory && (
-                    <div className="mt-2">
-                      <input
-                        type="text"
-                        required
-                        value={customCategory}
-                        onChange={e => setCustomCategory(e.target.value)}
-                        placeholder="Nom de la nouvelle catégorie..."
-                        className="w-full px-4 py-2 border-2 border-[#0056B3]/40 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none bg-blue-50/20"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Tarifs (2 colonnes : Inscription + Mensualité) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                      Frais d'inscription (FCFA) *
-                    </label>
-                    <div className="relative">
-                      <input
-                        required
-                        type="number"
-                        min="0"
-                        step="1000"
-                        value={form.registrationFee}
-                        onChange={e => setForm({ ...form, registrationFee: e.target.value })}
-                        placeholder="Ex: 35000"
-                        className="w-full pl-3 pr-14 py-2 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:border-[#0056B3] focus:outline-none transition-colors"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">
-                        FCFA
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-1">Frais uniques d'entrée</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                      Coût Mensualité (FCFA / mois) *
-                    </label>
-                    <div className="relative">
-                      <input
-                        required
-                        type="number"
-                        min="0"
-                        step="1000"
-                        value={form.monthlyFee}
-                        onChange={e => setForm({ ...form, monthlyFee: e.target.value })}
-                        placeholder="Ex: 30000"
-                        className="w-full pl-3 pr-14 py-2 border-2 border-gray-200 rounded-xl text-sm font-bold text-[#FF6B00] focus:border-[#0056B3] focus:outline-none transition-colors"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">
-                        FCFA/m
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-1">Mensualité standard</p>
-                  </div>
-                </div>
-
-                {/* Modes de formation dispensés */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-                    Modes de formation dispensés *
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${form.hasPresentiel ? "border-[#0056B3] bg-blue-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                      <input
-                        type="checkbox"
-                        checked={form.hasPresentiel}
-                        onChange={e => setForm({ ...form, hasPresentiel: e.target.checked })}
-                        className="w-4 h-4 accent-[#0056B3] rounded"
-                      />
-                      <div>
-                        <div className="text-sm font-bold text-gray-900">🏛️ Présentiel</div>
-                        <div className="text-[11px] text-gray-500">Cours en centre / salle</div>
-                      </div>
-                    </label>
-
-                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all ${form.hasOnline ? "border-purple-500 bg-purple-50/50" : "border-gray-200 bg-white hover:border-gray-300"}`}>
-                      <input
-                        type="checkbox"
-                        checked={form.hasOnline}
-                        onChange={e => setForm({ ...form, hasOnline: e.target.checked })}
-                        className="w-4 h-4 accent-purple-600 rounded"
-                      />
-                      <div>
-                        <div className="text-sm font-bold text-gray-900">🌐 En Ligne</div>
-                        <div className="text-[11px] text-gray-500">À distance (Meet, visio)</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                    Description & Programme
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={form.description}
-                    onChange={e => setForm({ ...form, description: e.target.value })}
-                    placeholder="Détails sur les modules dispensés, durée, conditions d'accès, prérequis..."
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none resize-none transition-colors"
-                  />
-                </div>
-              </div>
-
-              {/* Panel footer */}
-              <div className="p-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50/70">
-                <button
-                  type="button"
-                  onClick={() => setShowPanel(false)}
-                  className="px-4 py-2 text-gray-500 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex items-center gap-2 bg-[#0056B3] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>{form.id ? 'Mettre à jour' : 'Enregistrer'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: Confirmation de suppression */}
-      {courseToDelete && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6">
-            <div className="flex items-center gap-3 text-red-600 mb-4">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-                <AlertCircle size={26} />
-              </div>
-              <div>
-                <h3 className="font-black text-gray-900 text-base">Confirmer la suppression</h3>
-                <p className="text-xs text-gray-500">Cette action est irréversible</p>
-              </div>
-            </div>
-
-            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-              Êtes-vous sûr de vouloir supprimer définitivement la formation{' '}
-              <strong className="text-gray-900">« {courseToDelete.title} »</strong> ?
-              Elle sera retirée des formulaires d'inscription et du catalogue du site.
-            </p>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setCourseToDelete(null)}
-                disabled={deleting}
-                className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50"
-              >
-                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                <span>Supprimer définitivement</span>
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
