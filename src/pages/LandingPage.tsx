@@ -172,7 +172,7 @@ function Hero() {
                     <TrendingUp size={24} className="text-accent-400" />
                   </div>
                   <div>
-                    <div className="text-white font-bold text-sm">95%</div>
+                    <div className="text-white font-bold text-sm">65%</div>
                     <div className="text-gray-300 text-xs">Taux de réussite</div>
                   </div>
                 </div>
@@ -208,7 +208,7 @@ function Hero() {
       {/* Bottom wave */}
       <div className="absolute bottom-0 left-0 right-0">
         <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
-          <path d="M0 120L60 110C120 100 240 80 360 73.3C480 66.7 600 73.3 720 80C840 86.7 960 93.3 1080 90C1200 86.7 1320 73.3 1380 66.7L1440 60V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white"/>
+          <path d="M0 120L60 110C120 100 240 80 360 73.3C480 66.7 600 73.3 720 80C840 86.7 960 93.3 1080 90C1200 86.7 1320 73.3 1380 66.7L1440 60V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z" fill="white" />
         </svg>
       </div>
     </section>
@@ -372,9 +372,8 @@ function Actualite() {
                     <button
                       key={i}
                       onClick={() => setCurrentIndex(i)}
-                      className={`transition-all duration-300 rounded-full ${
-                        currentIndex === i ? "w-8 h-2.5 bg-accent-500" : "w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400"
-                      }`}
+                      className={`transition-all duration-300 rounded-full ${currentIndex === i ? "w-8 h-2.5 bg-accent-500" : "w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400"
+                        }`}
                       aria-label={`Slide ${i + 1}`}
                     />
                   ))}
@@ -486,20 +485,16 @@ function Atouts() {
 function AdmisSection() {
   const { ref, isInView } = useScrollAnimation();
   const [admisList, setAdmisList] = useState<any[]>([]);
-
-  const defaultAdmis = [
-    { id: "admis-1", name: "Koffi Yao Stéphane", course: "Admis Magistrature 2023", message: "Un encadrement juridique exceptionnel dispensé par de vrais magistrats. Le niveau des examens blancs réguliers fait toute la différence le jour J.", rating: 5, images: ["/images/image2.jpeg"] },
-    { id: "admis-2", name: "Aïssata Bamba", course: "Admise ENA 2024 (Cycle Supérieur)", message: "Les cours en ligne interactifs et les fiches de synthèse m'ont permis de concilier mon travail et une préparation intensive jusqu'à l'admission.", rating: 5, images: ["/images/image1.jpeg"] },
-    { id: "admis-3", name: "Brou Kouamé Franck", course: "Admis Greffe 2023", message: "Rigueur méthodologique et suivi personnalisé de très haute qualité. Grâce aux conseils de nos encadreurs, j'ai décroché mon concours du premier coup.", rating: 5, images: ["/images/image3.jpeg"] }
-  ];
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchTestimonials()
-      .then((data) => { if (Array.isArray(data) && data.length > 0) setAdmisList(data.slice(0, 3)); else setAdmisList(defaultAdmis); })
-      .catch(() => setAdmisList(defaultAdmis));
+      .then((data) => { if (Array.isArray(data)) setAdmisList(data.slice(0, 3)); })
+      .catch(() => { })
+      .finally(() => setLoading(false));
   }, []);
 
-  const displayed = admisList.length > 0 ? admisList : defaultAdmis;
+  if (!loading && admisList.length === 0) return null;
 
   return (
     <section id="admis" className="py-16 sm:py-20 bg-gradient-to-b from-white via-orange-50/20 to-white">
@@ -518,7 +513,7 @@ function AdmisSection() {
             animate={isInView ? "visible" : "hidden"}
             className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
-            {displayed.map((admis, idx) => {
+            {admisList.map((admis, idx) => {
               const hasPhoto = admis.images && admis.images.length > 0 && admis.images[0];
               return (
                 <motion.div key={admis.id || idx} variants={staggerItem}>
