@@ -2438,6 +2438,7 @@ var testimonialRoutes_default = router8;
 import { Router as Router9 } from "express";
 
 // server/controllers/courseController.ts
+import { Prisma } from "@prisma/client";
 var asString = (value) => {
   if (Array.isArray(value)) return value[0];
   return value;
@@ -2461,15 +2462,17 @@ async function retryWithNeonWakeup2(fn, retries = 2, delayMs = 2e3) {
 var getAllCourses = async (req, res) => {
   try {
     const { category } = req.query;
-    const where = {};
-    if (category && typeof category === "string" && category.trim() !== "") {
-      where.category = category.trim();
-    }
+    const cat = category && typeof category === "string" && category.trim() !== "" ? category.trim() : null;
     const courses = await retryWithNeonWakeup2(
-      () => prisma_default.course.findMany({
-        where,
-        orderBy: [{ category: "asc" }, { title: "asc" }]
-      })
+      () => prisma_default.$queryRaw`
+        SELECT "id", "title", "category", "description", "price",
+               "registrationFee", "registrationFeeInterieur", "registrationFeeDiaspora",
+               "monthlyFee", "monthlyFeeInterieur", "monthlyFeeOnline", "monthlyFeeBoth", "monthlyFeeDiaspora",
+               "hasPresentiel", "hasOnline", "createdAt", "updatedAt"
+        FROM "Course"
+        ${cat ? Prisma.sql`WHERE "category" = ${cat}` : Prisma.empty}
+        ORDER BY "category" ASC, "title" ASC
+      `
     );
     const coursesWithCounts = await Promise.all(
       courses.map(async (course) => {

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
+import { Prisma } from '@prisma/client';
 
 const asString = (value: string | string[] | undefined): string | undefined => {
   if (Array.isArray(value)) return value[0];
@@ -31,16 +32,18 @@ async function retryWithNeonWakeup<T>(fn: () => Promise<T>, retries = 2, delayMs
 export const getAllCourses = async (req: Request, res: Response) => {
   try {
     const { category } = req.query;
-    const where: any = {};
-    if (category && typeof category === 'string' && category.trim() !== '') {
-      where.category = category.trim();
-    }
+    const cat = category && typeof category === 'string' && category.trim() !== '' ? category.trim() : null;
 
     const courses = await retryWithNeonWakeup(() =>
-      prisma.course.findMany({
-        where,
-        orderBy: [{ category: 'asc' }, { title: 'asc' }],
-      })
+      prisma.$queryRaw<{ id: string; title: string; category: string | null; description: string | null; price: number; "registrationFee": number | null; "registrationFeeInterieur": number | null; "registrationFeeDiaspora": number | null; "monthlyFee": number | null; "monthlyFeeInterieur": number | null; "monthlyFeeOnline": number | null; "monthlyFeeBoth": number | null; "monthlyFeeDiaspora": number | null; "hasPresentiel": boolean; "hasOnline": boolean; "createdAt": Date; "updatedAt": Date }[]>`
+        SELECT "id", "title", "category", "description", "price",
+               "registrationFee", "registrationFeeInterieur", "registrationFeeDiaspora",
+               "monthlyFee", "monthlyFeeInterieur", "monthlyFeeOnline", "monthlyFeeBoth", "monthlyFeeDiaspora",
+               "hasPresentiel", "hasOnline", "createdAt", "updatedAt"
+        FROM "Course"
+        ${cat ? Prisma.sql`WHERE "category" = ${cat}` : Prisma.empty}
+        ORDER BY "category" ASC, "title" ASC
+      `
     );
 
     const coursesWithCounts = await Promise.all(
@@ -72,11 +75,8 @@ export const createCourse = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Le titre est obligatoire" });
     }
 
-    // Abidjan / en ligne = registrationFee (45 000 par défaut)
     const regFee = registrationFee !== undefined ? Number(registrationFee) : (price !== undefined ? Number(price) : 45000);
-    // Intérieur CI = registrationFeeInterieur (35 000 par défaut)
     const regFeeInt = registrationFeeInterieur !== undefined ? Number(registrationFeeInterieur) : 35000;
-    // Diaspora = registrationFeeDiaspora (100 000 par défaut)
     const regFeeDias = registrationFeeDiaspora !== undefined ? Number(registrationFeeDiaspora) : 100000;
     const mFee = monthlyFee !== undefined ? Number(monthlyFee) : 30000;
     const mFeeInt = monthlyFeeInterieur !== undefined ? Number(monthlyFeeInterieur) : 25000;
