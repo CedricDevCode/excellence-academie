@@ -1,44 +1,29 @@
 import '../env';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 
 const databaseUrl = process.env.DATABASE_URL;
 
-// Neon utilise un point de terminaison poolé (nom d'hôte *-pooler.neon.tech).
-// Sans `pgbouncer=true`, Prisma garde chaque connexion en session pooling : elles
-// se bloquent côté Neon et le pool de 5 connexions s'épuise rapidement
-// ("Timed out fetching a new connection from the connection pool").
-function buildPrismaUrl(url: string): string {
+// Détection Neon : le pooler Neon nécessite pgbouncer=true + connection_limit=1
+function isNeonHost(url: string): boolean {
   const host = url.replace(/^[a-z]+:\/\/[^:@/]*:[^@]*@/, '').split('/')[0];
-  const needsPgbouncer = host.includes('-pooler.') && host.endsWith('.neon.tech');
-  if (!needsPgbouncer) return url;
-
-  const hasQuery = url.includes('?');
-  const params = new URLSearchParams(
-    Object.fromEntries(
-      hasQuery
-        ? [...new URLSearchParams(url.split('?')[1]).entries()]
-        : []
-    )
-  );
-  params.set('pgbouncer', 'true');
-  params.set('connection_limit', '1');
-  params.set('pool_timeout', '30');
-
-  const [base] = url.split('?');
-  return `${base}?${params.toString()}`;
+  return host.includes('-pooler.') && host.endsWith('.neon.tech');
 }
 
-const prismaUrl = databaseUrl ? buildPrismaUrl(databaseUrl) : undefined;
+function buildAdapter(dbUrl: string): PrismaPg {
+  if (isNeonHost(dbUrl)) {
+    const pool = new pg.Pool({ connectionString: dbUrl });
+    return new PrismaPg(pool);
+  }
+  return new PrismaPg({ connectionString: dbUrl });
+}
+
+const adapter = databaseUrl ? buildAdapter(databaseUrl) : undefined;
 
 export const prisma = new PrismaClient(
-  prismaUrl
-    ? {
-        datasources: {
-          db: {
-            url: prismaUrl,
-          },
-        },
-      }
+  adapter
+    ? { adapter }
     : undefined
 );
 
