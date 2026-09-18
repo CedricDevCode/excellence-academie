@@ -29,15 +29,23 @@ import bcrypt3 from "bcrypt";
 
 // server/utils/prisma.ts
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 var databaseUrl = process.env.DATABASE_URL;
+function isNeonHost(url) {
+  const host = url.replace(/^[a-z]+:\/\/[^:@/]*:[^@]*@/, "").split("/")[0];
+  return host.includes("-pooler.") && host.endsWith(".neon.tech");
+}
+function buildAdapter(dbUrl) {
+  if (isNeonHost(dbUrl)) {
+    const pool = new pg.Pool({ connectionString: dbUrl });
+    return new PrismaPg(pool);
+  }
+  return new PrismaPg({ connectionString: dbUrl });
+}
+var adapter = databaseUrl ? buildAdapter(databaseUrl) : void 0;
 var prisma = new PrismaClient(
-  databaseUrl ? {
-    datasources: {
-      db: {
-        url: databaseUrl
-      }
-    }
-  } : void 0
+  adapter ? { adapter } : void 0
 );
 var prisma_default = prisma;
 
@@ -396,26 +404,63 @@ function isAbidjan(ville) {
   if (!ville) return false;
   return ville.trim().toLowerCase().startsWith("abidjan");
 }
-function calcRegistrationPrice(pays, mode, ville, coursParticuliers) {
-  if (coursParticuliers) return 2e5;
-  if (isDiaspora(pays)) return 1e5;
-  if (mode === "en_ligne" || mode === "les_deux") return 45e3;
-  if (isAbidjan(ville)) return 45e3;
-  return 35e3;
-}
-function calcMonthlyAmount(pays, mode, coursParticuliers, nbCourses) {
-  if (coursParticuliers) return 0;
-  if (isDiaspora(pays)) return 35e3;
-  let base;
-  if (mode === "en_ligne") {
-    base = 25e3;
-  } else if (mode === "les_deux") {
-    base = 35e3;
-  } else {
-    base = 3e4;
+var COURS_PARTICULIERS_FEE = 2e5;
+var DEFAULT_REGISTRATION_FEE = 45e3;
+var DEFAULT_REGISTRATION_FEE_INTERIEUR = 35e3;
+var DEFAULT_REGISTRATION_FEE_DIASPORA = 1e5;
+var DEFAULT_MONTHLY_FEE = 3e4;
+function courseRegistrationFee(course, pays, ville) {
+  if (!course) return DEFAULT_REGISTRATION_FEE;
+  if (pays && isDiaspora(pays)) {
+    const diasFee = Number(course.registrationFeeDiaspora);
+    if (diasFee > 0) return diasFee;
+    return DEFAULT_REGISTRATION_FEE_DIASPORA;
   }
-  const extraCourses = Math.max(0, nbCourses - 1);
-  return base + extraCourses * 1e4;
+  if (ville && !isAbidjan(ville)) {
+    const intFee = Number(course.registrationFeeInterieur);
+    if (intFee > 0) return intFee;
+    return DEFAULT_REGISTRATION_FEE_INTERIEUR;
+  }
+  const reg = Number(course.registrationFee);
+  if (reg > 0) return reg;
+  const price = Number(course.price);
+  if (price > 0) return price;
+  return DEFAULT_REGISTRATION_FEE;
+}
+function courseMonthlyFee(course, pays, mode) {
+  if (!course) return DEFAULT_MONTHLY_FEE;
+  if (pays && isDiaspora(pays)) {
+    const diasFee = Number(course.monthlyFeeDiaspora);
+    if (diasFee > 0) return diasFee;
+    return 35e3;
+  }
+  if (mode === "en_ligne") {
+    const onlineFee = Number(course.monthlyFeeOnline);
+    if (onlineFee > 0) return onlineFee;
+    return 25e3;
+  }
+  if (mode === "les_deux") {
+    const bothFee = Number(course.monthlyFeeBoth);
+    if (bothFee > 0) return bothFee;
+    return 35e3;
+  }
+  const monthly = Number(course.monthlyFee);
+  if (monthly > 0) return monthly;
+  return DEFAULT_MONTHLY_FEE;
+}
+function calcRegistrationTotal(courses, coursParticuliers, pays, ville) {
+  if (coursParticuliers) return COURS_PARTICULIERS_FEE;
+  if (!Array.isArray(courses) || courses.length === 0) {
+    if (pays && isDiaspora(pays)) return DEFAULT_REGISTRATION_FEE_DIASPORA;
+    if (ville && !isAbidjan(ville)) return DEFAULT_REGISTRATION_FEE_INTERIEUR;
+    return DEFAULT_REGISTRATION_FEE;
+  }
+  return courses.reduce((sum, c) => sum + courseRegistrationFee(c, pays, ville), 0);
+}
+function calcMonthlyTotal(courses, coursParticuliers, pays, mode) {
+  if (coursParticuliers) return 0;
+  if (!Array.isArray(courses) || courses.length === 0) return DEFAULT_MONTHLY_FEE;
+  return courses.reduce((sum, c) => sum + courseMonthlyFee(c, pays, mode), 0);
 }
 var METHOD_TO_GP = {
   wave: "wave",
@@ -460,6 +505,74 @@ async function handleGeniusPayResponse(response) {
 // server/controllers/notificationController.ts
 import nodemailer from "nodemailer";
 import { EventEmitter } from "events";
+
+// server/utils/push.ts
+import webPush from "web-push";
+var VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+var VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+var VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:contact@exacademie.net";
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
+function isPushEnabled() {
+  return !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
+}
+function getVapidPublicKey() {
+  return VAPID_PUBLIC_KEY;
+}
+async function savePushSubscription(userId, subscription, userAgent) {
+  if (!isPushEnabled()) return;
+  try {
+    await prisma_default.pushSubscription.upsert({
+      where: { userId_endpoint: { userId, endpoint: subscription.endpoint } },
+      update: { p256dh: subscription.p256dh, auth: subscription.auth, userAgent },
+      create: { userId, endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth, userAgent }
+    });
+  } catch (err) {
+    console.error("Erreur sauvegarde push subscription:", err);
+  }
+}
+async function removePushSubscription(endpoint) {
+  if (!isPushEnabled()) return;
+  try {
+    await prisma_default.pushSubscription.deleteMany({ where: { endpoint } });
+  } catch {
+  }
+}
+async function sendPushNotification(userId, title, body, url, icon) {
+  if (!isPushEnabled()) return;
+  const subscriptions = await prisma_default.pushSubscription.findMany({ where: { userId } });
+  if (subscriptions.length === 0) return;
+  const payload = JSON.stringify({
+    title,
+    body,
+    icon: icon || "/images/logo exacademy.jpeg",
+    badge: "/images/logo exacademy.jpeg",
+    url: url || "/",
+    timestamp: Date.now()
+  });
+  const results = await Promise.allSettled(
+    subscriptions.map(async (sub) => {
+      try {
+        await webPush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload
+        );
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await prisma_default.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint } });
+        }
+        throw err;
+      }
+    })
+  );
+  const failed = results.filter((r) => r.status === "rejected").length;
+  if (failed > 0) {
+    console.warn(`Push notifications: ${failed}/${subscriptions.length} \xE9chou\xE9es pour userId ${userId}`);
+  }
+}
+
+// server/controllers/notificationController.ts
 var notificationEvents = new EventEmitter();
 notificationEvents.setMaxListeners(100);
 var streamNotifications = (req, res) => {
@@ -561,6 +674,8 @@ var sendNotification = async (userId, title, message) => {
       message,
       createdAt: notif.createdAt
     });
+    sendPushNotification(userId, title, message).catch(() => {
+    });
     const fromAddress = process.env.SMTP_FROM || "noreply@excellence-academie.ci";
     const escapeHtml = (str) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     await transporter.sendMail({
@@ -569,7 +684,7 @@ var sendNotification = async (userId, title, message) => {
       subject: title,
       html: `
         <div style="font-family: sans-serif; padding: 20px; background: #f4f7f6;">
-          <h2 style="color: #0056B3;">${escapeHtml(title)}</h2>
+          <h2 style="color: #c97e00;">${escapeHtml(title)}</h2>
           <p>${escapeHtml(message)}</p>
           <hr />
           <p style="font-size: 12px; color: #888;">Ceci est un message automatique, merci de ne pas y r\xE9pondre.</p>
@@ -815,15 +930,12 @@ var initPayment = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "Utilisateur introuvable" });
     }
-    const userPays = pays || user.pays || "";
-    const userVille = ville || user.ville || "";
-    const userMode = mode || "presentiel";
     const isCoursParticuliers = coursParticuliers || false;
-    const amount = calcRegistrationPrice(userPays, userMode, userVille, isCoursParticuliers);
     const course = await prisma_default.course.findUnique({ where: { id: courseId } });
     if (!course) {
       return res.status(404).json({ error: "Formation introuvable" });
     }
+    const amount = calcRegistrationTotal([course], isCoursParticuliers);
     const baseUrl = `${req.protocol}://${req.get("host")}`;
     const geniusPayBody = {
       amount,
@@ -995,6 +1107,42 @@ var handleWebhook = async (req, res) => {
           }
           console.log(`[Webhook] Commande boutique pay\xE9e : ${orderId}`);
         }
+      } else if (metadata.action === "add_course" && metadata.user_id && metadata.course_ids) {
+        const userId = metadata.user_id;
+        const courseIdList = String(metadata.course_ids).split(",").filter(Boolean);
+        const monthlyAmt = Number(metadata.monthly_amount) || 0;
+        const existingPayment = await prisma_default.payment.findFirst({
+          where: { geniusPayReference: reference }
+        });
+        if (!existingPayment) {
+          const payment = await prisma_default.payment.create({
+            data: { amount: data.amount || 0, userId, status: "SUCCESS", geniusPayReference: reference }
+          });
+          const receiptNumber = generateReceiptNumber();
+          await prisma_default.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
+        }
+        const user = await prisma_default.user.findUnique({ where: { id: userId } });
+        for (const cId of courseIdList) {
+          const existingSub = await prisma_default.subscription.findFirst({
+            where: { userId, courseId: cId }
+          });
+          if (!existingSub) {
+            const np = /* @__PURE__ */ new Date();
+            np.setMonth(np.getMonth() + 1);
+            await prisma_default.subscription.create({
+              data: {
+                userId,
+                courseId: cId,
+                amount: monthlyAmt / courseIdList.length,
+                status: "ACTIVE",
+                nextPayment: np,
+                formule: user?.pays && user.pays.toLowerCase() !== "c\xF4te d'ivoire" ? "en_ligne" : "presentiel",
+                coursParticuliers: false
+              }
+            });
+          }
+        }
+        console.log(`[Webhook] Formation(s) suppl\xE9mentaire(s) ajout\xE9e(s) pour userId: ${userId}`);
       } else if (metadata.action === "register" && metadata.pending_token) {
         const pending = await prisma_default.pendingRegistration.findUnique({
           where: { token: metadata.pending_token }
@@ -1291,11 +1439,11 @@ var registerAndPay = async (req, res) => {
     if (courses.length !== courseIds.length) {
       return res.status(404).json({ error: "Une ou plusieurs formations introuvables" });
     }
-    const isDiaspora2 = pays && pays.trim().toLowerCase() !== "c\xF4te d'ivoire" && pays.trim().toLowerCase() !== "cote d'ivoire";
-    const effectiveMode = isDiaspora2 ? "en_ligne" : mode || "presentiel";
+    const isDiasporaFlag = pays && pays.trim().toLowerCase() !== "c\xF4te d'ivoire" && pays.trim().toLowerCase() !== "cote d'ivoire";
+    const effectiveMode = isDiasporaFlag ? "en_ligne" : mode || "presentiel";
     const cParticuliers = coursParticuliers === true;
-    const registrationAmount = calcRegistrationPrice(pays || "", effectiveMode, ville || "", cParticuliers);
-    const monthlyAmount = calcMonthlyAmount(pays || "", effectiveMode, cParticuliers, courseIds.length);
+    const registrationAmount = calcRegistrationTotal(courses, cParticuliers, pays, ville);
+    const monthlyAmount = calcMonthlyTotal(courses, cParticuliers, pays, effectiveMode);
     const amount = registrationAmount + monthlyAmount;
     const hashedPassword = await bcrypt2.hash(password, 12);
     const fullName = name || [prenom, nom].filter(Boolean).join(" ") || cleanEmail;
@@ -1364,6 +1512,89 @@ var registerAndPay = async (req, res) => {
     res.status(500).json({ error: "Erreur lors de l'initialisation du paiement" });
   }
 };
+var addCourseForExistingStudent = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Non authentifi\xE9" });
+    const { courseIds, paymentMethod, geniusPhone, mode } = req.body;
+    if (!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+      return res.status(400).json({ error: "S\xE9lectionnez au moins une formation" });
+    }
+    const user = await prisma_default.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: "Utilisateur introuvable" });
+    const courses = await prisma_default.course.findMany({ where: { id: { in: courseIds } } });
+    if (courses.length !== courseIds.length) {
+      return res.status(404).json({ error: "Une ou plusieurs formations introuvables" });
+    }
+    const existingSubs = await prisma_default.subscription.findMany({
+      where: { userId, courseId: { in: courseIds }, status: "ACTIVE" },
+      select: { courseId: true }
+    });
+    const alreadySubscribed = existingSubs.map((s) => s.courseId);
+    const newCourseIds = courseIds.filter((id) => !alreadySubscribed.includes(id));
+    if (newCourseIds.length === 0) {
+      return res.status(400).json({ error: "Vous \xEAtes d\xE9j\xE0 inscrit \xE0 toutes ces formations" });
+    }
+    const newCourses = courses.filter((c) => newCourseIds.includes(c.id));
+    let additionalAmount = 1e4;
+    try {
+      const settings = await prisma_default.appSettings.findUnique({ where: { key: "global" } });
+      if (settings) additionalAmount = settings.additionalCourseAmount;
+    } catch {
+    }
+    const pays = user.pays || "";
+    const effectiveMode = mode || "presentiel";
+    const monthlyAmount = calcMonthlyTotal(newCourses, false, pays, effectiveMode);
+    const amount = monthlyAmount + additionalAmount;
+    const frontendUrl2 = process.env.FRONTEND_URL || "http://localhost:5173";
+    const paymentPhone = geniusPhone || user.telephone || "";
+    const courseTitles = newCourses.map((c) => c.title).join(", ");
+    const geniusPayBody = {
+      amount,
+      description: `Formation suppl\xE9mentaire: ${user.name} - ${courseTitles}`,
+      customer: {
+        name: user.name || "",
+        phone: paymentPhone,
+        email: user.email,
+        country: COUNTRY_TO_ISO2[pays] || "CI"
+      },
+      metadata: {
+        action: "add_course",
+        user_id: userId,
+        course_ids: newCourseIds.join(","),
+        additional_amount: additionalAmount,
+        monthly_amount: monthlyAmount
+      },
+      success_url: `${frontendUrl2}/student/dashboard?tab=courses&added=1`,
+      error_url: `${frontendUrl2}/student/dashboard?tab=courses&error=1`
+    };
+    if (paymentMethod && METHOD_TO_GP[paymentMethod]) {
+      geniusPayBody.payment_method = METHOD_TO_GP[paymentMethod];
+    }
+    const response = await fetch(`${GENIUSPAY_API_BASE}/payments`, {
+      method: "POST",
+      headers: geniusPayHeaders(),
+      body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15e3)
+    });
+    const gpData = await handleGeniusPayResponse(response);
+    if (!gpData) {
+      return res.status(502).json({ error: "Le service de paiement est temporairement indisponible" });
+    }
+    const usedUrl = paymentMethod && METHOD_TO_GP[paymentMethod] ? gpData.payment_url || gpData.checkout_url : gpData.checkout_url || gpData.payment_url;
+    res.status(200).json({
+      success: true,
+      checkoutUrl: usedUrl,
+      reference: gpData.reference,
+      amount,
+      monthlyAmount,
+      additionalAmount
+    });
+  } catch (error) {
+    console.error("addCourseForExistingStudent error:", error?.message || error);
+    res.status(500).json({ error: "Erreur lors de l'ajout de la formation" });
+  }
+};
 var confirmPayment = async (req, res) => {
   try {
     const { reference } = req.body;
@@ -1397,13 +1628,9 @@ var confirmPayment = async (req, res) => {
         return res.status(400).json({ error: "Session d'inscription expir\xE9e. Veuillez recommencer." });
       }
       const courseIdList = Array.isArray(pending.courseIds) ? pending.courseIds : [];
-      const monthlyAmt = pending.monthlyAmount ?? 0;
-      const inscriptionAmount = calcRegistrationPrice(
-        pending.pays || "",
-        pending.mode || "presentiel",
-        pending.ville || "",
-        pending.coursParticuliers
-      );
+      const pendingCourses = await prisma_default.course.findMany({ where: { id: { in: courseIdList } } });
+      const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.ville);
+      const monthlyAmt = pending.monthlyAmount && pending.monthlyAmount > 0 ? pending.monthlyAmount : calcMonthlyTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.mode || "presentiel");
       const totalAmount = inscriptionAmount + monthlyAmt;
       const result = await prisma_default.$transaction(async (tx) => {
         let user = await tx.user.findUnique({ where: { email: pending.email } });
@@ -1586,7 +1813,7 @@ var getMe = async (req, res) => {
 var router3 = Router3();
 var loginLimiter = rateLimit2({
   windowMs: 15 * 60 * 1e3,
-  max: 10,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -1619,6 +1846,7 @@ router3.post("/register", registerLimiter, register);
 router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, registerAndPay);
 router3.get("/me", authenticateToken, getMe);
 router3.post("/confirm-payment", authenticateToken, confirmPayment);
+router3.post("/add-course", authenticateToken, paymentInitLimiter, addCourseForExistingStudent);
 var authRoutes_default = router3;
 
 // server/routes/notificationRoutes.ts
@@ -2259,12 +2487,29 @@ var getAllCourses = async (req, res) => {
 };
 var createCourse = async (req, res) => {
   try {
-    const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
+    const {
+      title,
+      description,
+      price,
+      category,
+      registrationFee,
+      registrationFeeInterieur,
+      registrationFeeDiaspora,
+      monthlyFee,
+      monthlyFeeInterieur,
+      monthlyFeeDiaspora,
+      hasPresentiel,
+      hasOnline
+    } = req.body;
     if (!title) {
       return res.status(400).json({ message: "Le titre est obligatoire" });
     }
-    const regFee = registrationFee !== void 0 ? Number(registrationFee) : price !== void 0 ? Number(price) : 35e3;
+    const regFee = registrationFee !== void 0 ? Number(registrationFee) : price !== void 0 ? Number(price) : 45e3;
+    const regFeeInt = registrationFeeInterieur !== void 0 ? Number(registrationFeeInterieur) : 35e3;
+    const regFeeDias = registrationFeeDiaspora !== void 0 ? Number(registrationFeeDiaspora) : 1e5;
     const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : 3e4;
+    const mFeeInt = monthlyFeeInterieur !== void 0 ? Number(monthlyFeeInterieur) : 25e3;
+    const mFeeDias = monthlyFeeDiaspora !== void 0 ? Number(monthlyFeeDiaspora) : 35e3;
     const course = await retryWithNeonWakeup2(
       () => prisma_default.course.create({
         data: {
@@ -2272,7 +2517,11 @@ var createCourse = async (req, res) => {
           description: description ? description.trim() : null,
           price: regFee,
           registrationFee: regFee,
+          registrationFeeInterieur: regFeeInt,
+          registrationFeeDiaspora: regFeeDias,
           monthlyFee: mFee,
+          monthlyFeeInterieur: mFeeInt,
+          monthlyFeeDiaspora: mFeeDias,
           hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : true,
           hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : true,
           category: category && category.trim() ? category.trim() : "G\xE9n\xE9ral"
@@ -2292,9 +2541,26 @@ var updateCourse = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "id de la formation requis" });
     }
-    const { title, description, price, category, registrationFee, monthlyFee, hasPresentiel, hasOnline } = req.body;
+    const {
+      title,
+      description,
+      price,
+      category,
+      registrationFee,
+      registrationFeeInterieur,
+      registrationFeeDiaspora,
+      monthlyFee,
+      monthlyFeeInterieur,
+      monthlyFeeDiaspora,
+      hasPresentiel,
+      hasOnline
+    } = req.body;
     const regFee = registrationFee !== void 0 ? Number(registrationFee) : price !== void 0 ? Number(price) : void 0;
+    const regFeeInt = registrationFeeInterieur !== void 0 ? Number(registrationFeeInterieur) : void 0;
+    const regFeeDias = registrationFeeDiaspora !== void 0 ? Number(registrationFeeDiaspora) : void 0;
     const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : void 0;
+    const mFeeInt = monthlyFeeInterieur !== void 0 ? Number(monthlyFeeInterieur) : void 0;
+    const mFeeDias = monthlyFeeDiaspora !== void 0 ? Number(monthlyFeeDiaspora) : void 0;
     const course = await retryWithNeonWakeup2(
       () => prisma_default.course.update({
         where: { id },
@@ -2303,7 +2569,11 @@ var updateCourse = async (req, res) => {
           description: description !== void 0 ? description.trim() : void 0,
           price: regFee !== void 0 ? regFee : void 0,
           registrationFee: regFee !== void 0 ? regFee : void 0,
+          registrationFeeInterieur: regFeeInt !== void 0 ? regFeeInt : void 0,
+          registrationFeeDiaspora: regFeeDias !== void 0 ? regFeeDias : void 0,
           monthlyFee: mFee !== void 0 ? mFee : void 0,
+          monthlyFeeInterieur: mFeeInt !== void 0 ? mFeeInt : void 0,
+          monthlyFeeDiaspora: mFeeDias !== void 0 ? mFeeDias : void 0,
           hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : void 0,
           hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : void 0,
           category: category !== void 0 ? category ? category.trim() : "G\xE9n\xE9ral" : void 0
@@ -4425,18 +4695,93 @@ router18.get("/exercises/:id/submissions", requireRole(["ADMIN", "TEACHER", "SEC
 router18.put("/submissions/:id/evaluate", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), evaluateSubmission);
 var blogRoutes_default = router18;
 
-// server/routes/categoryRoutes.ts
+// server/routes/siteConfigRoutes.ts
 import { Router as Router19 } from "express";
+
+// server/controllers/siteConfigController.ts
+var CONFIG_KEY = "home";
+var MAX_SIZE = 200 * 1024;
+var isProduction2 = process.env.NODE_ENV === "production";
+var safeError2 = (err) => isProduction2 ? void 0 : err?.message;
+function parseContent(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+async function getRow() {
+  let row = await prisma_default.siteConfig.findUnique({ where: { key: CONFIG_KEY } });
+  if (!row) {
+    row = await prisma_default.siteConfig.upsert({
+      where: { key: CONFIG_KEY },
+      update: {},
+      create: { key: CONFIG_KEY, content: "{}" }
+    });
+  }
+  return row;
+}
+var getPublicConfig = async (_req, res) => {
+  try {
+    const row = await getRow();
+    res.json(parseContent(row.content));
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors du chargement de la configuration", error: safeError2(error) });
+  }
+};
+var getConfig = async (_req, res) => {
+  try {
+    const row = await getRow();
+    res.json({ key: row.key, content: parseContent(row.content), updatedAt: row.updatedAt });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors du chargement de la configuration", error: safeError2(error) });
+  }
+};
+var updateConfig = async (req, res) => {
+  try {
+    const content = req.body?.content;
+    if (content === void 0) {
+      return res.status(400).json({ message: 'Le champ "content" est obligatoire' });
+    }
+    if (typeof content !== "object" || content === null || Array.isArray(content)) {
+      return res.status(400).json({ message: '"content" doit \xEAtre un objet JSON' });
+    }
+    const serialized = JSON.stringify(content);
+    if (serialized.length > MAX_SIZE) {
+      return res.status(400).json({ message: "Configuration trop volumineuse" });
+    }
+    const row = await prisma_default.siteConfig.upsert({
+      where: { key: CONFIG_KEY },
+      update: { content: serialized },
+      create: { key: CONFIG_KEY, content: serialized }
+    });
+    res.json({ key: row.key, content: parseContent(row.content), updatedAt: row.updatedAt });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la sauvegarde de la configuration", error: safeError2(error) });
+  }
+};
+
+// server/routes/siteConfigRoutes.ts
+var router19 = Router19();
+router19.get("/public", getPublicConfig);
+router19.get("/", authenticateToken, requireRole(["ADMIN"]), getConfig);
+router19.put("/", authenticateToken, requireRole(["ADMIN"]), updateConfig);
+var siteConfigRoutes_default = router19;
+
+// server/routes/categoryRoutes.ts
+import { Router as Router20 } from "express";
 
 // server/controllers/categoryController.ts
 var DEFAULT_PRESETS = [
-  { name: "Concours Juridiques & Judiciaires", description: "Magistrature, Greffe, Avocature, Notariat", color: "#4F46E5", displayOrder: 1 },
-  { name: "Administration Publique", description: "ENA, Fonction Publique, EPPJEJ & EPP", color: "#0056B3", displayOrder: 2 },
-  { name: "S\xE9curit\xE9 & Force Publique", description: "Officiers et Sous-Officiers de Police, Gendarmerie", color: "#D97706", displayOrder: 3 },
-  { name: "Technologies & M\xE9tiers Num\xE9riques", description: "Informatique, Cybers\xE9curit\xE9, R\xE9seaux", color: "#059669", displayOrder: 4 },
-  { name: "Sant\xE9 & Param\xE9dical", description: "Concours INFAS, M\xE9decine, Pharmacie", color: "#DC2626", displayOrder: 5 },
-  { name: "\xC9ducation & Enseignement", description: "CAFOP, ENS, Enseignement secondaire", color: "#7C3AED", displayOrder: 6 },
-  { name: "Finances & Gestion", description: "Tr\xE9sor, Imp\xF4ts, Douanes, Comptabilit\xE9 publique", color: "#0284C7", displayOrder: 7 }
+  { name: "Concours Juridiques & Judiciaires", description: "Magistrature, Greffe, Avocature, Notariat", color: "#D97706", displayOrder: 1 },
+  { name: "Administration Publique", description: "ENA, Fonction Publique, EPPJEJ & EPP", color: "#c97e00", displayOrder: 2 },
+  { name: "S\xE9curit\xE9 & Force Publique", description: "Officiers, Sous-Officiers de Police, Gendarmerie, Agent p\xE9nitentiaire", color: "#D97706", displayOrder: 3 },
+  { name: "Technologies & M\xE9tiers Num\xE9riques", description: "Informatique, Cybers\xE9curit\xE9, R\xE9seaux", color: "#1e9e54", displayOrder: 4 },
+  { name: "Sant\xE9 & Param\xE9dical", description: "Concours INFAS", color: "#DC2626", displayOrder: 5 },
+  { name: "\xC9ducation & Enseignement", description: "CAFOP, ENS, Enseignement secondaire", color: "#1e9e54", displayOrder: 6 },
+  { name: "Finances & Gestion", description: "Tr\xE9sor, Imp\xF4ts, Douanes, Comptabilit\xE9 publique", color: "#059669", displayOrder: 7 }
 ];
 var categoryTableReady = null;
 async function isCategoryTableReady() {
@@ -4456,7 +4801,7 @@ var ensureCategoryTable = async () => {
         "id" TEXT NOT NULL,
         "name" TEXT NOT NULL,
         "description" TEXT,
-        "color" TEXT DEFAULT '#0056B3',
+        "color" TEXT DEFAULT '#c97e00',
         "displayOrder" INTEGER NOT NULL DEFAULT 0,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -4546,7 +4891,7 @@ var createCategory = async (req, res) => {
       data: {
         name: trimmedName,
         description: description?.trim() || null,
-        color: color?.trim() || "#0056B3",
+        color: color?.trim() || "#c97e00",
         displayOrder: Number(displayOrder) || count + 1
       }
     });
@@ -4591,7 +4936,7 @@ var updateCategory = async (req, res) => {
       data: {
         name: newName,
         description: description !== void 0 ? description?.trim() || null : void 0,
-        color: color !== void 0 ? color?.trim() || "#0056B3" : void 0,
+        color: color !== void 0 ? color?.trim() || "#c97e00" : void 0,
         displayOrder: displayOrder !== void 0 ? Number(displayOrder) : void 0
       }
     });
@@ -4629,13 +4974,92 @@ var deleteCategory = async (req, res) => {
 };
 
 // server/routes/categoryRoutes.ts
-var router19 = Router19();
-router19.get("/", getAllCategories);
-router19.use(authenticateToken);
-router19.post("/", requireRole(["ADMIN"]), createCategory);
-router19.put("/:id", requireRole(["ADMIN"]), updateCategory);
-router19.delete("/:id", requireRole(["ADMIN"]), deleteCategory);
-var categoryRoutes_default = router19;
+var router20 = Router20();
+router20.get("/", getAllCategories);
+router20.use(authenticateToken);
+router20.post("/", requireRole(["ADMIN"]), createCategory);
+router20.put("/:id", requireRole(["ADMIN"]), updateCategory);
+router20.delete("/:id", requireRole(["ADMIN"]), deleteCategory);
+var categoryRoutes_default = router20;
+
+// server/routes/pushRoutes.ts
+import { Router as Router21 } from "express";
+var router21 = Router21();
+router21.get("/vapid-key", (_req, res) => {
+  res.json({ publicKey: getVapidPublicKey(), enabled: isPushEnabled() });
+});
+router21.post("/subscribe", authenticateToken, async (req, res) => {
+  try {
+    const { subscription, userAgent } = req.body;
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      return res.status(400).json({ error: "Subscription invalide" });
+    }
+    await savePushSubscription(req.user.id, {
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth
+    }, userAgent || navigator?.userAgent);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router21.post("/unsubscribe", authenticateToken, async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    if (!endpoint) return res.status(400).json({ error: "Endpoint requis" });
+    await removePushSubscription(endpoint);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+var pushRoutes_default = router21;
+
+// server/routes/appSettingsRoutes.ts
+import { Router as Router22 } from "express";
+
+// server/controllers/appSettingsController.ts
+var getAppSettings = async (_req, res) => {
+  try {
+    let settings = await prisma_default.appSettings.findUnique({ where: { key: "global" } });
+    if (!settings) {
+      settings = await prisma_default.appSettings.create({
+        data: { key: "global", additionalCourseAmount: 1e4 }
+      });
+    }
+    res.json(settings);
+  } catch (error) {
+    console.error("getAppSettings error:", error);
+    res.status(500).json({ error: "Erreur lors de la r\xE9cup\xE9ration des param\xE8tres" });
+  }
+};
+var updateAppSettings = async (req, res) => {
+  try {
+    const { additionalCourseAmount } = req.body;
+    if (additionalCourseAmount !== void 0 && (isNaN(Number(additionalCourseAmount)) || Number(additionalCourseAmount) < 0)) {
+      return res.status(400).json({ error: "Le montant doit \xEAtre un nombre positif" });
+    }
+    const data = {};
+    if (additionalCourseAmount !== void 0) data.additionalCourseAmount = Number(additionalCourseAmount);
+    const settings = await prisma_default.appSettings.upsert({
+      where: { key: "global" },
+      update: data,
+      create: { key: "global", additionalCourseAmount: data.additionalCourseAmount ?? 1e4 }
+    });
+    res.json(settings);
+  } catch (error) {
+    console.error("updateAppSettings error:", error);
+    res.status(500).json({ error: "Erreur lors de la mise \xE0 jour des param\xE8tres" });
+  }
+};
+
+// server/routes/appSettingsRoutes.ts
+var router22 = Router22();
+router22.get("/", getAppSettings);
+router22.use(authenticateToken);
+router22.put("/", requireRole(["ADMIN"]), updateAppSettings);
+var appSettingsRoutes_default = router22;
 
 // server/seed-courses.ts
 var DEFAULT_FORMATIONS = [
@@ -4700,14 +5124,14 @@ var DEFAULT_FORMATIONS = [
     description: "Protection judiciaire de l'enfance, de la jeunesse et \xE9ducateurs"
   },
   {
-    title: "Police",
+    title: "Agent p\xE9nitentiaire",
     category: "S\xE9curit\xE9 & Force Publique",
     price: 35e3,
     registrationFee: 35e3,
     monthlyFee: 3e4,
     hasPresentiel: true,
     hasOnline: true,
-    description: "Pr\xE9paration aux concours des Commissaires, Officiers et Sous-Officiers de Police"
+    description: "Pr\xE9paration aux concours des Commissaires, Officiers et Sous-Officiers de Police et Agent p\xE9nitentiaire"
   },
   {
     title: "Informatique",
@@ -4762,7 +5186,8 @@ import { fileURLToPath as fileURLToPath7 } from "url";
 var __dirname7 = path7.dirname(fileURLToPath7(import.meta.url));
 var app = express();
 var port = process.env.PORT || 3001;
-var isProduction2 = process.env.NODE_ENV === "production";
+var isProduction3 = process.env.NODE_ENV === "production";
+app.set("trust proxy", 1);
 if (!process.env.JWT_SECRET) {
   console.error("\u274C FATAL: JWT_SECRET est manquant dans les variables d'environnement.");
   process.exit(1);
@@ -4778,10 +5203,12 @@ var globalLimiter = rateLimit6({
 });
 var authLimiter = rateLimit6({
   windowMs: 15 * 60 * 1e3,
-  max: 20,
-  // 20 tentatives d'auth par fenêtre
+  max: 100,
+  // 100 requêtes auth par fenêtre (GET /me, login, etc.)
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  // Ne compter que les échecs
   message: { error: "Trop de tentatives. R\xE9essayez dans 15 minutes." }
 });
 var webhookLimiter2 = rateLimit6({
@@ -4808,7 +5235,8 @@ var defaultOrigins = [
   "http://localhost:5173",
   "http://localhost:4173",
   "http://localhost:5174",
-  "http://localhost:3000"
+  "http://localhost:3000",
+  "https://coral-stork-926590.hostingersite.com"
 ];
 var envOrigins = process.env.CORS_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) || [];
 var frontendUrl = process.env.FRONTEND_URL?.trim();
@@ -4825,19 +5253,33 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", "https://exacademie.net", "https://www.exacademie.net", ...frontendUrl ? [frontendUrl] : []]
+      workerSrc: ["'self'", "blob:"],
+      connectSrc: ["'self'", "https://exacademie.net", "https://www.exacademie.net", "https://*.hostingersite.com", ...frontendUrl ? [frontendUrl] : []]
     }
   },
   crossOriginEmbedderPolicy: false
 }));
 app.use(compression());
 app.use("/api", globalLimiter);
+var dbReady = false;
+app.use("/api", (_req, res, next) => {
+  if (!dbReady) {
+    res.set("Retry-After", "2");
+    return res.status(503).json({
+      error: "Le backend est en cours de d\xE9marrage. Veuillez r\xE9essayer dans un instant."
+    });
+  }
+  next();
+});
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) {
       return callback(null, true);
     }
-    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".exacademie.net") || !isProduction2 && /^https?:\/\/localhost:\d+$/.test(origin);
+    const isAllowed = allowedOrigins.includes(origin) || origin.endsWith(".exacademie.net") || origin.endsWith(".hostingersite.com") || // Le navigateur d'un client distant ne peut jamais envoyer un Origin localhost :
+    // autoriser n'importe quel port local est donc sûr, en dev comme en dev*Vite
+    // dont le port peut dériver (5174 occupé → 5175, 5176…).
+    /^https?:\/\/localhost:\d+$/.test(origin);
     if (isAllowed) {
       return callback(null, true);
     }
@@ -4870,6 +5312,7 @@ app.use("/api/receipts", receiptRoutes_default);
 app.use("/api/testimonials", testimonialRoutes_default);
 app.use("/api/courses", courseRoutes_default);
 app.use("/api/categories", categoryRoutes_default);
+app.use("/api/push", pushRoutes_default);
 app.use("/api/calendar", calendarRoutes_default);
 app.use("/api/evaluations", evaluationRoutes_default);
 app.use("/api/cities", cityRoutes_default);
@@ -4879,9 +5322,11 @@ app.use("/api/contracts", contractRoutes_default);
 app.use("/api/shop", shopRoutes_default);
 app.use("/api/banners", bannerRoutes_default);
 app.use("/api/blog", blogRoutes_default);
+app.use("/api/siteconfig", siteConfigRoutes_default);
+app.use("/api/app-settings", appSettingsRoutes_default);
 app.get("/api/health", async (req, res) => {
   const healthSecret = process.env.HEALTH_SECRET;
-  if (isProduction2 && healthSecret) {
+  if (isProduction3 && healthSecret) {
     const provided = req.headers["x-health-secret"];
     if (provided !== healthSecret) {
       try {
@@ -4908,7 +5353,7 @@ app.get("/api/health", async (req, res) => {
     res.status(500).json({
       status: "error",
       database: "disconnected",
-      message: isProduction2 ? "Erreur de connexion \xE0 la base de donn\xE9es" : err?.message || String(err)
+      message: isProduction3 ? "Erreur de connexion \xE0 la base de donn\xE9es" : err?.message || String(err)
     });
   }
 });
@@ -4925,6 +5370,10 @@ var candidateDistPaths = [
 ];
 var distPath = candidateDistPaths.find((p) => fs7.existsSync(p)) || candidateDistPaths[0];
 app.use(express.static(distPath));
+var publicDocPath = path7.resolve(projectRoot, "public", "doc");
+if (fs7.existsSync(publicDocPath)) {
+  app.use("/doc", express.static(publicDocPath));
+}
 if (fs7.existsSync(rootUploads)) {
   app.use("/uploads", express.static(rootUploads));
 }
@@ -4948,6 +5397,76 @@ async function initDatabaseDefaults() {
     console.log("\u2705 Connexion Prisma active.");
     await ensureSessionTables();
     await ensureCategoryTable();
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "PendingRegistration" (
+        "id" TEXT NOT NULL,
+        "token" TEXT NOT NULL,
+        "email" TEXT NOT NULL,
+        "passwordHash" TEXT NOT NULL,
+        "name" TEXT,
+        "telephone" TEXT,
+        "pays" TEXT,
+        "ville" TEXT,
+        "courseIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+        "mode" TEXT,
+        "coursParticuliers" BOOLEAN NOT NULL DEFAULT false,
+        "monthlyAmount" DOUBLE PRECISION,
+        "dateNaissance" TEXT,
+        "geniusPhone" TEXT,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "PendingRegistration_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PendingRegistration_token_key" ON "PendingRegistration"("token")`);
+    console.log("\u2705 Table PendingRegistration v\xE9rifi\xE9e/cr\xE9\xE9e");
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "SiteConfig" (
+        "id" TEXT NOT NULL,
+        "key" TEXT NOT NULL DEFAULT 'home',
+        "content" TEXT NOT NULL DEFAULT '{}',
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "SiteConfig_key_key" ON "SiteConfig"("key")`);
+    await prisma.siteConfig.upsert({
+      where: { key: "home" },
+      update: {},
+      create: { key: "home", content: "{}" }
+    });
+    console.log("\u2705 Table SiteConfig v\xE9rifi\xE9e/cr\xE9\xE9e");
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "AppSettings" (
+        "id" TEXT NOT NULL,
+        "key" TEXT NOT NULL DEFAULT 'global',
+        "additionalCourseAmount" DOUBLE PRECISION NOT NULL DEFAULT 15000,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "AppSettings_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "AppSettings_key_key" ON "AppSettings"("key")`);
+    await prisma.appSettings.upsert({
+      where: { key: "global" },
+      update: {},
+      create: { key: "global", additionalCourseAmount: 15e3 }
+    });
+    console.log("\u2705 Table AppSettings v\xE9rifi\xE9e/cr\xE9\xE9e");
+    const featuredWithImage = await prisma.shopBanner.count({
+      where: { featured: true, isActive: true, imageUrl: { not: null } }
+    });
+    if (featuredWithImage === 0) {
+      const defaultHomeBanners = [
+        { title: "Sessions Pr\xE9paratoires aux Concours Directs", subtitle: "Inscriptions ouvertes pour toutes les fili\xE8res", imageUrl: "/images/image2.jpeg", displayOrder: 1 },
+        { title: "Encadrement par les Magistrats et Formateurs Experts", subtitle: "M\xE9thodologie et sujets types d\xE9crypt\xE9s", imageUrl: "/images/image1.jpeg", displayOrder: 2 },
+        { title: "Formations En ligne & Pr\xE9sentiel", subtitle: "Cours du soir, week-ends et suivi sur mesure", imageUrl: "/images/image3.jpeg", displayOrder: 3 },
+        { title: "Excellence Acad\xE9mie \xE0 vos c\xF4t\xE9s", subtitle: "L'\xE9cole de r\xE9f\xE9rence pour votre r\xE9ussite", imageUrl: "/images/images4.jpeg", displayOrder: 4 }
+      ];
+      for (const b of defaultHomeBanners) {
+        await prisma.shopBanner.create({ data: { ...b, featured: true, isActive: true } });
+      }
+      console.log("\u2705 Banni\xE8res \xAB \xC0 la une \xBB par d\xE9faut cr\xE9\xE9es en base");
+    }
     const adminExists = await prisma.user.findUnique({
       where: { email: "admin@excellence.ci" }
     });
@@ -4984,22 +5503,31 @@ async function initDatabaseDefaults() {
     }
   } catch (err) {
     console.error("Erreur initialisation admin / formations :", err);
+  } finally {
+    dbReady = true;
+    console.log("\u2705 Backend pr\xEAt \xE0 recevoir les requ\xEAtes API.");
   }
 }
-async function startServer() {
-  await initDatabaseDefaults();
-  app.listen(port, () => {
-    console.log(`\u{1F680} Serveur d\xE9marr\xE9 sur le port ${port} [${isProduction2 ? "PRODUCTION" : "D\xC9VELOPPEMENT"}]`);
-    setInterval(async () => {
-      try {
-        await prisma.$queryRaw`SELECT 1`;
-      } catch (err) {
-        console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping DB :", err?.message || err);
-      }
-    }, 180 * 1e3);
-  });
+async function keepAlive() {
+  const t0 = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const ms = Date.now() - t0;
+    if (ms > 1e3) console.log(`[Neon Keep-Alive] OK (${ms}ms)`);
+  } catch (err) {
+    console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping DB :", err?.message || err?.code || String(err));
+  }
 }
-startServer().catch((err) => {
-  console.error("\u274C Erreur fatale au d\xE9marrage du serveur:", err);
+app.listen(port, () => {
+  console.log(`\u{1F680} Serveur d\xE9marr\xE9 sur le port ${port} [${isProduction3 ? "PRODUCTION" : "D\xC9VELOPPEMENT"}]`);
+  keepAlive();
+  setInterval(keepAlive, 180 * 1e3);
+  initDatabaseDefaults();
+}).on("error", (err) => {
+  if (err?.code === "EADDRINUSE") {
+    console.error(`\u274C Le port ${port} est d\xE9j\xE0 utilis\xE9. Un autre process \xE9coute d\xE9j\xE0 dessus ?`);
+  } else {
+    console.error("\u274C Erreur au d\xE9marrage du serveur:", err);
+  }
   process.exit(1);
 });

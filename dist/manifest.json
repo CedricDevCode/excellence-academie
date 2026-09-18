@@ -1,26 +1,29 @@
 {
-  "name": "Excellence Académie – Gestion Concours",
-  "short_name": "ExAcademie",
-  "description": "Application de gestion Excellence Académie – Formation aux concours en Côte d'Ivoire",
+  "name": "Excellence Académie",
+  "short_name": "ExAcadémie",
+  "description": "Préparez vos concours de la Magistrature, ENA, Greffe, Notariat et Agent pénitentiaire en Côte d'Ivoire.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0056B3",
-  "theme_color": "#0056B3",
+  "background_color": "#ffffff",
+  "theme_color": "#f5a623",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "categories": ["education"],
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='38' fill='%230056B3'/%3E%3Ctext x='96' y='130' font-size='105' font-weight='900' text-anchor='middle' fill='white'%3EEA%3C/text%3E%3C/svg%3E",
+      "src": "/images/logo exacademy.jpeg",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/jpeg",
+      "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='102' fill='%230056B3'/%3E%3Ctext x='256' y='345' font-size='280' font-weight='900' text-anchor='middle' fill='white'%3EEA%3C/text%3E%3C/svg%3E",
+      "src": "/images/logo exacademy.jpeg",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "productivity"],
-  "lang": "fr"
+  "screenshots": [],
+  "prefer_related_applications": false
 }

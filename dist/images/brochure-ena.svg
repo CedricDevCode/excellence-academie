@@ -19,7 +19,7 @@
   <rect x="100" y="100" width="240" height="100" fill="url(#grad2)" rx="4"/>
   
   <!-- Title in Document -->
-  <text x="220" y="135" font-size="32" font-weight="bold" text-anchor="middle" fill="#002855">ENA</text>
+  <text x="220" y="135" font-size="32" font-weight="bold" text-anchor="middle" fill="#573500">ENA</text>
   <text x="220" y="170" font-size="14" text-anchor="middle" fill="#333">Concours Examen National</text>
   
   <!-- Content Lines -->
