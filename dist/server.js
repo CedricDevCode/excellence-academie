@@ -2468,18 +2468,19 @@ var getAllCourses = async (req, res) => {
     const courses = await retryWithNeonWakeup2(
       () => prisma_default.course.findMany({
         where,
-        orderBy: [{ category: "asc" }, { title: "asc" }],
-        include: {
-          _count: {
-            select: {
-              subscriptions: true,
-              payments: true
-            }
-          }
-        }
+        orderBy: [{ category: "asc" }, { title: "asc" }]
       })
     );
-    res.json(courses);
+    const coursesWithCounts = await Promise.all(
+      courses.map(async (course) => {
+        const [subscriptionCount, paymentCount] = await Promise.all([
+          prisma_default.subscription.count({ where: { courseId: course.id } }),
+          prisma_default.payment.count({ where: { courseId: course.id } })
+        ]);
+        return { ...course, _count: { subscriptions: subscriptionCount, payments: paymentCount } };
+      })
+    );
+    res.json(coursesWithCounts);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration des formations" });
@@ -4366,13 +4367,21 @@ var getBlogPosts = async (req, res) => {
         include: {
           author: { select: { id: true, name: true, image: true } },
           course: { select: { id: true, title: true } },
-          tags: { include: { tag: true } },
-          _count: { select: { comments: true, exercises: true } }
+          tags: { include: { tag: true } }
         }
       }),
       prisma_default.blogPost.count({ where })
     ]);
-    res.json({ posts, total, page, limit, totalPages: Math.ceil(total / limit) });
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const [commentCount, exerciseCount] = await Promise.all([
+          prisma_default.blogComment.count({ where: { postId: post.id } }),
+          prisma_default.blogExercise.count({ where: { postId: post.id } })
+        ]);
+        return { ...post, _count: { comments: commentCount, exercises: exerciseCount } };
+      })
+    );
+    res.json({ posts: postsWithCounts, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration des articles" });
@@ -4391,9 +4400,7 @@ var getBlogPostBySlug = async (req, res) => {
           include: { author: { select: { id: true, name: true, image: true } } }
         },
         exercises: {
-          include: {
-            _count: { select: { submissions: true } }
-          }
+          include: {}
         }
       }
     });

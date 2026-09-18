@@ -36,13 +36,22 @@ export const getBlogPosts = async (req: Request, res: Response) => {
           author: { select: { id: true, name: true, image: true } },
           course: { select: { id: true, title: true } },
           tags: { include: { tag: true } },
-          _count: { select: { comments: true, exercises: true } },
         },
       }),
       prisma.blogPost.count({ where }),
     ]);
 
-    res.json({ posts, total, page, limit, totalPages: Math.ceil(total / limit) });
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const [commentCount, exerciseCount] = await Promise.all([
+          prisma.blogComment.count({ where: { postId: post.id } }),
+          prisma.blogExercise.count({ where: { postId: post.id } }),
+        ]);
+        return { ...post, _count: { comments: commentCount, exercises: exerciseCount } };
+      })
+    );
+
+    res.json({ posts: postsWithCounts, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de la récupération des articles" });
@@ -62,9 +71,7 @@ export const getBlogPostBySlug = async (req: Request, res: Response) => {
           include: { author: { select: { id: true, name: true, image: true } } },
         },
         exercises: {
-          include: {
-            _count: { select: { submissions: true } },
-          },
+          include: {},
         },
       },
     });

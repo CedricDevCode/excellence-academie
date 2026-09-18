@@ -40,17 +40,19 @@ export const getAllCourses = async (req: Request, res: Response) => {
       prisma.course.findMany({
         where,
         orderBy: [{ category: 'asc' }, { title: 'asc' }],
-        include: {
-          _count: {
-            select: {
-              subscriptions: true,
-              payments: true,
-            }
-          }
-        }
       })
     );
-    res.json(courses);
+
+    const coursesWithCounts = await Promise.all(
+      courses.map(async (course) => {
+        const [subscriptionCount, paymentCount] = await Promise.all([
+          prisma.subscription.count({ where: { courseId: course.id } }),
+          prisma.payment.count({ where: { courseId: course.id } }),
+        ]);
+        return { ...course, _count: { subscriptions: subscriptionCount, payments: paymentCount } };
+      })
+    );
+    res.json(coursesWithCounts);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de la récupération des formations" });
