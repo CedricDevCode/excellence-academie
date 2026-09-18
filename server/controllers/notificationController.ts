@@ -133,7 +133,7 @@ export const sendNotification = async (userId: string, title: string, message: s
       subject: title,
       html: `
         <div style="font-family: sans-serif; padding: 20px; background: #f4f7f6;">
-          <h2 style="color: #0056B3;">${escapeHtml(title)}</h2>
+          <h2 style="color: #c97e00;">${escapeHtml(title)}</h2>
           <p>${escapeHtml(message)}</p>
           <hr />
           <p style="font-size: 12px; color: #888;">Ceci est un message automatique, merci de ne pas y répondre.</p>

@@ -26,8 +26,10 @@ import contractRoutes from './routes/contractRoutes';
 import shopRoutes from './routes/shopRoutes';
 import bannerRoutes from './routes/bannerRoutes';
 import blogRoutes from './routes/blogRoutes';
+import siteConfigRoutes from './routes/siteConfigRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import pushRoutes from './routes/pushRoutes';
+import appSettingsRoutes from './routes/appSettingsRoutes';
 import { seedFormations } from './seed-courses';
 import { ensureSessionTables } from './controllers/sessionController';
 import { ensureCategoryTable } from './controllers/categoryController';
@@ -61,9 +63,10 @@ const globalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20, // 20 tentatives d'auth par fenêtre
+  max: 100, // 100 requêtes auth par fenêtre (GET /me, login, etc.)
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true, // Ne compter que les échecs
   message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
 });
 
@@ -126,6 +129,22 @@ app.use(compression());
 // ─── Rate Limiting global ─────────────────────────────────────────────────────
 app.use('/api', globalLimiter);
 
+// ─── Garde de disponibilité (initialisation Prisma) ───────────────────────────
+let dbReady = false;
+
+// Le port écoute dès le lancement (voir startServer) : plus jamais d'ECONNREFUSED.
+// Tant que `initDatabaseDefaults` n'est pas terminé, on répond 503 + Retry-After
+// au lieu de laisser les requêtes partir vers une base pas encore prête.
+app.use('/api', (_req, res, next) => {
+  if (!dbReady) {
+    res.set('Retry-After', '2');
+    return res.status(503).json({
+      error: 'Le backend est en cours de démarrage. Veuillez réessayer dans un instant.',
+    });
+  }
+  next();
+});
+
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: (origin, callback) => {
@@ -137,7 +156,10 @@ app.use(cors({
       allowedOrigins.includes(origin) ||
       origin.endsWith('.exacademie.net') ||
       origin.endsWith('.hostingersite.com') ||
-      (!isProduction && /^https?:\/\/localhost:\d+$/.test(origin));
+      // Le navigateur d'un client distant ne peut jamais envoyer un Origin localhost :
+      // autoriser n'importe quel port local est donc sûr, en dev comme en dev*Vite
+      // dont le port peut dériver (5174 occupé → 5175, 5176…).
+      /^https?:\/\/localhost:\d+$/.test(origin);
 
     if (isAllowed) {
       return callback(null, true);
@@ -189,6 +211,8 @@ app.use('/api/contracts', contractRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/blog', blogRoutes);
+app.use('/api/siteconfig', siteConfigRoutes);
+app.use('/api/app-settings', appSettingsRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 // Protégé par un header secret optionnel en production
@@ -311,6 +335,62 @@ async function initDatabaseDefaults() {
     await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PendingRegistration_token_key" ON "PendingRegistration"("token")`);
     console.log('✅ Table PendingRegistration vérifiée/créée');
 
+    // Créer la table SiteConfig si elle n'existe pas
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "SiteConfig" (
+        "id" TEXT NOT NULL,
+        "key" TEXT NOT NULL DEFAULT 'home',
+        "content" TEXT NOT NULL DEFAULT '{}',
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "SiteConfig_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "SiteConfig_key_key" ON "SiteConfig"("key")`);
+    await prisma.siteConfig.upsert({
+      where: { key: 'home' },
+      update: {},
+      create: { key: 'home', content: '{}' },
+    });
+    console.log('✅ Table SiteConfig vérifiée/créée');
+
+    // Créer la table AppSettings si elle n'existe pas
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "AppSettings" (
+        "id" TEXT NOT NULL,
+        "key" TEXT NOT NULL DEFAULT 'global',
+        "additionalCourseAmount" DOUBLE PRECISION NOT NULL DEFAULT 15000,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "AppSettings_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "AppSettings_key_key" ON "AppSettings"("key")`);
+    await prisma.appSettings.upsert({
+      where: { key: 'global' },
+      update: {},
+      create: { key: 'global', additionalCourseAmount: 15000 },
+    });
+    console.log('✅ Table AppSettings vérifiée/créée');
+
+    // Créer les bannières « À la une » par défaut en base (pas de contenu en dur
+    // côté front) — modifiables depuis le tableau de bord (Actualités À la une).
+    // On ne seed que si aucune bannière « À la une » n'a sa propre image
+    // (les bannières boutique sans image propre ne peuplent pas le carrousel).
+    const featuredWithImage = await prisma.shopBanner.count({
+      where: { featured: true, isActive: true, imageUrl: { not: null } },
+    });
+    if (featuredWithImage === 0) {
+      const defaultHomeBanners = [
+        { title: 'Sessions Préparatoires aux Concours Directs', subtitle: 'Inscriptions ouvertes pour toutes les filières', imageUrl: '/images/image2.jpeg', displayOrder: 1 },
+        { title: 'Encadrement par les Magistrats et Formateurs Experts', subtitle: 'Méthodologie et sujets types décryptés', imageUrl: '/images/image1.jpeg', displayOrder: 2 },
+        { title: 'Formations En ligne & Présentiel', subtitle: 'Cours du soir, week-ends et suivi sur mesure', imageUrl: '/images/image3.jpeg', displayOrder: 3 },
+        { title: "Excellence Académie à vos côtés", subtitle: "L'école de référence pour votre réussite", imageUrl: '/images/images4.jpeg', displayOrder: 4 },
+      ];
+      for (const b of defaultHomeBanners) {
+        await prisma.shopBanner.create({ data: { ...b, featured: true, isActive: true } });
+      }
+      console.log('✅ Bannières « À la une » par défaut créées en base');
+    }
+
     const adminExists = await prisma.user.findUnique({
       where: { email: 'admin@excellence.ci' },
     });
@@ -353,28 +433,45 @@ async function initDatabaseDefaults() {
     }
   } catch (err) {
     console.error('Erreur initialisation admin / formations :', err);
+  } finally {
+    dbReady = true;
+    console.log('✅ Backend prêt à recevoir les requêtes API.');
+  }
+}
+
+// ─── Keep-Alive Neon (connexion poolée maintenue chaude) ─────────────────────
+async function keepAlive() {
+  const t0 = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const ms = Date.now() - t0;
+    if (ms > 1000) console.log(`[Neon Keep-Alive] OK (${ms}ms)`);
+  } catch (err: any) {
+    console.warn('⚠️ [Neon Keep-Alive] Ping DB :', err?.message || err?.code || String(err));
   }
 }
 
 // ─── Démarrage du serveur ─────────────────────────────────────────────────────
-async function startServer() {
-  await initDatabaseDefaults();
+// Crucial : on écoute le port IMMÉDIATEMENT, sans attendre l'init DB.
+// Sinon, pendant les secondes d'initialisation (allers-retours Neon ~5s chacun),
+// le port 3001 est fermé → le proxy Vite reçoit ECONNREFUSED →
+// "Erreur de connexion au serveur" côté front. Le garde 503 ci-dessus couvre ce
+// laps de temps avec une vraie réponse HTTP.
+app.listen(port, () => {
+  console.log(`🚀 Serveur démarré sur le port ${port} [${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}]`);
 
-  app.listen(port, () => {
-    console.log(`🚀 Serveur démarré sur le port ${port} [${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}]`);
+  // Warm-up : ping immédiat pour réveiller la connexion Neon poolée
+  keepAlive();
+  // Puis ping toutes les 3 minutes pour la maintenir chaude
+  setInterval(keepAlive, 180 * 1000);
 
-    // 🌟 Neon PostgreSQL Keep-Alive (ping toutes les 3 minutes)
-    setInterval(async () => {
-      try {
-        await prisma.$queryRaw`SELECT 1`;
-      } catch (err: any) {
-        console.warn('⚠️ [Neon Keep-Alive] Ping DB :', err?.message || err);
-      }
-    }, 180 * 1000);
-  });
-}
-
-startServer().catch((err) => {
-  console.error('❌ Erreur fatale au démarrage du serveur:', err);
+  // Initialisation de la base + comptes/formations par défaut (en arrière-plan)
+  initDatabaseDefaults();
+}).on('error', (err: any) => {
+  if (err?.code === 'EADDRINUSE') {
+    console.error(`❌ Le port ${port} est déjà utilisé. Un autre process écoute déjà dessus ?`);
+  } else {
+    console.error('❌ Erreur au démarrage du serveur:', err);
+  }
   process.exit(1);
 });

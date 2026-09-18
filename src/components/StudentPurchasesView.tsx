@@ -4,8 +4,8 @@ import { Package, Truck, CheckCircle, Clock, XCircle, ShoppingBag } from 'lucide
 
 const STATUS_FLOW: Record<string, { label: string; icon: any; textClass: string; bgClass: string; step: number }> = {
   PENDING: { label: 'En attente', icon: Clock, textClass: 'text-orange-500', bgClass: 'bg-orange-100', step: 1 },
-  PAID: { label: 'Payée', icon: CheckCircle, textClass: 'text-blue-500', bgClass: 'bg-blue-100', step: 2 },
-  SHIPPED: { label: 'Expédiée', icon: Truck, textClass: 'text-purple-500', bgClass: 'bg-purple-100', step: 3 },
+  PAID: { label: 'Payée', icon: CheckCircle, textClass: 'text-primary-500', bgClass: 'bg-primary-100', step: 2 },
+  SHIPPED: { label: 'Expédiée', icon: Truck, textClass: 'text-accent-700', bgClass: 'bg-accent-100', step: 3 },
   DELIVERED: { label: 'Livrée', icon: Package, textClass: 'text-green-500', bgClass: 'bg-green-100', step: 4 },
   CANCELLED: { label: 'Annulée', icon: XCircle, textClass: 'text-red-500', bgClass: 'bg-red-100', step: 0 },
 };
@@ -23,7 +23,7 @@ function OrderTimeline({ status }: { status: string }) {
         return (
           <React.Fragment key={s}>
             <div className={`flex items-center gap-1.5 ${isActive ? st.textClass : 'text-gray-300'}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isActive ? 'bg-current bg-opacity-10' : 'bg-gray-100'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isActive ? 'bg-current bg-opacity-10' : 'bg-surface-50'}`}>
                 <st.icon size={12} />
               </div>
               <span className={`text-[10px] font-semibold ${isActive ? '' : 'text-gray-400'}`}>{st.label}</span>
@@ -63,7 +63,7 @@ export default function StudentPurchasesView() {
 
   if (orders.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+      <div className="bg-white rounded shadow-sm border border-gray-100 p-8 text-center">
         <ShoppingBag size={48} className="mx-auto text-gray-300 mb-4" />
         <h2 className="text-xl font-bold text-gray-700 mb-2">Mes commandes</h2>
         <p className="text-gray-500">Vous n'avez pas encore effectué d'achat dans la boutique.</p>
@@ -73,8 +73,8 @@ export default function StudentPurchasesView() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-xl font-bold text-[#002855]">Mes commandes</h2>
+      <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
+        <h2 className="text-xl font-bold text-[#7a4b00]">Mes commandes</h2>
         <p className="text-sm text-gray-500 mt-1">Suivez l'état de vos achats en temps réel.</p>
       </div>
       {error && <div className="text-red-500 bg-red-50 p-3 rounded-lg">{error}</div>}
@@ -84,10 +84,10 @@ export default function StudentPurchasesView() {
         const isExpanded = expandedId === order.id;
 
         return (
-          <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div key={order.id} className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
             <button onClick={() => setExpandedId(isExpanded ? null : order.id)} className="w-full p-5 flex items-center justify-between hover:bg-gray-50 transition-colors text-left">
               <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl ${statusInfo.bgClass} flex items-center justify-center`}>
+                <div className={`w-10 h-10 rounded ${statusInfo.bgClass} flex items-center justify-center`}>
                   <StatusIcon size={20} className={statusInfo.textClass} />
                 </div>
                 <div>
@@ -120,11 +120,11 @@ export default function StudentPurchasesView() {
                   </div>
                   <div className="flex justify-between pt-2 border-t border-gray-100">
                     <span className="font-bold text-gray-900">Total</span>
-                    <span className="font-black text-[#FF6B00]">{order.totalAmount.toLocaleString()} FCFA</span>
+                    <span className="font-black text-primary-600">{order.totalAmount.toLocaleString()} FCFA</span>
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-500 bg-gray-50 rounded-xl p-3">
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-500 bg-gray-50 rounded p-3">
                   <div><span className="font-semibold">Nom :</span> {order.customerName}</div>
                   <div><span className="font-semibold">Email :</span> {order.customerEmail}</div>
                   <div><span className="font-semibold">Téléphone :</span> {order.customerPhone}</div>

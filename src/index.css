@@ -1,41 +1,50 @@
 @import "tailwindcss";
 
-/* ─── Design System Variables ─── */
+/* ─── Design System Variables (Or × Côte d'Ivoire) ─── */
 @theme {
-  --color-primary-50: #eef5ff;
-  --color-primary-100: #d9e8ff;
-  --color-primary-200: #bbd7ff;
-  --color-primary-300: #8cbfff;
-  --color-primary-400: #549dff;
-  --color-primary-500: #0056B3;
-  --color-primary-600: #003375;
-  --color-primary-700: #002855;
-  --color-primary-800: #001a3a;
-  --color-primary-900: #001020;
+  /* Or / Ambre (couleur principale — logo) */
+  --color-primary-50: #fff9e8;
+  --color-primary-100: #fff0c2;
+  --color-primary-200: #ffe28a;
+  --color-primary-300: #ffce45;
+  --color-primary-400: #fdb827;
+  --color-primary-500: #f5a623;
+  --color-primary-600: #c97e00;
+  --color-primary-700: #a36200;
+  --color-primary-800: #7a4b00;
+  --color-primary-900: #573500;
 
-  --color-accent-50: #fff7ed;
-  --color-accent-100: #ffedd5;
-  --color-accent-200: #fed7aa;
-  --color-accent-300: #fdba74;
-  --color-accent-400: #FF8533;
-  --color-accent-500: #FF6B00;
-  --color-accent-600: #e65c00;
-  --color-accent-700: #cc4d00;
-  --color-accent-800: #993d00;
-  --color-accent-900: #662800;
+  /* Vert Côte d'Ivoire (accent / succès) */
+  --color-accent-50: #e9f9ef;
+  --color-accent-100: #c8f0d8;
+  --color-accent-200: #93e1b0;
+  --color-accent-300: #58cd86;
+  --color-accent-400: #25b164;
+  --color-accent-500: #1e9e54;
+  --color-accent-600: #187f44;
+  --color-accent-700: #116635;
+  --color-accent-800: #0d4d28;
+  --color-accent-900: #083a1e;
 
-  --color-surface-50: #fafafa;
-  --color-surface-100: #f5f5f5;
-  --color-surface-200: #e5e5e5;
-  --color-surface-300: #d4d4d4;
-  --color-surface-400: #a3a3a3;
-  --color-surface-500: #737373;
-  --color-surface-600: #525252;
-  --color-surface-700: #404040;
-  --color-surface-800: #262626;
-  --color-surface-900: #171717;
+  /* Gris neutres (texte #1c1d1f / muted #6a6f73 / bordures #d1d7dc) */
+  --color-surface-50: #f7f9fa;
+  --color-surface-100: #f2f4f5;
+  --color-surface-200: #e9edf0;
+  --color-surface-300: #d1d7dc;
+  --color-surface-400: #aab4bc;
+  --color-surface-500: #6a6f73;
+  --color-surface-600: #52565a;
+  --color-surface-700: #3c3f43;
+  --color-surface-800: #26282b;
+  --color-surface-900: #1c1d1f;
 
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  /* Signalétiques */
+  --color-uda-orange: #b32d0f;
+  --color-uda-berry: #70136b;
+  --color-uda-green: #1e6055;
+  --color-uda-gold: #f3ca8c;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* ─── Custom Animations ─── */
@@ -112,21 +121,21 @@
 /* ─── Gradient Presets ─── */
 @layer utilities {
   .bg-gradient-primary {
-    background: linear-gradient(135deg, var(--color-primary-700) 0%, var(--color-primary-500) 100%);
+    background: linear-gradient(135deg, var(--color-primary-800) 0%, var(--color-primary-500) 100%);
   }
   .bg-gradient-accent {
-    background: linear-gradient(135deg, var(--color-accent-500) 0%, var(--color-accent-400) 100%);
+    background: linear-gradient(135deg, var(--color-accent-700) 0%, var(--color-accent-500) 100%);
   }
   .bg-gradient-hero {
     background: linear-gradient(135deg, #001838 0%, #002855 40%, #003375 100%);
   }
   .bg-gradient-accent-warm {
-    background: linear-gradient(135deg, #FF6B00 0%, #FF8533 50%, #ff9a4d 100%);
+    background: linear-gradient(135deg, var(--color-accent-700) 0%, var(--color-accent-500) 50%, var(--color-accent-400) 100%);
   }
   .bg-gradient-mesh {
-    background: radial-gradient(at 20% 80%, rgba(0, 86, 179, 0.15) 0%, transparent 50%),
-                radial-gradient(at 80% 20%, rgba(255, 107, 0, 0.1) 0%, transparent 50%),
-                linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+    background: radial-gradient(at 20% 80%, rgba(245, 166, 35, 0.14) 0%, transparent 50%),
+                radial-gradient(at 80% 20%, rgba(30, 158, 84, 0.10) 0%, transparent 50%),
+                linear-gradient(135deg, var(--color-surface-50) 0%, #ffffff 100%);
   }
 }
 
@@ -142,10 +151,13 @@
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
   }
   .shadow-glow-orange {
-    box-shadow: 0 0 20px rgba(255, 107, 0, 0.3);
+    box-shadow: 0 0 20px rgba(245, 166, 35, 0.35);
   }
-  .shadow-glow-blue {
-    box-shadow: 0 0 20px rgba(0, 86, 179, 0.3);
+  .shadow-glow-gold {
+    box-shadow: 0 0 20px rgba(245, 166, 35, 0.35);
+  }
+  .shadow-glow-green {
+    box-shadow: 0 0 20px rgba(30, 158, 84, 0.35);
   }
 }
 

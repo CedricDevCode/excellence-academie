@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Star, Truck, Shield, Clock, X, Package, ChevronLeft, ChevronRight, Menu as MenuIcon, User } from 'lucide-react';
+import { ShoppingCart, Star, Truck, Shield, Clock, Package, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import api, { fetchProductById } from '../utils/api';
-import { addProductToCart, getCartCount, readCart, writeCart, type CartItem } from '../utils/cart';
+import { addProductToCart, readCart, writeCart, type CartItem } from '../utils/cart';
 import { openCartDrawer } from '../components/CartDrawer';
 import type { Product } from './Shop';
 
@@ -26,7 +26,6 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
-  const [navOpen, setNavOpen] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>(() => readCart<CartItem>());
@@ -42,8 +41,6 @@ export default function ProductDetail() {
     window.addEventListener('shopCartUpdated', syncCart);
     return () => window.removeEventListener('shopCartUpdated', syncCart);
   }, []);
-
-  const cartCount = getCartCount(cartItems);
 
   // Charger le produit
   useEffect(() => {
@@ -98,8 +95,8 @@ export default function ProductDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-surface-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -109,82 +106,22 @@ export default function ProductDetail() {
   const imgs = getImgs();
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-12 animate-fadeIn">
-      {/* Navbar */}
-      <nav className="fixed w-full top-0 z-50 bg-white shadow-md py-2 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-10 h-10 object-contain rounded-md border border-gray-100" />
-            <div>
-              <div className="font-bold text-[#002855] leading-none text-sm md:text-base">EXCELLENCE ACADÉMIE</div>
-              <div className="text-[10px] text-gray-500 uppercase font-semibold">Formation Concours</div>
-            </div>
-          </Link>
-          <div className="hidden lg:flex items-center gap-6">
-            <Link to="/" className="text-xs font-semibold text-gray-600 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Accueil</Link>
-            <a href="/#actualite" className="text-xs font-semibold text-gray-600 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Actualité</a>
-            <a href="/#atouts" className="text-xs font-semibold text-gray-600 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">L'École</a>
-            <a href="/#formations" className="text-xs font-semibold text-gray-600 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Formations</a>
-            <a href="/#tarifs" className="text-xs font-semibold text-gray-600 hover:text-[#FF6B00] uppercase tracking-wide transition-colors">Tarifs</a>
-            <Link to="/shop" className="text-xs font-semibold text-[#FF6B00] uppercase tracking-wide transition-colors">Boutique</Link>
-          </div>
-          <div className="hidden lg:flex items-center gap-4">
-            <button onClick={openCartDrawer} className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" title="Mon panier">
-              <ShoppingCart size={22} className="text-[#002855]" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#FF6B00] text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">{cartCount}</span>
-              )}
-            </button>
-            <div className="text-right hidden xl:block">
-              <div className="text-[9px] text-gray-400 uppercase font-bold">Appeler</div>
-              <a href="tel:0747439443" className="text-[#FF6B00] font-bold text-xs">07 47 43 94 43</a>
-            </div>
-            <Link to="/student/login" className="px-3 py-1.5 text-xs font-bold rounded border border-[#002855] text-[#002855] hover:bg-[#002855] hover:text-white transition-colors">Espace Étudiant</Link>
-            <Link to="/students/new" className="px-3 py-1.5 text-xs font-bold rounded bg-[#FF6B00] text-white hover:bg-[#e65c00] transition-colors">S'inscrire</Link>
-          </div>
-          <div className="flex items-center gap-1 lg:hidden">
-            <button onClick={openCartDrawer} className="relative p-2 text-gray-700 hover:text-[#FF6B00] cursor-pointer" title="Mon panier">
-              <ShoppingCart size={22} className="text-[#002855]" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#FF6B00] text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">{cartCount}</span>
-              )}
-            </button>
-            <button className="text-gray-600" onClick={() => setNavOpen(!navOpen)}>
-              {navOpen ? <X size={24} /> : <MenuIcon size={24} />}
-            </button>
-          </div>
-        </div>
-        {navOpen && (
-          <div className="lg:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-3">
-            <Link to="/" onClick={() => setNavOpen(false)} className="block text-sm font-semibold text-gray-600 hover:text-[#FF6B00]">Accueil</Link>
-            <a href="/#actualite" onClick={() => setNavOpen(false)} className="block text-sm font-semibold text-gray-600 hover:text-[#FF6B00]">Actualité</a>
-            <a href="/#atouts" onClick={() => setNavOpen(false)} className="block text-sm font-semibold text-gray-600 hover:text-[#FF6B00]">L'École</a>
-            <a href="/#formations" onClick={() => setNavOpen(false)} className="block text-sm font-semibold text-gray-600 hover:text-[#FF6B00]">Formations</a>
-            <a href="/#tarifs" onClick={() => setNavOpen(false)} className="block text-sm font-semibold text-gray-600 hover:text-[#FF6B00]">Tarifs</a>
-            <Link to="/shop" onClick={() => setNavOpen(false)} className="block text-sm font-semibold text-[#FF6B00]">Boutique</Link>
-            <hr className="border-gray-100" />
-            <Link to="/student/login" onClick={() => setNavOpen(false)} className="block text-sm font-bold text-center py-2 rounded border border-[#002855] text-[#002855]">Espace Étudiant</Link>
-            <Link to="/students/new" onClick={() => setNavOpen(false)} className="block text-sm font-bold text-center py-2 rounded bg-[#FF6B00] text-white">S'inscrire</Link>
-          </div>
-        )}
-      </nav>
-
-      <div className="h-[60px]" />
-
+    <div className="min-h-screen bg-surface-50 pb-12 animate-fadeIn">
+      <div className="pt-6">
       {/* Back link */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 mb-4">
-        <Link to="/shop" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#FF6B00] transition-colors">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-4">
+        <Link to="/shop" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 hover:text-primary-800 transition-colors">
           <ChevronLeft size={16} /> Retour à la boutique
         </Link>
       </div>
 
       {/* Product Detail */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
               {/* Left: Images */}
               <div className="bg-gray-50 p-6 md:p-10">
-                <div className="aspect-square rounded-xl overflow-hidden bg-white mb-4 flex items-center justify-center shadow-sm border border-gray-100">
+                <div className="aspect-square rounded overflow-hidden bg-white mb-4 flex items-center justify-center shadow-sm border border-gray-100">
                   {imgs[selectedImageIdx] ? (
                     <img src={imgs[selectedImageIdx]} alt={product.title} className="w-full h-full object-contain p-6" />
                   ) : (
@@ -195,7 +132,7 @@ export default function ProductDetail() {
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {imgs.map((img, i) => (
                       <button key={i} onClick={() => setSelectedImageIdx(i)}
-                        className={`shrink-0 w-16 h-16 rounded-lg border-2 overflow-hidden transition-all ${selectedImageIdx === i ? 'border-[#FF6B00] shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
+                        className={`shrink-0 w-16 h-16 rounded-md border-2 overflow-hidden transition-all ${selectedImageIdx === i ? 'border-primary-500 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}>
                         <img src={img} alt="" className="w-full h-full object-cover" />
                       </button>
                     ))}
@@ -207,9 +144,9 @@ export default function ProductDetail() {
               <div className="p-6 md:p-10 flex flex-col">
                 {/* Breadcrumb */}
                 <div className="text-xs text-gray-400 mb-4 flex items-center gap-1.5 flex-wrap">
-                  <Link to="/" className="hover:text-[#FF6B00]">Accueil</Link>
+                  <Link to="/" className="hover:text-primary-600">Accueil</Link>
                   <span>/</span>
-                  <Link to="/shop" className="hover:text-[#FF6B00]">Boutique</Link>
+                  <Link to="/shop" className="hover:text-primary-600">Boutique</Link>
                   <span>/</span>
                   <span className="text-gray-600">{TYPE_LABELS[product.type] || product.type}</span>
                 </div>
@@ -232,9 +169,9 @@ export default function ProductDetail() {
                 </div>
 
                 {/* Price */}
-                <div className="bg-orange-50 rounded-xl p-5 mb-5">
+                <div className="bg-primary-50 rounded p-5 mb-5">
                   <div className="flex items-baseline gap-3 flex-wrap">
-                    <div className="text-3xl md:text-4xl font-black text-[#FF6B00]">
+                    <div className="text-3xl md:text-4xl font-black text-primary-600">
                       {product.price.toLocaleString()} <span className="text-base font-normal">FCFA</span>
                     </div>
                     {product.originalPrice != null && product.originalPrice > product.price && (
@@ -261,7 +198,7 @@ export default function ProductDetail() {
 
                 {/* Delivery info */}
                 <div className="space-y-2.5 mb-6">
-                  <div className="flex items-center gap-2.5 text-green-600">
+                  <div className="flex items-center gap-2.5 text-accent-600">
                     <Truck size={18} />
                     <span className="font-medium text-sm">Livraison disponible dans toute la Côte d'Ivoire</span>
                   </div>
@@ -278,7 +215,7 @@ export default function ProductDetail() {
                 {/* Add to cart */}
                 <button
                   onClick={addToCart}
-                  className="w-full py-4 bg-[#FF6B00] text-white font-bold text-base rounded-xl hover:bg-[#e65c00] transition-colors shadow-lg shadow-orange-200 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-4 bg-accent-500 text-white font-bold text-base rounded hover:bg-accent-600 transition-colors shadow-lg shadow-accent-200 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ShoppingCart size={20} /> Ajouter au panier
                 </button>
@@ -333,9 +270,9 @@ export default function ProductDetail() {
 
       {/* Reviews Section */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8">
+        <div className="bg-white rounded border border-gray-100 shadow-sm p-6 sm:p-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-black text-[#002855]">Commentaires clients vérifiés</h2>
+            <h2 className="text-lg font-black text-primary-800">Commentaires clients vérifiés</h2>
             {reviewCount > 0 && (
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-0.5">
@@ -358,7 +295,7 @@ export default function ProductDetail() {
               {reviews.map(r => (
                 <div key={r.id} className="border-b border-gray-50 pb-4 last:border-0 last:pb-0">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
+                    <div className="w-7 h-7 rounded-full bg-surface-50 flex items-center justify-center">
                       <User size={14} className="text-gray-400" />
                     </div>
                     <span className="text-sm font-semibold text-gray-700">{r.user?.name || 'Client'}</span>
@@ -382,10 +319,10 @@ export default function ProductDetail() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-xl font-black text-[#002855]">Les clients ayant consulté cet article ont également regardé</h2>
-              <p className="text-sm text-gray-500 mt-1">Découvrez d’autres produits qui pourraient vous plaire.</p>
+<h2 className="text-xl font-black text-primary-800">Les clients ayant consulté cet article ont également regardé</h2>
+              <p className="text-sm text-gray-500 mt-1">Découvrez d'autres produits qui pourraient vous plaire.</p>
             </div>
-            <Link to="/shop" className="text-sm font-semibold text-[#FF6B00] hover:text-[#e65c00] flex items-center gap-1">
+            <Link to="/shop" className="text-sm font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
               Voir tout <ChevronRight size={16} />
             </Link>
           </div>
@@ -397,7 +334,7 @@ export default function ProductDetail() {
                 catch { return rp.imageUrl; }
               })();
               return (
-                <Link key={rp.id} to={`/shop/product/${rp.id}`} className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow group">
+                <Link key={rp.id} to={`/shop/product/${rp.id}`} className="bg-white rounded border border-gray-100 p-4 hover:shadow-md transition-shadow group">
                   <div className="aspect-square rounded-lg bg-gray-50 mb-3 flex items-center justify-center overflow-hidden">
                     {img ? (
                       <img src={img} alt={rp.title} className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform" />
@@ -406,13 +343,14 @@ export default function ProductDetail() {
                     )}
                   </div>
                   <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 mb-2">{rp.title}</h3>
-                  <div className="text-[#FF6B00] font-black">{rp.price.toLocaleString()} <span className="text-xs font-normal">FCFA</span></div>
+                  <div className="text-primary-600 font-black">{rp.price.toLocaleString()} <span className="text-xs font-normal">FCFA</span></div>
                 </Link>
               );
             })}
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

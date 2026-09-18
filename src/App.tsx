@@ -35,6 +35,8 @@ const BlogSubmissions = lazy(() => import("./pages/BlogSubmissions"));
 const MentionsLegales = lazy(() => import("./pages/MentionsLegales"));
 const PolitiqueConfidentialite = lazy(() => import("./pages/PolitiqueConfidentialite"));
 const Accessibilite = lazy(() => import("./pages/Accessibilite"));
+const CataloguePage = lazy(() => import("./pages/CataloguePage"));
+const CourseDetail = lazy(() => import("./pages/CourseDetail"));
 
 function PageLoader() {
   return (
@@ -95,13 +97,15 @@ function AppRoutes() {
             <Route path="/mentions-legales" element={<PageTransition><MentionsLegales /></PageTransition>} />
             <Route path="/politique-de-confidentialite" element={<PageTransition><PolitiqueConfidentialite /></PageTransition>} />
             <Route path="/accessibilite" element={<PageTransition><Accessibilite /></PageTransition>} />
+            <Route path="/catalogue" element={<PageTransition><CataloguePage /></PageTransition>} />
+            <Route path="/formation/:id" element={<PageTransition><CourseDetail /></PageTransition>} />
             <Route path="*" element={
               <PageTransition>
                 <div className="min-h-[70vh] flex items-center justify-center p-8">
                   <div className="text-center">
                     <h1 className="text-6xl font-black text-primary-900 mb-4">404</h1>
                     <p className="text-lg text-gray-500 mb-6">Page introuvable</p>
-                    <Link to="/" className="px-6 py-3 bg-primary-500 text-white font-bold rounded-lg hover:bg-primary-600 transition-colors">
+                    <Link to="/" className="px-6 py-3 bg-primary-500 text-[#3a2600] font-bold rounded hover:bg-primary-400 transition-colors">
                       Retour à l'accueil
                     </Link>
                   </div>

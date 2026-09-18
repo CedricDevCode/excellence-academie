@@ -242,7 +242,7 @@ export async function generatePaymentReceipt(payment: {
       date: payment.createdAt,
       status: payment.status,
     });
-    const qrDataUrl = await QRCode.toDataURL(qrData, { width: 80, margin: 1, color: { dark: '#0056B3' } });
+    const qrDataUrl = await QRCode.toDataURL(qrData, { width: 80, margin: 1, color: { dark: '#a36200' } });
     doc.addImage(qrDataUrl, 'PNG', margin, y - 4, 28, 28);
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(5);

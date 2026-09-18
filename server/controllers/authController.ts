@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import prisma from '../utils/prisma';
 import { setAuthCookie, clearAuthCookie } from '../utils/jwt';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
-import { calcRegistrationPrice, calcMonthlyAmount, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
+import { calcRegistrationTotal, calcMonthlyTotal, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { sendNotification, sendNotificationToRole } from './notificationController';
 import { invalidateUserCache } from '../middleware/authMiddleware';
@@ -145,13 +145,14 @@ export const registerAndPay = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Une ou plusieurs formations introuvables' });
     }
 
-    const isDiaspora =
+    const isDiasporaFlag =
       pays && pays.trim().toLowerCase() !== "côte d'ivoire" && pays.trim().toLowerCase() !== "cote d'ivoire";
-    const effectiveMode = isDiaspora ? 'en_ligne' : (mode || 'presentiel');
+    const effectiveMode = isDiasporaFlag ? 'en_ligne' : (mode || 'presentiel');
     const cParticuliers = coursParticuliers === true;
 
-    const registrationAmount = calcRegistrationPrice(pays || '', effectiveMode, ville || '', cParticuliers);
-    const monthlyAmount = calcMonthlyAmount(pays || '', effectiveMode, cParticuliers, courseIds.length);
+    // ── Calcul zone-based : Diaspora / Intérieur CI / Abidjan ─────────────────
+    const registrationAmount = calcRegistrationTotal(courses, cParticuliers, pays, ville);
+    const monthlyAmount = calcMonthlyTotal(courses, cParticuliers, pays, effectiveMode);
     const amount = registrationAmount + monthlyAmount;
 
     // Hash du mot de passe avec coût 12
@@ -235,6 +236,117 @@ export const registerAndPay = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Ajout formation supplémentaire (étudiant déjà connecté) ──────────────────
+// L'étudiant déjà inscrit peut ajouter une nouvelle formation depuis son dashboard.
+// Il paie uniquement : mensualité du cours + additionalCourseAmount (10 000 FCFA par défaut).
+
+export const addCourseForExistingStudent = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ error: 'Non authentifié' });
+
+    const { courseIds, paymentMethod, geniusPhone, mode } = req.body;
+
+    if (!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+      return res.status(400).json({ error: 'Sélectionnez au moins une formation' });
+    }
+
+    // Récupérer l'utilisateur
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+    // Vérifier que les formations existent et que l'étudiant n'y est pas déjà inscrit
+    const courses = await prisma.course.findMany({ where: { id: { in: courseIds } } });
+    if (courses.length !== courseIds.length) {
+      return res.status(404).json({ error: 'Une ou plusieurs formations introuvables' });
+    }
+
+    // Filtrer celles déjà souscrites
+    const existingSubs = await prisma.subscription.findMany({
+      where: { userId, courseId: { in: courseIds }, status: 'ACTIVE' },
+      select: { courseId: true },
+    });
+    const alreadySubscribed = existingSubs.map((s: any) => s.courseId);
+    const newCourseIds = courseIds.filter((id: string) => !alreadySubscribed.includes(id));
+
+    if (newCourseIds.length === 0) {
+      return res.status(400).json({ error: 'Vous êtes déjà inscrit à toutes ces formations' });
+    }
+
+    const newCourses = courses.filter((c: any) => newCourseIds.includes(c.id));
+
+    // Récupérer le paramètre de frais supplémentaires
+    let additionalAmount = 10000;
+    try {
+      const settings = await prisma.appSettings.findUnique({ where: { key: 'global' } });
+      if (settings) additionalAmount = settings.additionalCourseAmount;
+    } catch { /* utiliser la valeur par défaut */ }
+
+    // Montant = mensualité de chaque nouveau cours + additionalCourseAmount
+    const pays = user.pays || '';
+    const effectiveMode = mode || 'presentiel';
+    const monthlyAmount = calcMonthlyTotal(newCourses, false, pays, effectiveMode);
+    const amount = monthlyAmount + additionalAmount;
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const paymentPhone = geniusPhone || user.telephone || '';
+    const courseTitles = newCourses.map((c: any) => c.title).join(', ');
+
+    const geniusPayBody: Record<string, any> = {
+      amount,
+      description: `Formation supplémentaire: ${user.name} - ${courseTitles}`,
+      customer: {
+        name: user.name || '',
+        phone: paymentPhone,
+        email: user.email,
+        country: COUNTRY_TO_ISO2[pays] || 'CI',
+      },
+      metadata: {
+        action: 'add_course',
+        user_id: userId,
+        course_ids: newCourseIds.join(','),
+        additional_amount: additionalAmount,
+        monthly_amount: monthlyAmount,
+      },
+      success_url: `${frontendUrl}/student/dashboard?tab=courses&added=1`,
+      error_url: `${frontendUrl}/student/dashboard?tab=courses&error=1`,
+    };
+
+    if (paymentMethod && METHOD_TO_GP[paymentMethod]) {
+      geniusPayBody.payment_method = METHOD_TO_GP[paymentMethod];
+    }
+
+    const response = await fetch(`${GENIUSPAY_API_BASE}/payments`, {
+      method: 'POST',
+      headers: geniusPayHeaders(),
+      body: JSON.stringify(geniusPayBody),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const gpData = await handleGeniusPayResponse(response);
+    if (!gpData) {
+      return res.status(502).json({ error: 'Le service de paiement est temporairement indisponible' });
+    }
+
+    const usedUrl =
+      paymentMethod && METHOD_TO_GP[paymentMethod]
+        ? gpData.payment_url || gpData.checkout_url
+        : gpData.checkout_url || gpData.payment_url;
+
+    res.status(200).json({
+      success: true,
+      checkoutUrl: usedUrl,
+      reference: gpData.reference,
+      amount,
+      monthlyAmount,
+      additionalAmount,
+    });
+  } catch (error: any) {
+    console.error('addCourseForExistingStudent error:', error?.message || error);
+    res.status(500).json({ error: "Erreur lors de l'ajout de la formation" });
+  }
+};
+
 // ─── Confirmation du paiement ──────────────────────────────────────────────────
 // Récupère les données depuis PendingRegistration via le token sécurisé
 
@@ -282,10 +394,11 @@ export const confirmPayment = async (req: Request, res: Response) => {
       }
 
       const courseIdList: string[] = Array.isArray(pending.courseIds) ? pending.courseIds : [];
-      const monthlyAmt = pending.monthlyAmount ?? 0;
-      const inscriptionAmount = calcRegistrationPrice(
-        pending.pays || '', pending.mode || 'presentiel', pending.ville || '', pending.coursParticuliers
-      );
+      const pendingCourses = await prisma.course.findMany({ where: { id: { in: courseIdList } } });
+      const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.ville);
+      const monthlyAmt = pending.monthlyAmount && pending.monthlyAmount > 0
+        ? pending.monthlyAmount
+        : calcMonthlyTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.mode || 'presentiel');
       const totalAmount = inscriptionAmount + monthlyAmt;
 
       // Transaction atomique : utilisateur + paiement + abonnements

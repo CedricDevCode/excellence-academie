@@ -36,10 +36,10 @@ export default function NotifsView() {
   const unreadCount = notifs.filter((n: any) => !n.isRead).length;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white rounded shadow-sm border border-gray-100">
       <div className="p-6 border-b border-gray-100 flex items-center justify-between">
         <h2 className="font-black text-gray-900 flex items-center gap-2">
-          <Bell size={18} className="text-[#FF6B00]" /> Notifications
+          <Bell size={18} className="text-primary-600" /> Notifications
           {unreadCount > 0 && (
             <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unreadCount} non lue{unreadCount > 1 ? 's' : ''}</span>
           )}
@@ -47,7 +47,7 @@ export default function NotifsView() {
         {unreadCount > 0 && (
           <button
             onClick={handleMarkAllRead}
-            className="text-xs font-bold text-[#0056B3] hover:underline flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-lg"
+            className="text-xs font-bold text-[#c97e00] hover:underline flex items-center gap-1.5 bg-primary-50 px-3 py-1.5 rounded-lg"
           >
             <CheckCircle size={14} /> Tout marquer comme lu
           </button>
@@ -61,20 +61,20 @@ export default function NotifsView() {
           </div>
         ) : (
           notifs.map((n: any) => (
-            <div key={n.id} className={`p-5 flex items-start gap-4 transition-colors ${n.isRead ? 'bg-white' : 'bg-blue-50/50'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${n.isRead ? 'bg-gray-100 text-gray-400' : 'bg-[#0056B3] text-white'}`}>
+            <div key={n.id} className={`p-5 flex items-start gap-4 transition-colors ${n.isRead ? 'bg-white' : 'bg-primary-50/50'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${n.isRead ? 'bg-surface-50 text-gray-400' : 'bg-[#c97e00] text-white'}`}>
                 <Mail size={18} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-gray-900 text-sm">{n.title}</span>
-                  {!n.isRead && <span className="w-2 h-2 bg-[#0056B3] rounded-full" />}
+                  {!n.isRead && <span className="w-2 h-2 bg-[#c97e00] rounded-full" />}
                 </div>
                 <p className="text-gray-600 text-sm">{n.message}</p>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="text-gray-400 text-xs flex items-center gap-1"><Calendar size={12} /> {new Date(n.createdAt).toLocaleDateString('fr-FR')}</span>
                   {!n.isRead && (
-                    <button onClick={() => handleMarkRead(n.id)} className="text-[#0056B3] text-xs font-semibold hover:underline">
+                    <button onClick={() => handleMarkRead(n.id)} className="text-[#c97e00] text-xs font-semibold hover:underline">
                       Marquer comme lu
                     </button>
                   )}

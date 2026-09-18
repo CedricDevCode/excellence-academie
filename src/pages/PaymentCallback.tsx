@@ -41,11 +41,11 @@ export default function PaymentCallback() {
   }, [reference]);
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
+    <div className="min-h-screen bg-linear-to-br from-primary-50 via-white to-accent-50 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded shadow-xl border border-gray-100 p-8 text-center">
         {status === "loading" && (
           <>
-            <Loader2 size={48} className="mx-auto text-indigo-600 animate-spin mb-4" />
+            <Loader2 size={48} className="mx-auto text-accent-500 animate-spin mb-4" />
             <h1 className="font-black text-gray-900 text-xl mb-2">Vérification du paiement...</h1>
             <p className="text-gray-500 text-sm">Veuillez patienter pendant que nous confirmons votre transaction.</p>
           </>
@@ -62,7 +62,7 @@ export default function PaymentCallback() {
             </p>
             <button
               onClick={() => navigate("/student/dashboard")}
-              className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-2 bg-accent-500 text-white font-bold px-6 py-3 rounded hover:bg-accent-600 transition-colors"
             >
               <ArrowLeft size={16} /> Accéder à mon espace
             </button>
@@ -79,7 +79,7 @@ export default function PaymentCallback() {
             <p className="text-gray-400 text-xs mb-6">Référence : {reference}</p>
             <button
               onClick={() => navigate("/students/new")}
-              className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 font-bold px-6 py-3 rounded-xl hover:bg-gray-200 transition-colors"
+              className="inline-flex items-center gap-2 bg-surface-50 text-gray-700 font-bold px-6 py-3 rounded hover:bg-gray-200 transition-colors"
             >
               <ArrowLeft size={16} /> Réessayer l'inscription
             </button>

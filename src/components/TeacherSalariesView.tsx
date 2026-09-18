@@ -147,20 +147,20 @@ export default function TeacherSalariesView() {
           <DollarSign size={16} className="text-green-500 shrink-0" /> Salaires enseignants
         </h2>
         <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 p-0.5">
-          <button onClick={prevMonth} className="p-1.5 rounded-md hover:bg-gray-100 transition-colors">
+          <button onClick={prevMonth} className="p-1.5 rounded-md hover:bg-surface-50 transition-colors">
             <ChevronLeft size={14} />
           </button>
           <span className="font-bold text-xs sm:text-sm text-gray-900 min-w-[120px] text-center">
             {MONTHS[month]} {year}
           </span>
-          <button onClick={nextMonth} className="p-1.5 rounded-md hover:bg-gray-100 transition-colors" disabled={month >= now.getMonth() && year >= now.getFullYear()}>
+          <button onClick={nextMonth} className="p-1.5 rounded-md hover:bg-surface-50 transition-colors" disabled={month >= now.getMonth() && year >= now.getFullYear()}>
             <ChevronRight size={14} className={month >= now.getMonth() && year >= now.getFullYear() ? 'opacity-30' : ''} />
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
+      <div className="flex gap-1 bg-surface-50 rounded-lg p-0.5 w-fit">
         <button onClick={() => setTab('unpaid')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
             tab === 'unpaid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
@@ -177,16 +177,16 @@ export default function TeacherSalariesView() {
 
       {tab === 'unpaid' ? (
         loading ? (
-          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#0056B3]" /></div>
+          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#c97e00]" /></div>
         ) : report && report.report.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          <div className="bg-white rounded shadow-sm border border-gray-100 p-8 text-center">
             <DollarSign size={28} className="mx-auto text-gray-300 mb-3" />
             <p className="text-gray-500 text-xs">Aucune séance en attente pour {MONTHS[month]} {year}.</p>
           </div>
         ) : report ? (
           <>
             {/* Summary bar */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xl sm:text-2xl font-black text-green-600 truncate">{report.grandTotal.toLocaleString('fr-FR')} <span className="text-xs font-normal text-gray-400">FCFA</span></div>
@@ -202,10 +202,10 @@ export default function TeacherSalariesView() {
             {/* Teacher cards */}
             <div className="space-y-2">
               {report.report.map((entry: any) => (
-                <div key={entry.teacher.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+                <div key={entry.teacher.id} className="bg-white rounded shadow-sm border border-gray-100 p-3">
                   {/* Line 1: Avatar + Name/Email/Rate + Hours/Amount */}
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#0056B3] flex items-center justify-center text-white font-bold text-xs shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[#c97e00] flex items-center justify-center text-white font-bold text-xs shrink-0">
                       {entry.teacher.name?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -227,7 +227,7 @@ export default function TeacherSalariesView() {
                           <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
                             {entry.teacher.hourlyRate ? `${entry.teacher.hourlyRate.toLocaleString('fr-FR')} FCFA/h` : '5 000 FCFA/h (défaut)'}
                             <button onClick={() => { setEditingRate(entry.teacher.id); setRateEditValue(entry.teacher.hourlyRate ? String(entry.teacher.hourlyRate) : ''); }}
-                              className="text-gray-300 hover:text-[#0056B3] transition-colors">
+                              className="text-gray-300 hover:text-[#c97e00] transition-colors">
                               <Edit3 size={9} />
                             </button>
                           </span>
@@ -251,7 +251,7 @@ export default function TeacherSalariesView() {
                             <span>{new Date(s.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
                             <span>·</span>
                             <span>{s.course?.title ? s.course.title.substring(0, 10) : 'Sans'}</span>
-                            <span className={s.status === 'PAID' ? 'text-green-600' : s.status === 'VALIDATED' ? 'text-blue-600' : s.status === 'SCHEDULED' ? 'text-yellow-600' : 'text-indigo-600'}>
+                            <span className={s.status === 'PAID' ? 'text-green-600' : s.status === 'VALIDATED' ? 'text-primary-600' : s.status === 'SCHEDULED' ? 'text-yellow-600' : 'text-amber-600'}>
                               {s.status === 'PAID' ? '✓' : s.status === 'VALIDATED' ? '✓' : s.status === 'COMPLETED' ? '◉' : '○'}
                             </span>
                           </span>
@@ -279,16 +279,16 @@ export default function TeacherSalariesView() {
         ) : null
       ) : (
         loadingPaid ? (
-          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#0056B3]" /></div>
+          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#c97e00]" /></div>
         ) : paidSalaries.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          <div className="bg-white rounded shadow-sm border border-gray-100 p-8 text-center">
             <History size={28} className="mx-auto text-gray-300 mb-3" />
             <p className="text-gray-500 text-xs">Aucun salaire payé pour {MONTHS[month]} {year}.</p>
           </div>
         ) : (
           <div className="space-y-2">
             {paidSalaries.map((exp: any) => (
-              <div key={exp.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+              <div key={exp.id} className="bg-white rounded shadow-sm border border-gray-100 p-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
                     {exp.teacher?.name?.[0]?.toUpperCase() || '?'}
@@ -299,7 +299,7 @@ export default function TeacherSalariesView() {
                   </div>
                   <div className="text-right shrink-0 flex items-baseline gap-2">
                     <span className="text-xs font-black text-green-600">{exp.amount.toLocaleString('fr-FR')} <span className="text-[9px] font-normal text-gray-400">FCFA</span></span>
-                    <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-blue-50 text-blue-700">{exp.paymentMethod}</span>
+                    <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-primary-50 text-primary-700">{exp.paymentMethod}</span>
                     <span className="text-[9px] text-gray-400 hidden sm:inline">
                       {new Date(exp.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -317,7 +317,7 @@ export default function TeacherSalariesView() {
       {/* Payment Modal */}
       {paymentModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-overlay">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+          <div className="bg-white rounded-t-2xl sm:rounded w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="font-bold text-gray-900 text-sm">Confirmer le paiement</h3>
               <button onClick={() => setPaymentModal(null)} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
@@ -326,7 +326,7 @@ export default function TeacherSalariesView() {
             </div>
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                <div className="w-10 h-10 rounded-full bg-[#0056B3] flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-10 h-10 rounded-full bg-[#c97e00] flex items-center justify-center text-white font-bold text-sm">
                   {paymentModal.teacherName[0]?.toUpperCase() || '?'}
                 </div>
                 <div className="min-w-0">
@@ -361,7 +361,7 @@ export default function TeacherSalariesView() {
                     <button key={method.value} type="button" onClick={() => setSelectedMethod(method.value)}
                       className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-semibold border transition-all ${
                         selectedMethod === method.value
-                          ? 'border-[#0056B3] bg-blue-50 text-[#0056B3]'
+                          ? 'border-[#c97e00] bg-primary-50 text-[#c97e00]'
                           : 'border-gray-200 text-gray-600 hover:border-gray-300'
                       }`}>
                       {method.icon} {method.label}
@@ -375,7 +375,7 @@ export default function TeacherSalariesView() {
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Téléphone enseignant</label>
                   <input type="tel" value={geniusPhone} onChange={e => setGeniusPhone(e.target.value)}
                     placeholder="+225 07 00 00 00 00"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:border-[#0056B3] focus:outline-none" />
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs focus:border-[#c97e00] focus:outline-none" />
                   <p className="text-[10px] text-gray-400 mt-1">Paiement envoyé via GeniusPay sur ce numéro</p>
                 </div>
               )}

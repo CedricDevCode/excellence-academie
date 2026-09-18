@@ -68,17 +68,17 @@ function StudentsView() {
   // Helper: get mode info for a student
   const getStudentMode = (u: any) => {
     const sub = u.subscriptions?.[0];
-    if (!sub) return { label: 'Standard', type: 'standard', color: 'bg-gray-100 text-gray-700' };
+    if (!sub) return { label: 'Standard', type: 'standard', color: 'bg-surface-50 text-gray-700' };
     if (sub.coursParticuliers) {
       return { label: 'Particulier', type: 'particulier', color: 'bg-amber-100 text-amber-800 border border-amber-200' };
     }
     if (sub.formule === 'en_ligne') {
-      return { label: 'En ligne', type: 'en_ligne', color: 'bg-purple-100 text-purple-800 border border-purple-200' };
+      return { label: 'En ligne', type: 'en_ligne', color: 'bg-accent-100 text-accent-700 border border-accent-200' };
     }
     if (sub.formule === 'les_deux') {
-      return { label: 'Présentiel + En ligne', type: 'les_deux', color: 'bg-orange-100 text-orange-800 border border-orange-200' };
+      return { label: 'Présentiel + En ligne', type: 'les_deux', color: 'bg-primary-100 text-primary-800 border border-primary-200' };
     }
-    return { label: 'Présentiel', type: 'presentiel', color: 'bg-blue-100 text-[#0056B3] border border-blue-200' };
+    return { label: 'Présentiel', type: 'presentiel', color: 'bg-primary-100 text-[#c97e00] border border-primary-200' };
   };
 
   // Filtre automatique instantané
@@ -254,17 +254,17 @@ function StudentsView() {
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div>
           <h2 className="font-black text-gray-900 text-xl flex items-center gap-2">
-            <Users size={22} className="text-[#0056B3]" /> Gestion des étudiants
+            <Users size={22} className="text-[#c97e00]" /> Gestion des étudiants
           </h2>
           <p className="text-gray-500 text-xs mt-0.5">Suivi, filtrage multi-critères et gestion des inscriptions</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {selectedIds.length > 0 && (
-            <button onClick={() => setShowMsgModal(true)} className="flex items-center gap-2 bg-[#FF6B00] text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#e05e00] transition-colors whitespace-nowrap shadow-sm">
+            <button onClick={() => setShowMsgModal(true)} className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-primary-700 transition-colors whitespace-nowrap shadow-sm">
               <Send size={16} /> Envoyer Message ({selectedIds.length})
             </button>
           )}
-          <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-2 bg-[#0056B3] text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003375] transition-colors whitespace-nowrap shadow-sm">
+          <button onClick={() => setShowAddPanel(true)} className="flex items-center gap-2 bg-[#c97e00] text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-[#6b4500] transition-colors whitespace-nowrap shadow-sm">
             <Plus size={16} /> Inscrire un étudiant
           </button>
         </div>
@@ -272,8 +272,8 @@ function StudentsView() {
 
       {/* Cartes Compteurs en haut */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0056B3] flex items-center justify-center shrink-0">
+        <div className="bg-white p-4 rounded border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded bg-primary-50 text-[#c97e00] flex items-center justify-center shrink-0">
             <Users size={24} />
           </div>
           <div>
@@ -285,8 +285,8 @@ function StudentsView() {
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-green-50 text-green-600 flex items-center justify-center shrink-0">
+        <div className="bg-white p-4 rounded border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded bg-green-50 text-green-600 flex items-center justify-center shrink-0">
             <CheckCircle size={24} />
           </div>
           <div>
@@ -302,8 +302,8 @@ function StudentsView() {
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-orange-50 text-[#FF6B00] flex items-center justify-center shrink-0">
+        <div className="bg-white p-4 rounded border border-gray-100 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
             <GraduationCap size={24} />
           </div>
           <div>
@@ -315,7 +315,7 @@ function StudentsView() {
 
       <div className="grid grid-cols-1 gap-6">
         {!showAddPanel && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
             {/* Barre de Filtres Automatique */}
             <div className="p-4 border-b border-gray-100 bg-gray-50/70 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -327,7 +327,7 @@ function StudentsView() {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Nom, email, téléphone..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-all shadow-xs"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all shadow-xs"
                   />
                   {search && (
                     <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -341,7 +341,7 @@ function StudentsView() {
                   <select
                     value={selectedCourse}
                     onChange={e => setSelectedCourse(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
                     <option value="">📚 Toutes les formations</option>
                     {courses.map((c: any) => (
@@ -357,7 +357,7 @@ function StudentsView() {
                   <select
                     value={selectedMode}
                     onChange={e => setSelectedMode(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
                     <option value="">🎯 Tous les types de formation</option>
                     <option value="presentiel">🏫 Présentiel</option>
@@ -372,7 +372,7 @@ function StudentsView() {
                   <select
                     value={dateFilter}
                     onChange={e => setDateFilter(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
                     <option value="">📅 Toutes les dates</option>
                     <option value="today">Inscrits aujourd'hui</option>
@@ -385,22 +385,22 @@ function StudentsView() {
 
               {/* Sélecteurs de date personnalisée si "custom" */}
               {dateFilter === 'custom' && (
-                <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-gray-600 bg-white p-3 rounded-xl border border-gray-200">
+                <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-gray-600 bg-white p-3 rounded border border-gray-200">
                   <span className="font-semibold text-gray-700 flex items-center gap-1">
-                    <Calendar size={14} className="text-[#0056B3]" /> Du :
+                    <Calendar size={14} className="text-[#c97e00]" /> Du :
                   </span>
                   <input
                     type="date"
                     value={startDate}
                     onChange={e => setStartDate(e.target.value)}
-                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#0056B3]"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#c97e00]"
                   />
                   <span className="font-semibold text-gray-700">Au :</span>
                   <input
                     type="date"
                     value={endDate}
                     onChange={e => setEndDate(e.target.value)}
-                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#0056B3]"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#c97e00]"
                   />
                 </div>
               )}
@@ -408,7 +408,7 @@ function StudentsView() {
               {/* Barre de réinitialisation si filtre actif */}
               {hasActiveFilters && (
                 <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-[#0056B3]">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-[#c97e00]">
                     <Filter size={14} />
                     <span>Filtre appliqué : {filtered.length} étudiant{filtered.length > 1 ? 's' : ''} trouvé{filtered.length > 1 ? 's' : ''}</span>
                   </div>
@@ -428,7 +428,7 @@ function StudentsView() {
                 <thead>
                   <tr className="bg-white border-b border-gray-100 text-left">
                     <th className="px-5 py-4 w-10">
-                      <input type="checkbox" checked={selectedIds.length > 0 && selectedIds.length === filtered.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-[#0056B3] focus:ring-[#0056B3] accent-[#0056B3]" />
+                      <input type="checkbox" checked={selectedIds.length > 0 && selectedIds.length === filtered.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-[#c97e00] focus:ring-[#c97e00] accent-[#c97e00]" />
                     </th>
                     <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Étudiant</th>
                     <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Contact</th>
@@ -447,7 +447,7 @@ function StudentsView() {
                           <Users size={32} className="text-gray-300" />
                           <p className="font-semibold text-gray-600">Aucun étudiant ne correspond aux filtres</p>
                           {hasActiveFilters && (
-                            <button onClick={resetFilters} className="text-xs text-[#0056B3] font-bold underline hover:text-[#003375]">
+                            <button onClick={resetFilters} className="text-xs text-[#c97e00] font-bold underline hover:text-[#6b4500]">
                               Effacer les filtres
                             </button>
                           )}
@@ -462,11 +462,11 @@ function StudentsView() {
                       return (
                         <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-5 py-4">
-                            <input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelect(u.id)} className="w-4 h-4 rounded accent-[#0056B3]" />
+                            <input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelect(u.id)} className="w-4 h-4 rounded accent-[#c97e00]" />
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-[#0056B3] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                              <div className="w-9 h-9 rounded-full bg-[#c97e00] flex items-center justify-center text-white text-xs font-bold shrink-0">
                                 {u.name?.[0]?.toUpperCase() || '?'}
                               </div>
                               <div>
@@ -487,7 +487,7 @@ function StudentsView() {
                             {studentCourses.length > 0 ? (
                               <div className="flex flex-wrap gap-1 max-w-xs">
                                 {studentCourses.map((c, idx) => (
-                                  <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-[#0056B3] border border-blue-100">
+                                  <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary-50 text-[#c97e00] border border-primary-100">
                                     {c.title}
                                   </span>
                                 ))}
@@ -524,7 +524,7 @@ function StudentsView() {
                           </td>
                           <td className="px-5 py-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
-                              <button onClick={() => openEditModal(u)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors" title="Modifier">
+                              <button onClick={() => openEditModal(u)} className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
                                 <Edit size={15} />
                               </button>
                               <button onClick={() => handleToggleActive(u)} className={`p-1.5 rounded-lg transition-colors ${u.isActive !== false ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`} title={u.isActive !== false ? 'Désactiver' : 'Activer'}>
@@ -546,7 +546,7 @@ function StudentsView() {
         )}
 
         {showAddPanel && (
-          <aside className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 xl:min-h-[600px]">
+          <aside className="bg-white rounded shadow-sm border border-gray-100 p-6 xl:min-h-[600px]">
             <div className="flex items-start justify-between gap-3 mb-6">
               <div>
                 <h3 className="font-black text-gray-900 text-lg">Inscrire un étudiant</h3>
@@ -564,7 +564,7 @@ function StudentsView() {
       {/* Bulk Message Modal */}
       {showMsgModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
               <h3 className="font-black text-gray-900 text-lg">Message Groupé ({selectedIds.length} dest.)</h3>
               <button onClick={() => setShowMsgModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
@@ -573,16 +573,16 @@ function StudentsView() {
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Sujet du message</label>
-                <input required value={msgForm.title} onChange={e => setMsgForm({ ...msgForm, title: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" placeholder="Rappel de cours..." />
+                <input required value={msgForm.title} onChange={e => setMsgForm({ ...msgForm, title: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" placeholder="Rappel de cours..." />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Contenu</label>
-                <textarea required rows={5} value={msgForm.message} onChange={e => setMsgForm({ ...msgForm, message: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none resize-none" placeholder="Votre message..." />
+                <textarea required rows={5} value={msgForm.message} onChange={e => setMsgForm({ ...msgForm, message: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none resize-none" placeholder="Votre message..." />
               </div>
               </div>
               <div className="p-6 pt-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
                 <button type="button" onClick={() => setShowMsgModal(false)} className="px-4 py-2 text-gray-600 font-semibold text-sm">Annuler</button>
-                <button type="submit" disabled={submitting} className="bg-[#FF6B00] text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-[#e05e00] disabled:opacity-50">
+                <button type="submit" disabled={submitting} className="bg-primary-600 text-white px-6 py-2 rounded font-bold text-sm hover:bg-primary-700 disabled:opacity-50">
                   {submitting ? '...' : 'Envoyer'}
                 </button>
               </div>
@@ -594,7 +594,7 @@ function StudentsView() {
       {/* Edit Student Modal */}
       {showEditModal && editingStudent && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
               <h3 className="font-black text-gray-900 text-lg">Modifier l'étudiant</h3>
               <button onClick={() => { setShowEditModal(false); setEditingStudent(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
@@ -604,29 +604,29 @@ function StudentsView() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Prénom</label>
-                  <input value={editForm.prenom} onChange={e => setEditForm({ ...editForm, prenom: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                  <input value={editForm.prenom} onChange={e => setEditForm({ ...editForm, prenom: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Nom</label>
-                  <input value={editForm.nom} onChange={e => setEditForm({ ...editForm, nom: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                  <input value={editForm.nom} onChange={e => setEditForm({ ...editForm, nom: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
-                <input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                <input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Téléphone</label>
-                <input value={editForm.telephone} onChange={e => setEditForm({ ...editForm, telephone: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                <input value={editForm.telephone} onChange={e => setEditForm({ ...editForm, telephone: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ville</label>
-                <input value={editForm.ville} onChange={e => setEditForm({ ...editForm, ville: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                <input value={editForm.ville} onChange={e => setEditForm({ ...editForm, ville: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
               </div>
               </div>
               <div className="p-6 pt-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
                 <button type="button" onClick={() => { setShowEditModal(false); setEditingStudent(null); }} className="px-4 py-2 text-gray-600 font-semibold text-sm">Annuler</button>
-                <button type="submit" disabled={submitting} className="bg-[#0056B3] text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-[#003375] disabled:opacity-50">
+                <button type="submit" disabled={submitting} className="bg-[#c97e00] text-white px-6 py-2 rounded font-bold text-sm hover:bg-[#6b4500] disabled:opacity-50">
                   {submitting ? '...' : 'Enregistrer'}
                 </button>
               </div>

@@ -119,10 +119,10 @@ export default function CartPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
               <div className="space-y-3">
                 {[1, 2, 3].map(i => (
-                  <Skeleton key={i} className="h-32 w-full rounded-xl" />
+                  <Skeleton key={i} className="h-32 w-full rounded" />
                 ))}
               </div>
-              <Skeleton className="h-80 w-full rounded-xl" />
+              <Skeleton className="h-80 w-full rounded" />
             </div>
           </div>
         </Container>
@@ -191,7 +191,7 @@ export default function CartPage() {
                         >
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(item.id)}
                             className="w-4 h-4 accent-accent-500 rounded cursor-pointer shrink-0" />
-                          <div className="w-24 h-24 bg-surface-100 rounded-xl overflow-hidden flex items-center justify-center shrink-0 border border-surface-200">
+                          <div className="w-24 h-24 bg-surface-100 rounded overflow-hidden flex items-center justify-center shrink-0 border border-surface-200">
                             {getProductImg(item.imageUrl) ? (
                               <img src={getProductImg(item.imageUrl)} alt={item.title} className="w-full h-full object-contain p-1" />
                             ) : (
@@ -212,12 +212,12 @@ export default function CartPage() {
                             <div className="flex items-center justify-between mt-3">
                               <div className="inline-flex items-center border border-gray-200 rounded-lg overflow-hidden">
                                 <button onClick={() => updateQuantity(item.id, -1)}
-                                  className="px-2.5 py-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+                                  className="px-2.5 py-1.5 text-gray-500 hover:bg-surface-50 hover:text-gray-700 transition-colors">
                                   <Minus size={14} />
                                 </button>
                                 <span className="px-4 py-1.5 text-sm font-semibold min-w-[32px] text-center bg-surface-50 border-x border-gray-200">{item.quantity}</span>
                                 <button onClick={() => updateQuantity(item.id, 1)}
-                                  className="px-2.5 py-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+                                  className="px-2.5 py-1.5 text-gray-500 hover:bg-surface-50 hover:text-gray-700 transition-colors">
                                   <Plus size={14} />
                                 </button>
                               </div>
@@ -314,7 +314,7 @@ export default function CartPage() {
                   const img = getProductImg(product.imageUrl);
                   return (
                     <div key={product.id} onClick={() => navigate(`/shop/product/${product.id}`)}
-                      className="min-w-[160px] max-w-[160px] bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group shrink-0">
+                      className="min-w-[160px] max-w-[160px] bg-white rounded border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group shrink-0">
                       <div className="aspect-square bg-surface-100 flex items-center justify-center p-3">
                         {img ? (
                           <img src={img} alt={product.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform" />

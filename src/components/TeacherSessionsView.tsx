@@ -128,39 +128,39 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
   const statusBadge = (status: string) => {
     switch (status) {
       case 'PAID': return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700"><CheckCircle size={10} /> Payée</span>;
-      case 'VALIDATED': return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700"><ShieldCheck size={10} /> Validée</span>;
-      case 'COMPLETED': return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700"><CheckCircle size={10} /> Terminée</span>;
+      case 'VALIDATED': return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700"><ShieldCheck size={10} /> Validée</span>;
+      case 'COMPLETED': return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700"><CheckCircle size={10} /> Terminée</span>;
       case 'CANCELLED': return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700"><X size={10} /> Annulée</span>;
       default: return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700"><Clock size={10} /> Planifiée</span>;
     }
   };
 
-  if (loading) return <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#0056B3]" /></div>;
+  if (loading) return <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#c97e00]" /></div>;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div>
           <h2 className="font-black text-gray-900 flex items-center gap-2">
-            <Clock size={18} className="text-[#0056B3]" /> Programmation des cours
+            <Clock size={18} className="text-[#c97e00]" /> Programmation des cours
           </h2>
           <p className="text-gray-500 text-xs mt-1">Planifiez les séances par semaine, avec horaires et type de cours</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-[#0056B3] text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003375] transition-colors whitespace-nowrap">
+          className="flex items-center gap-2 bg-[#c97e00] text-white px-4 py-2.5 rounded font-bold text-sm hover:bg-[#6b4500] transition-colors whitespace-nowrap">
           {showForm ? <X size={16} /> : <Plus size={16} />}
           {showForm ? 'Fermer' : 'Nouvelle séance'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded shadow-sm border border-gray-100 p-6 space-y-4">
           <h3 className="font-bold text-gray-900">Programmer une séance de cours</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Enseignant *</label>
               <select required value={form.teacherId} onChange={e => setForm({ ...form, teacherId: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none">
+                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none">
                 <option value="">Sélectionnez...</option>
                 {teachers.map((t: any) => (
                   <option key={t.id} value={t.id}>{t.name || t.email}</option>
@@ -170,7 +170,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Matière / Cours</label>
               <select value={form.courseId} onChange={e => setForm({ ...form, courseId: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none">
+                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none">
                 <option value="">Sélectionnez...</option>
                 {courses.map((c: any) => (
                   <option key={c.id} value={c.id}>{c.title}</option>
@@ -180,23 +180,23 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Date *</label>
               <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Début *</label>
               <input type="time" required value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Fin *</label>
               <input type="time" required value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Durée (auto)</label>
-              <div className="px-3 py-2.5 border-2 border-gray-100 rounded-xl text-sm text-gray-500 bg-gray-50">
+              <div className="px-3 py-2.5 border-2 border-gray-100 rounded text-sm text-gray-500 bg-gray-50">
                 {autoHours !== '0' ? `${autoHours}h` : '—'}
               </div>
             </div>
@@ -204,11 +204,11 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
               <label className="block text-xs font-semibold text-gray-700 mb-1">Type *</label>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setForm({ ...form, type: 'PRESENTIEL', location: '' })}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${form.type === 'PRESENTIEL' ? 'border-[#0056B3] bg-blue-50 text-[#0056B3]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded text-sm font-semibold border-2 transition-colors ${form.type === 'PRESENTIEL' ? 'border-[#c97e00] bg-primary-50 text-[#c97e00]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                   <User size={14} /> Présentiel
                 </button>
                 <button type="button" onClick={() => setForm({ ...form, type: 'ONLINE', location: '' })}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${form.type === 'ONLINE' ? 'border-[#0056B3] bg-blue-50 text-[#0056B3]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded text-sm font-semibold border-2 transition-colors ${form.type === 'ONLINE' ? 'border-[#c97e00] bg-primary-50 text-[#c97e00]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                   <Monitor size={14} /> En ligne
                 </button>
               </div>
@@ -221,7 +221,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
                 <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
                   placeholder={form.type === 'ONLINE' ? 'https://meet.google.com/...' : 'Salle 101, étage 2'}
-                  className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+                  className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
               </div>
             </div>
           </div>
@@ -229,12 +229,12 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Description (optionnel)</label>
               <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" placeholder="Cours de mathématiques - Chapitre 3" />
+                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" placeholder="Cours de mathématiques - Chapitre 3" />
             </div>
             <div className="flex items-end pb-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.notifyStudents} onChange={e => setForm({ ...form, notifyStudents: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-[#0056B3] focus:ring-[#0056B3]" />
+                  className="w-4 h-4 rounded border-gray-300 text-[#c97e00] focus:ring-[#c97e00]" />
                 <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
                   <Bell size={14} /> Notifier les étudiants
                 </span>
@@ -245,7 +245,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
             <button type="button" onClick={() => setShowForm(false)}
               className="px-4 py-2 text-sm text-gray-600 font-semibold">Annuler</button>
             <button type="submit" disabled={submitting || autoHours === '0'}
-              className="flex items-center gap-2 bg-[#0056B3] text-white px-5 py-2 rounded-xl font-bold text-sm hover:bg-[#003375] disabled:opacity-50">
+              className="flex items-center gap-2 bg-[#c97e00] text-white px-5 py-2 rounded font-bold text-sm hover:bg-[#6b4500] disabled:opacity-50">
               {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               Programmer la séance
             </button>
@@ -253,13 +253,13 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
         </form>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gray-50">
           <div className="relative max-w-md">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par enseignant, matière..."
-              className="w-full pl-9 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none" />
+              className="w-full pl-9 pr-4 py-2 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
           </div>
         </div>
         <div className="divide-y divide-gray-100">
@@ -270,7 +270,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
               <div key={week.weekLabel}>
                 <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-b border-gray-100">
                   <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2">
-                    <Clock size={14} className="text-[#0056B3]" /> {week.weekLabel}
+                    <Clock size={14} className="text-[#c97e00]" /> {week.weekLabel}
                   </h3>
                   <span className="text-xs text-gray-500 font-semibold">{week.totalHours}h au total</span>
                 </div>
@@ -294,7 +294,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
                         <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-[#0056B3] flex items-center justify-center text-white text-[10px] font-bold">
+                              <div className="w-7 h-7 rounded-full bg-[#c97e00] flex items-center justify-center text-white text-[10px] font-bold">
                                 {s.teacher?.name?.[0]?.toUpperCase() || '?'}
                               </div>
                               <span className="font-semibold text-gray-900 text-sm">{s.teacher?.name || 'Inconnu'}</span>
@@ -307,7 +307,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
                           <td className="px-6 py-3 text-gray-500 text-sm">{s.startTime} - {s.endTime}</td>
                           <td className="px-6 py-3 font-bold text-gray-900 text-sm">{s.hours}h</td>
                           <td className="px-6 py-3">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${s.type === 'ONLINE' ? 'bg-purple-50 text-purple-700' : 'bg-green-50 text-green-700'}`}>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${s.type === 'ONLINE' ? 'bg-accent-50 text-accent-700' : 'bg-green-50 text-green-700'}`}>
                               {s.type === 'ONLINE' ? <Monitor size={10} /> : <User size={10} />}
                               {s.type === 'ONLINE' ? 'En ligne' : 'Présentiel'}
                             </span>
@@ -315,7 +315,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
                           <td className="px-6 py-3 text-gray-500 text-xs max-w-[150px] truncate">
                             {s.location ? (
                               s.type === 'ONLINE'
-                                ? <a href={s.location} target="_blank" rel="noopener noreferrer" className="text-[#0056B3] hover:underline">{s.location}</a>
+                                ? <a href={s.location} target="_blank" rel="noopener noreferrer" className="text-[#c97e00] hover:underline">{s.location}</a>
                                 : s.location
                             ) : '—'}
                           </td>
@@ -324,7 +324,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
                             <div className="flex items-center gap-1">
                               {s.status === 'COMPLETED' && (
                                 <button onClick={() => handleValidate(s.id)} disabled={validatingId === s.id}
-                                  className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors" title="Valider">
+                                  className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Valider">
                                   {validatingId === s.id ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
                                 </button>
                               )}

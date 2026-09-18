@@ -40,13 +40,13 @@ export default function ShopRegister() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Link to="/student/login" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-[#FF6B00] mb-6 transition-colors">
+        <Link to="/student/login" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-600 mb-6 transition-colors">
           <ArrowLeft size={16} /> Retour à la connexion
         </Link>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+        <div className="bg-white rounded shadow-xl border border-gray-100 p-8">
           <div className="text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-[#FF6B00] flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <div className="w-14 h-14 rounded bg-primary-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
               <ShoppingBag size={24} className="text-white" />
             </div>
             <h1 className="text-2xl font-black text-gray-900">Créer un compte boutique</h1>
@@ -54,7 +54,7 @@ export default function ShopRegister() {
           </div>
 
           {error && (
-            <div className="mb-5 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3" role="alert">
+            <div className="mb-5 bg-red-50 border border-red-200 rounded p-4 flex items-start gap-3" role="alert">
               <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
               <p className="text-red-700 text-sm">{error}</p>
             </div>
@@ -66,13 +66,13 @@ export default function ShopRegister() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Prénom *</label>
                 <input type="text" value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })}
                   placeholder="Jean"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B00] focus:outline-none text-sm transition-colors" />
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-primary-600 focus:outline-none text-sm transition-colors" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Nom *</label>
                 <input type="text" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })}
                   placeholder="Kouamé"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B00] focus:outline-none text-sm transition-colors" />
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-primary-600 focus:outline-none text-sm transition-colors" />
               </div>
             </div>
 
@@ -82,7 +82,7 @@ export default function ShopRegister() {
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   placeholder="exemple@email.com"
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B00] focus:outline-none text-sm transition-colors" />
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded focus:border-primary-600 focus:outline-none text-sm transition-colors" />
               </div>
             </div>
 
@@ -92,7 +92,7 @@ export default function ShopRegister() {
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type={showPass ? 'text' : 'password'} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B00] focus:outline-none text-sm transition-colors" />
+                  className="w-full pl-10 pr-10 py-3 border-2 border-gray-200 rounded focus:border-primary-600 focus:outline-none text-sm transition-colors" />
                 <button type="button" onClick={() => setShowPass(!showPass)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -106,12 +106,12 @@ export default function ShopRegister() {
                 <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type="tel" value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })}
                   placeholder="07 01 02 03 04"
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B00] focus:outline-none text-sm transition-colors" />
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded focus:border-primary-600 focus:outline-none text-sm transition-colors" />
               </div>
             </div>
 
             <button type="submit" disabled={loading}
-              className="w-full py-3 bg-[#FF6B00] hover:bg-[#e65c00] text-white font-black rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer">
+              className="w-full py-3 bg-primary-600 hover:bg-primary-700 text-white font-black rounded transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer">
               {loading ? <Loader2 size={18} className="animate-spin" /> : <User size={18} />}
               {loading ? 'Création...' : 'Créer mon compte'}
             </button>
@@ -119,7 +119,7 @@ export default function ShopRegister() {
 
           <p className="text-center text-gray-500 text-sm mt-6">
             Déjà un compte ?{" "}
-            <Link to={`/student/login${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-[#FF6B00] font-bold hover:text-[#e05e00]">
+            <Link to={`/student/login${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} className="text-primary-600 font-bold hover:text-primary-700">
               Connectez-vous
             </Link>
           </p>

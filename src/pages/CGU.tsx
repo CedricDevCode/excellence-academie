@@ -5,11 +5,11 @@ export default function CGU() {
   return (
     <div className="min-h-screen bg-gray-50 font-[Inter,sans-serif]">
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <Link to="/" className="inline-flex items-center gap-2 text-[#0056B3] hover:text-[#003375] text-sm font-semibold mb-8 transition-colors" aria-label="Retour à l'accueil">
+        <Link to="/" className="inline-flex items-center gap-2 text-[#c97e00] hover:text-[#6b4500] text-sm font-semibold mb-8 transition-colors" aria-label="Retour à l'accueil">
           <ArrowLeft size={16} /> Retour à l'accueil
         </Link>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 md:p-12">
+        <div className="bg-white rounded shadow-sm border border-gray-100 p-8 md:p-12">
           <h1 className="text-3xl font-black text-gray-900 mb-6">Conditions Générales d'Utilisation</h1>
           <p className="text-gray-500 text-sm mb-8">Dernière mise à jour : Juin 2026</p>
 

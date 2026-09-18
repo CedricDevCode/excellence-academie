@@ -7,24 +7,28 @@ interface CardProps {
   hover?: boolean;
   padding?: "none" | "sm" | "md" | "lg";
   onClick?: () => void;
+  borderless?: boolean;
+  flat?: boolean;
 }
 
 export default memo(Card);
 
-function Card({ children, className, hover = false, padding = "md", onClick }: CardProps) {
+function Card({ children, className, hover = false, padding = "md", onClick, borderless = false, flat = false }: CardProps) {
   const paddings = {
     none: "",
-    sm: "p-3 sm:p-4",
-    md: "p-4 sm:p-5",
-    lg: "p-6 sm:p-8",
+    sm: "p-3",
+    md: "p-4",
+    lg: "p-6",
   };
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "bg-white rounded-2xl border border-gray-100 shadow-card transition-all duration-300",
-        hover && "hover:shadow-card-hover hover:border-gray-200 hover:-translate-y-0.5 cursor-pointer",
+        "bg-white rounded border-gray-200 transition-all duration-150",
+        borderless ? "" : "border",
+        flat ? "shadow-none" : "shadow-sm hover:shadow-md",
+        hover && "hover:shadow-md hover:border-gray-300 cursor-pointer",
         paddings[padding],
         className
       )}

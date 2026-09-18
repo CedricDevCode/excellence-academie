@@ -2,13 +2,13 @@ import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 
 const DEFAULT_PRESETS = [
-  { name: 'Concours Juridiques & Judiciaires', description: 'Magistrature, Greffe, Avocature, Notariat', color: '#4F46E5', displayOrder: 1 },
-  { name: 'Administration Publique', description: 'ENA, Fonction Publique, EPPJEJ & EPP', color: '#0056B3', displayOrder: 2 },
+  { name: 'Concours Juridiques & Judiciaires', description: 'Magistrature, Greffe, Avocature, Notariat', color: '#D97706', displayOrder: 1 },
+  { name: 'Administration Publique', description: 'ENA, Fonction Publique, EPPJEJ & EPP', color: '#c97e00', displayOrder: 2 },
   { name: 'Sécurité & Force Publique', description: 'Officiers, Sous-Officiers de Police, Gendarmerie, Agent pénitentiaire', color: '#D97706', displayOrder: 3 },
-  { name: 'Technologies & Métiers Numériques', description: 'Informatique, Cybersécurité, Réseaux', color: '#059669', displayOrder: 4 },
+  { name: 'Technologies & Métiers Numériques', description: 'Informatique, Cybersécurité, Réseaux', color: '#1e9e54', displayOrder: 4 },
   { name: 'Santé & Paramédical', description: 'Concours INFAS', color: '#DC2626', displayOrder: 5 },
-  { name: 'Éducation & Enseignement', description: 'CAFOP, ENS, Enseignement secondaire', color: '#7C3AED', displayOrder: 6 },
-  { name: 'Finances & Gestion', description: 'Trésor, Impôts, Douanes, Comptabilité publique', color: '#0284C7', displayOrder: 7 },
+  { name: 'Éducation & Enseignement', description: 'CAFOP, ENS, Enseignement secondaire', color: '#1e9e54', displayOrder: 6 },
+  { name: 'Finances & Gestion', description: 'Trésor, Impôts, Douanes, Comptabilité publique', color: '#059669', displayOrder: 7 },
 ];
 
 let categoryTableReady: boolean | null = null;
@@ -31,7 +31,7 @@ export const ensureCategoryTable = async (): Promise<void> => {
         "id" TEXT NOT NULL,
         "name" TEXT NOT NULL,
         "description" TEXT,
-        "color" TEXT DEFAULT '#0056B3',
+        "color" TEXT DEFAULT '#c97e00',
         "displayOrder" INTEGER NOT NULL DEFAULT 0,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -135,7 +135,7 @@ export const createCategory = async (req: Request, res: Response) => {
       data: {
         name: trimmedName,
         description: description?.trim() || null,
-        color: color?.trim() || '#0056B3',
+        color: color?.trim() || '#c97e00',
         displayOrder: Number(displayOrder) || (count + 1),
       },
     });
@@ -188,7 +188,7 @@ export const updateCategory = async (req: Request, res: Response) => {
       data: {
         name: newName,
         description: description !== undefined ? description?.trim() || null : undefined,
-        color: color !== undefined ? color?.trim() || '#0056B3' : undefined,
+        color: color !== undefined ? color?.trim() || '#c97e00' : undefined,
         displayOrder: displayOrder !== undefined ? Number(displayOrder) : undefined,
       },
     });

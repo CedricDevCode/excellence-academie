@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import {
   Home, CreditCard, Bell, LogOut, Menu, X, User,
   CheckCircle, Clock, Download, GraduationCap,
-  Calendar, ChevronRight, BookOpen, Phone, AlertCircle, Loader2, Camera, Save, Printer, Eye, FileText, ShoppingCart
+  Calendar, ChevronRight, BookOpen, Phone, AlertCircle, Loader2, Camera, Save, Printer, Eye, FileText, ShoppingCart, Globe, Plus, Sparkles
 } from "lucide-react";
 import { getMe, logout as apiLogout, fetchMyPayments, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchEvents, updateMyProfile, fetchMySubscriptions, fetchOverdueItems, paySubscription, fetchMyContract, signContract, getSignedContractPdfUrl, fetchBlogPosts } from "../utils/api";
 import { useLiveNotifications } from "../hooks/useLiveNotifications";
@@ -11,6 +11,7 @@ import { generatePaymentReceipt, generatePaymentsReport } from "../utils/pdf";
 import StudentSessionsView from "../components/StudentSessionsView";
 import ContractView from "../components/ContractView";
 import StudentPurchasesView from "../components/StudentPurchasesView";
+import AddCourseModal from "../components/AddCourseModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton, Card, Badge, Button, ProgressBar } from "../components/ui";
 
@@ -33,21 +34,21 @@ function formatPrice(amount: number) {
 function LoadingSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      <Skeleton variant="rectangular" className="h-32 w-full rounded-2xl" />
+      <Skeleton variant="rectangular" className="h-32 w-full rounded" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => (
-          <Skeleton key={i} variant="card" className="h-28 rounded-2xl" />
+          <Skeleton key={i} variant="card" className="h-28 rounded" />
         ))}
       </div>
-      <Skeleton variant="rectangular" className="h-24 w-full rounded-2xl" />
-      <Skeleton variant="rectangular" className="h-48 w-full rounded-2xl" />
+      <Skeleton variant="rectangular" className="h-24 w-full rounded" />
+      <Skeleton variant="rectangular" className="h-48 w-full rounded" />
     </div>
   );
 }
 
 function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-3">
+    <div className="bg-red-50 border border-red-200 rounded p-5 flex items-center gap-3">
       <AlertCircle size={20} className="text-red-500 shrink-0" />
       <p className="text-red-700 text-sm flex-1">{message}</p>
       {onRetry && (
@@ -59,7 +60,19 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => vo
   );
 }
 
-function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user: any; payments: any[]; subscriptions: any[]; onRefresh: () => void }) {
+function DashboardOverview({
+  user,
+  payments,
+  subscriptions,
+  onRefresh,
+  onOpenAddCourse,
+}: {
+  user: any;
+  payments: any[];
+  subscriptions: any[];
+  onRefresh: () => void;
+  onOpenAddCourse?: () => void;
+}) {
   const initials = user?.name?.split(" ").map((s: string) => s[0]).join("").toUpperCase() || "E";
   const [paying, setPaying] = useState<string | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
@@ -100,12 +113,12 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
 
   return (
     <>
-      <div className="bg-linear-to-r from-primary-500 to-primary-700 rounded-2xl p-6 text-white mb-6">
+      <div className="bg-gradient-hero rounded p-6 text-white mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-black text-xl mb-1">Bon retour parmi nous, {user?.name?.split(" ")[0] || "Étudiant"} !</h2>
-            {user?.matricule && <p className="text-blue-200 text-[10px] font-mono mb-1">{user.matricule}</p>}
-            <p className="text-blue-200 text-sm">
+            {user?.matricule && <p className="text-amber-200/90 text-[10px] font-mono mb-1">{user.matricule}</p>}
+            <p className="text-amber-200/90 text-sm">
               {!activeSub
                 ? "Bienvenue sur votre espace étudiant."
                 : hasPendingPayment
@@ -117,22 +130,57 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
             </p>
           </div>
           <div className="text-right hidden sm:block">
-            <div className="text-3xl font-black text-accent-500">{formatPrice(totalPaidAmount)}</div>
-            <div className="text-blue-200 text-sm">FCFA payés</div>
+            <div className="text-3xl font-black text-amber-300">{formatPrice(totalPaidAmount)}</div>
+            <div className="text-amber-200/90 text-sm">FCFA payés</div>
           </div>
         </div>
       </div>
 
+      {/* Bannière Vos Formations & Ajout de formation supplémentaire */}
+      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-[#c97e00] flex items-center justify-center shrink-0">
+            <GraduationCap size={20} />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+              Vos Formations Actives ({subscriptions.filter((s: any) => s.status === 'ACTIVE').length})
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {courseNames.length > 0 ? (
+                courseNames.map((name: string) => (
+                  <span key={name} className="inline-flex items-center gap-1 text-xs font-bold text-gray-900 bg-amber-50/70 border border-amber-200 px-2.5 py-0.5 rounded-md">
+                    🎓 {name}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-gray-400 italic">Aucune formation active</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {onOpenAddCourse && (
+          <button
+            onClick={onOpenAddCourse}
+            className="inline-flex items-center gap-2 bg-[#c97e00] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#7a4b00] transition-all shadow-xs cursor-pointer shrink-0"
+          >
+            <Plus size={15} />
+            <span>S'inscrire à une autre formation</span>
+          </button>
+        )}
+      </div>
+
       {payError && (
-        <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-4 mb-6 flex items-center gap-3">
+        <div className="bg-red-50 border-2 border-red-100 rounded p-4 mb-6 flex items-center gap-3">
           <AlertCircle size={18} className="text-red-500 shrink-0" />
           <p className="text-red-700 text-xs font-semibold">{payError}</p>
         </div>
       )}
 
       {payments.length === 0 && (
-        <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-5 mb-6">
-          <p className="text-blue-800 text-sm font-semibold">
+        <div className="bg-primary-50 border-2 border-amber-100 rounded p-5 mb-6">
+          <p className="text-primary-800 text-sm font-semibold">
             Aucun paiement enregistré pour le moment. Votre historique apparaîtra ici après votre première inscription.
           </p>
         </div>
@@ -142,8 +190,8 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
         {[
           { label: "Paiements effectués", value: `${paidCount}`, icon: <CheckCircle size={18} />, color: "text-green-500", bg: "bg-green-50" },
           { label: "Prochaine échéance", value: activeSub ? `${formatPrice(nextPaymentAmount)} FCFA` : "—", icon: <Clock size={18} />, color: "text-orange-500", bg: "bg-orange-50", sub: nextPaymentDate },
-          { label: "Total payé", value: `${formatPrice(totalPaidAmount)} FCFA`, icon: <CreditCard size={18} />, color: "text-primary-500", bg: "bg-blue-50" },
-          { label: "Concours", value: courseNames[0] || "Non défini", icon: <GraduationCap size={18} />, color: "text-purple-600", bg: "bg-purple-50" },
+          { label: "Total payé", value: `${formatPrice(totalPaidAmount)} FCFA`, icon: <CreditCard size={18} />, color: "text-primary-500", bg: "bg-primary-50" },
+          { label: "Concours", value: courseNames[0] || "Non défini", icon: <GraduationCap size={18} />, color: "text-accent-700", bg: "bg-accent-50" },
         ].map((s, i) => (
           <motion.div
             key={i}
@@ -152,7 +200,7 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
             transition={{ delay: i * 0.1, duration: 0.4 }}
           >
             <Card padding="md">
-              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center ${s.color} mb-3`}>{s.icon}</div>
+              <div className={`w-10 h-10 ${s.bg} rounded flex items-center justify-center ${s.color} mb-3`}>{s.icon}</div>
               <div className="font-black text-gray-900 text-lg leading-tight">{s.value}</div>
               <div className="text-gray-500 text-xs mt-1">{s.label}</div>
               {(s as any).sub && activeSub && (
@@ -168,12 +216,12 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
                         <div className="flex gap-1">
                           {[1, 2, 3].map(n => (
                             <button key={n} onClick={() => setSelectedMonths(n)}
-                              className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === n ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                              className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === n ? 'bg-primary-800 text-white border-primary-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                               {n} mois
                             </button>
                           ))}
                           <button onClick={() => setSelectedMonths(6)}
-                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === 6 ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition-colors ${selectedMonths === 6 ? 'bg-primary-800 text-white border-primary-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                             Tout
                           </button>
                         </div>
@@ -246,7 +294,7 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
                         <td className="py-3 px-4 font-semibold text-gray-900 text-sm">{new Date(m.createdAt).toLocaleDateString("fr-FR")}</td>
                         <td className="py-3 px-4 font-bold text-primary-500 text-sm">{formatPrice(m.amount)} FCFA</td>
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-accent-100 text-accent-700" : "bg-primary-100 text-primary-800"}`}>
                             {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
                           </span>
                         </td>
@@ -266,7 +314,7 @@ function DashboardOverview({ user, payments, subscriptions, onRefresh }: { user:
         </Card>
       </motion.div>
 
-      <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-6">
+      <div className="bg-primary-50 border-2 border-amber-100 rounded p-6">
         <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2"><Phone size={18} className="text-primary-500" /> Besoin d'aide ?</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <a href="tel:+2250747439443" className="flex items-center gap-2 text-sm text-primary-500 font-semibold hover:underline" aria-label="Appeler le 07 47 43 94 43">
@@ -390,7 +438,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
       </Card>
 
       {payError && (
-        <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-4 flex items-center gap-3">
+        <div className="bg-red-50 border-2 border-red-100 rounded p-4 flex items-center gap-3">
           <AlertCircle size={18} className="text-red-500 shrink-0" />
           <p className="text-red-700 text-xs font-semibold">{payError}</p>
         </div>
@@ -398,7 +446,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
 
       {/* ───── Overdue items section ───── */}
       {overdueItems.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
+        <div className="bg-white rounded shadow-sm border border-red-100 overflow-hidden">
           <div className="p-4 border-b border-red-100 bg-red-50 flex items-center justify-between">
             <h3 className="font-black text-red-700 flex items-center gap-2 text-sm">
               <AlertCircle size={16} /> Échéances impayées
@@ -449,7 +497,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
 
       {/* ───── Payment history ───── */}
       {payments.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
+        <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
           <CreditCard size={40} className="mx-auto text-gray-300 mb-3" />
           <p className="text-gray-400 text-sm">Aucun paiement enregistré</p>
         </div>
@@ -492,7 +540,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-700 font-medium">{m.course?.title || "—"}</td>
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-accent-100 text-accent-700" : "bg-primary-100 text-primary-800"}`}>
                             {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
                           </span>
                         </td>
@@ -521,7 +569,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
       {/* ───── Receipt Preview Modal ───── */}
       {showReceiptModal && receiptUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onClick={closeReceiptModal}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded shadow-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
               <div>
                 <h3 className="font-black text-gray-900">Aperçu du reçu</h3>
@@ -538,12 +586,12 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
                 <Button variant="primary" size="sm" icon={<Download size={16} />} onClick={handleDownloadReceipt}>
                   Télécharger
                 </Button>
-                <button onClick={closeReceiptModal} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Fermer">
+                <button onClick={closeReceiptModal} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-surface-50 transition-colors" aria-label="Fermer">
                   <X size={20} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 bg-gray-100">
+            <div className="flex-1 bg-surface-50">
               <iframe src={receiptUrl} className="w-full h-full" title="Aperçu du reçu" />
             </div>
           </div>
@@ -569,8 +617,64 @@ function printPaymentsPdf(payments: any[]) {
 
 
 
-function CoursesPage() {
-  return <StudentSessionsView />;
+function CoursesPage({
+  subscriptions,
+  onOpenAddCourse,
+}: {
+  subscriptions: any[];
+  onOpenAddCourse: () => void;
+}) {
+  const activeSubs = (subscriptions || []).filter((s: any) => s.status === 'ACTIVE');
+
+  return (
+    <div className="space-y-6">
+      {/* Top Banner with My Formations & Add Button */}
+      <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="p-2 rounded-lg bg-amber-50 text-[#c97e00]">
+              <GraduationCap size={20} />
+            </span>
+            <h2 className="font-black text-gray-900 text-lg">Mes Formations & Sessions</h2>
+          </div>
+          <p className="text-gray-500 text-xs">
+            Formations auxquelles vous êtes actuellement inscrit chez Excellence Académie.
+          </p>
+
+          {/* Formations badges */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {activeSubs.length === 0 ? (
+              <span className="text-xs text-gray-400 italic">Aucune formation active</span>
+            ) : (
+              activeSubs.map((s: any) => (
+                <span
+                  key={s.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-[#c97e00] border border-amber-200"
+                >
+                  <GraduationCap size={14} />
+                  <span>{s.course?.title || "Formation"}</span>
+                  <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">
+                    Actif
+                  </span>
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        <button
+          onClick={onOpenAddCourse}
+          className="flex items-center justify-center gap-2 bg-[#c97e00] text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-[#7a4b00] transition-all shadow-sm hover:shadow-md cursor-pointer shrink-0"
+        >
+          <Plus size={16} />
+          <span>S'inscrire à une autre formation</span>
+        </button>
+      </div>
+
+      {/* Sessions schedule */}
+      <StudentSessionsView />
+    </div>
+  );
 }
 
 function CalendarPage() {
@@ -593,16 +697,16 @@ function CalendarPage() {
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary-500" /></div>
       ) : events.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
+        <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
           <Calendar size={40} className="mx-auto text-gray-300 mb-3" />
           <p className="text-gray-400 text-sm">Aucun événement planifié pour le moment.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {events.map((event: any) => (
-            <div key={event.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div key={event.id} className="bg-white rounded border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-start gap-4">
-                <div className="bg-primary-50 rounded-xl p-3 text-center shrink-0 min-w-[60px]">
+                <div className="bg-primary-50 rounded p-3 text-center shrink-0 min-w-[60px]">
                   <div className="text-primary-500 text-xs font-bold uppercase">
                     {new Date(event.startTime).toLocaleDateString("fr-FR", { weekday: "short" })}
                   </div>
@@ -615,11 +719,11 @@ function CalendarPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`inline-block w-2 h-2 rounded-full ${event.type === "EXAM" ? "bg-red-500" : event.type === "EVENT" ? "bg-purple-500" : "bg-green-500"}`} />
+                    <span className={`inline-block w-2 h-2 rounded-full ${event.type === "EXAM" ? "bg-red-500" : event.type === "EVENT" ? "bg-accent-500" : "bg-green-500"}`} />
                     <h3 className="font-bold text-gray-900 text-sm">{event.title}</h3>
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                       event.type === "EXAM" ? "bg-red-100 text-red-700" :
-                      event.type === "EVENT" ? "bg-purple-100 text-purple-700" :
+                      event.type === "EVENT" ? "bg-accent-100 text-accent-700" :
                       "bg-green-100 text-green-700"
                     }`}>
                       {event.type === "EXAM" ? "Examen" : event.type === "EVENT" ? "Événement" : "Cours"}
@@ -631,7 +735,7 @@ function CalendarPage() {
                     {event.location ? ` • ${event.location}` : ""}
                   </p>
                   {event.description && <p className="text-gray-400 text-xs mt-1">{event.description}</p>}
-                  {event.course && <span className="mt-1.5 inline-block text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{event.course.title}</span>}
+                  {event.course && <span className="mt-1.5 inline-block text-[10px] bg-surface-50 text-gray-600 px-2 py-0.5 rounded-full font-medium">{event.course.title}</span>}
                 </div>
               </div>
             </div>
@@ -675,7 +779,7 @@ function NotificationsPage({ notifs, onRefresh }: { notifs: any[]; onRefresh: ()
                 </Badge>
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-xs font-bold text-primary-500 hover:underline bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                  className="text-xs font-bold text-primary-500 hover:underline bg-primary-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
                 >
                   <CheckCircle size={14} /> Tout marquer comme lu
                 </button>
@@ -685,14 +789,14 @@ function NotificationsPage({ notifs, onRefresh }: { notifs: any[]; onRefresh: ()
         </div>
       </Card>
       {notifs.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
+        <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
           <Bell size={40} className="mx-auto text-gray-300 mb-3" />
           <p className="text-gray-400 text-sm">Aucune notification</p>
         </div>
       ) : (
         <div className="space-y-4">
           {notifs.map((n: any) => (
-            <div key={n.id} className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm ${!n.isRead ? "border-l-4 border-l-primary-500" : ""}`}>
+            <div key={n.id} className={`bg-white rounded border border-gray-100 p-5 shadow-sm ${!n.isRead ? "border-l-4 border-l-primary-500" : ""}`}>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-gray-900">{n.title}</h3>
                 <span className="text-xs text-gray-400">{new Date(n.createdAt).toLocaleDateString("fr-FR")}</span>
@@ -756,9 +860,9 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <Card padding="lg" className="bg-linear-to-r from-blue-50 to-white">
+      <Card padding="lg" className="bg-linear-to-r from-primary-50 to-white">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary-500 flex items-center justify-center text-white"><User size={22} /></div>
+          <div className="w-12 h-12 rounded bg-primary-500 flex items-center justify-center text-white"><User size={22} /></div>
           <div>
             <h2 className="font-black text-gray-900">Mon profil</h2>
             <p className="text-gray-500 text-sm">Informations personnelles et sécurité</p>
@@ -766,10 +870,10 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
         </div>
       </Card>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 space-y-6">
           {message && (
-            <div className={`px-4 py-3 rounded-xl text-sm font-semibold ${messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            <div className={`px-4 py-3 rounded text-sm font-semibold ${messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
               {message}
             </div>
           )}
@@ -781,7 +885,7 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
                 {form.image ? (
                   <img src={form.image} alt="Photo" className="w-20 h-20 rounded-full object-cover shadow-md border-2 border-white" />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-linear-to-br from-primary-500 to-blue-400 flex items-center justify-center text-white text-2xl font-black shadow-md">
+                  <div className="w-20 h-20 rounded-full bg-linear-to-br from-primary-600 to-primary-800 flex items-center justify-center text-white text-2xl font-black shadow-md">
                     {initials}
                   </div>
                 )}
@@ -812,7 +916,7 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
                   Étudiant
                 </Badge>
                 {user?.matricule && (
-                  <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full">
+                  <span className="inline-flex items-center gap-1 bg-surface-50 text-gray-600 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full">
                     {user.matricule}
                   </span>
                 )}
@@ -830,27 +934,27 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nom complet</label>
               <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
               <input value={user?.email || ''} disabled
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Téléphone</label>
               <input value={form.telephone} onChange={e => setForm({...form, telephone: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ville</label>
               <input value={form.ville} onChange={e => setForm({...form, ville: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Pays</label>
               <input value={form.pays} onChange={e => setForm({...form, pays: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
           </div>
 
@@ -864,12 +968,12 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mot de passe actuel</label>
                 <input type="password" value={form.oldPass} onChange={e => setForm({...form, oldPass: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nouveau mot de passe</label>
                 <input type="password" value={form.newPass} onChange={e => setForm({...form, newPass: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
               </div>
             </div>
           </div>
@@ -919,14 +1023,14 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
       </Card>
 
       {signError && (
-        <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-4 flex items-center gap-3">
+        <div className="bg-red-50 border-2 border-red-100 rounded p-4 flex items-center gap-3">
           <AlertCircle size={18} className="text-red-500 shrink-0" />
           <p className="text-red-700 text-xs font-semibold">{signError}</p>
         </div>
       )}
 
       {contract ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 bg-green-50">
             <div className="flex items-center gap-2">
               <CheckCircle size={18} className="text-green-600" />
@@ -934,11 +1038,11 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
             </div>
           </div>
           <div className="p-6">
-            <div className="bg-gray-50 rounded-xl p-4 mb-4">
+            <div className="bg-gray-50 rounded p-4 mb-4">
               <p className="text-xs font-semibold text-gray-500 mb-2">Signature électronique apposée sur le contrat</p>
               <img src={contract.signatureData} alt="Signature" className="h-16" />
             </div>
-            <div className="bg-gray-50 rounded-xl p-4">
+            <div className="bg-gray-50 rounded p-4">
               <p className="text-xs font-semibold text-gray-500 mb-2">Contrat de formation signé</p>
               <div className="h-[500px]">
                 <iframe
@@ -992,7 +1096,7 @@ function StudentBlogView() {
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary-500" /></div>
       ) : posts.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+        <div className="bg-white rounded p-8 text-center shadow-sm border border-gray-100">
           <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
           <p className="text-gray-400 text-sm">Aucun article pour le moment.</p>
         </div>
@@ -1000,7 +1104,7 @@ function StudentBlogView() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {posts.map((post: any) => (
             <Link key={post.id} to={`/blog/${post.slug}`}
-              className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all">
+              className="bg-white rounded border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all">
               <h3 className="font-bold text-gray-900 mb-1 line-clamp-2">{post.title}</h3>
               {post.excerpt && <p className="text-gray-500 text-xs line-clamp-2 mb-2">{post.excerpt}</p>}
               <div className="flex items-center gap-3 text-[10px] text-gray-400">
@@ -1020,6 +1124,7 @@ export default function StudentDashboard() {
   const [searchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || localStorage.getItem('studentTab') || 'dashboard');
+  const [showAddCourseModal, setShowAddCourseModal] = useState(() => searchParams.get('openAdd') === '1');
 
   const [user, setUser] = useState<any>(null);
   const [payments, setPayments] = useState<any[]>([]);
@@ -1109,14 +1214,14 @@ export default function StudentDashboard() {
     if (error) return <ErrorBanner message={error} onRetry={handleRefresh} />;
     switch (activeTab) {
       case "payments": return <PaymentsPage payments={payments} subscriptions={subscriptions} overdueItems={overdueItems} onRefresh={handleRefresh} />;
-      case "courses": return <CoursesPage />;
+      case "courses": return <CoursesPage subscriptions={subscriptions} onOpenAddCourse={() => setShowAddCourseModal(true)} />;
       case "calendar": return <CalendarPage />;
       case "purchases": return <StudentPurchasesView />;
       case "contract": return <ContractsPage contract={contract} user={user} onRefresh={loadData} />;
       case "notifs": return <NotificationsPage notifs={notifs} onRefresh={handleRefresh} />;
       case "profile": return <ProfilePage user={user} onRefresh={handleRefresh} />;
       case "blog": return <StudentBlogView />;
-      default: return <DashboardOverview user={user} payments={payments} subscriptions={subscriptions} onRefresh={handleRefresh} />;
+      default: return <DashboardOverview user={user} payments={payments} subscriptions={subscriptions} onRefresh={handleRefresh} onOpenAddCourse={() => setShowAddCourseModal(true)} />;
     }
   };
 
@@ -1125,7 +1230,7 @@ export default function StudentDashboard() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-100">
+      <div className="flex h-screen items-center justify-center bg-surface-50">
         <div className="w-full max-w-5xl px-6">
           <LoadingSkeleton />
         </div>
@@ -1134,20 +1239,20 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 font-[Inter,sans-serif] overflow-hidden">
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-primary-500 text-white transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} role="navigation" aria-label="Menu étudiant">
-          <div className="flex items-center justify-between p-5 border-b border-blue-400/30">
+    <div className="flex h-screen bg-surface-50 font-[Inter,sans-serif] overflow-hidden">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-hero text-white transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} role="navigation" aria-label="Menu étudiant">
+          <div className="flex items-center justify-between p-5 border-b border-white/15">
           <div className="flex items-center gap-3">
             <img src="/images/logo%20exacademy.jpeg" alt="Excellence Académie" className="h-10 w-10 rounded-full object-cover border-2 border-white/30" />
             <div className="min-w-0">
               <div className="font-black text-sm truncate">Excellence Académie</div>
-              <div className="text-blue-200 text-xs truncate">
+              <div className="text-amber-200/90 text-xs truncate">
                 Étudiant
-                {user?.matricule && <span className="block text-[10px] text-blue-300/80 font-mono mt-0.5">{user.matricule}</span>}
+                {user?.matricule && <span className="block text-[10px] text-amber-200/60 font-mono mt-0.5">{user.matricule}</span>}
               </div>
             </div>
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-blue-200 hover:text-white" aria-label="Fermer le menu">
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-amber-200/90 hover:text-white" aria-label="Fermer le menu">
             <X size={20} />
           </button>
         </div>
@@ -1155,7 +1260,7 @@ export default function StudentDashboard() {
         <nav className="p-4 space-y-1">
           {NAV_ITEMS.map(item => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === item.id ? "bg-white/20 text-white font-bold" : "text-blue-100 hover:bg-white/10"}`}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded text-sm font-medium transition-all ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
               aria-current={activeTab === item.id ? "page" : undefined}>
               {item.icon} {item.label}
               {activeTab === item.id && <ChevronRight size={16} className="ml-auto" />}
@@ -1163,9 +1268,9 @@ export default function StudentDashboard() {
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-blue-400/30">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-blue-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all" aria-label="Se déconnecter">
-            <LogOut size={18} /> Déconnexion
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/15 space-y-1">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-red-200 hover:text-white text-sm rounded hover:bg-red-500/20 transition-all" aria-label="Se déconnecter">
+            <LogOut size={18} className="text-red-300 shrink-0" /> Déconnexion
           </button>
         </div>
       </aside>
@@ -1185,15 +1290,20 @@ export default function StudentDashboard() {
               </div>
             </div>
             <nav className="hidden lg:flex items-center gap-5 mx-6">
-              <a href="/#hero" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Accueil</a>
-              <a href="/#actualite" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Actualité</a>
-              <a href="/#atouts" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">L'École</a>
-              <a href="/#formations" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Formations</a>
-              <a href="/#tarifs" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Tarifs</a>
-              <a href="/shop" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Boutique</a>
-              <a href="/student/login" className="text-xs font-semibold text-accent-500 hover:text-accent-600 uppercase tracking-wide transition-colors">Espace Étudiant</a>
+              <Link to="/" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Accueil</Link>
+              <Link to="/catalogue" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Formations</Link>
+              <Link to="/shop" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Boutique</Link>
+              <Link to="/blog" className="text-xs font-semibold text-gray-500 hover:text-accent-500 uppercase tracking-wide transition-colors">Blog</Link>
             </nav>
             <div className="flex items-center gap-3">
+              <Link
+                to="/"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:text-primary-700 hover:bg-gray-50 text-xs font-bold transition-all shadow-2xs"
+                title="Accéder à la page d'accueil sans se déconnecter"
+              >
+                <Globe size={14} className="text-primary-600" />
+                <span className="hidden sm:inline">Voir le site public</span>
+              </Link>
             <div className="relative" ref={notifRef}>
               <button onClick={() => { setShowNotifDropdown(!showNotifDropdown); setShowUserDropdown(false); }} className="relative p-2 text-gray-500 hover:text-gray-700" aria-label="Voir les notifications">
                 <Bell size={20} />
@@ -1207,7 +1317,7 @@ export default function StudentDashboard() {
                 )}
               </button>
               {showNotifDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-96 overflow-y-auto">
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded shadow-xl border border-gray-100 z-50 max-h-96 overflow-y-auto">
                   <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-gray-900 text-sm">Notifications</h3>
@@ -1236,7 +1346,7 @@ export default function StudentDashboard() {
                   ) : (
                     <div className="divide-y divide-gray-50">
                       {notifs.slice(0, 5).map((n: any) => (
-                        <div key={n.id} className={`p-4 ${!n.isRead ? "bg-blue-50/50" : ""}`}>
+                        <div key={n.id} className={`p-4 ${!n.isRead ? "bg-primary-50/50" : ""}`}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <h4 className="font-semibold text-gray-900 text-xs">{n.title}</h4>
@@ -1261,7 +1371,7 @@ export default function StudentDashboard() {
                 {initials}
               </button>
               {showUserDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded shadow-xl border border-gray-100 z-50 overflow-hidden">
                   <div className="p-4 border-b border-gray-100">
                     <p className="font-semibold text-gray-900 text-sm truncate">{user?.name || "Étudiant"}</p>
                     <p className="text-gray-400 text-xs">{user?.email || ""}</p>
@@ -1282,6 +1392,14 @@ export default function StudentDashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6">
+          {searchParams.get('added') === '1' && (
+            <div className="mb-6 p-4 rounded-xl bg-emerald-50 border-2 border-emerald-200 flex items-center gap-3 text-emerald-800 text-xs font-bold shadow-xs">
+              <CheckCircle size={20} className="text-emerald-600 shrink-0" />
+              <span>
+                Félicitations ! Votre inscription à votre nouvelle formation a été validée avec succès. Vos nouveaux modules et sessions sont désormais actifs.
+              </span>
+            </div>
+          )}
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -1294,6 +1412,18 @@ export default function StudentDashboard() {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Modal d'ajout de formation supplémentaire à tarif préférentiel */}
+        <AddCourseModal
+          isOpen={showAddCourseModal}
+          onClose={() => setShowAddCourseModal(false)}
+          user={user}
+          subscribedCourseIds={subscriptions.map((s: any) => s.courseId)}
+          onSuccess={() => {
+            loadData();
+            setShowAddCourseModal(false);
+          }}
+        />
       </main>
     </div>
   );

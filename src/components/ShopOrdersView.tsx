@@ -34,9 +34,9 @@ export default function ShopOrdersView() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-[#002855]">Commandes Boutique</h2>
+        <h2 className="text-xl font-bold text-[#7a4b00]">Commandes Boutique</h2>
       </div>
 
       {loading ? <div className="text-center py-8">Chargement...</div> : (
@@ -71,14 +71,14 @@ export default function ShopOrdersView() {
                       ))}
                     </ul>
                   </td>
-                  <td className="py-3 font-semibold text-[#FF6B00]">{o.totalAmount.toLocaleString()}</td>
+                  <td className="py-3 font-semibold text-primary-600">{o.totalAmount.toLocaleString()}</td>
                   <td className="py-3">
                     <span className={`px-2 py-1 text-xs font-bold rounded-full 
-                      ${o.status === 'PAID' ? 'bg-blue-100 text-blue-700' : 
+                      ${o.status === 'PAID' ? 'bg-primary-100 text-primary-700' : 
                         o.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : 
                         o.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 
-                        o.status === 'SHIPPED' ? 'bg-purple-100 text-purple-700' : 
-                        'bg-gray-100 text-gray-700'}`}>
+                        o.status === 'SHIPPED' ? 'bg-accent-100 text-accent-700' : 
+                        'bg-surface-50 text-gray-700'}`}>
                       {o.status}
                     </span>
                   </td>

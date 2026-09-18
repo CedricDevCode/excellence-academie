@@ -31,14 +31,13 @@ export default function Rating({ value, maxStars = 5, size = "md", showValue = f
             key={i}
             size={sizes[size]}
             className={cn(
-              "transition-colors",
-              i < Math.round(value) ? "fill-yellow-400 text-yellow-400" : "text-gray-200"
+              i < Math.round(value) ? "fill-amber-400 text-amber-400" : "text-gray-300"
             )}
           />
         ))}
       </div>
       {showValue && (
-        <span className={cn("font-semibold text-gray-700 ml-1", textSizes[size])}>
+        <span className={cn("font-bold text-[#b4690e] ml-1", textSizes[size])}>
           {value.toFixed(1)}
         </span>
       )}

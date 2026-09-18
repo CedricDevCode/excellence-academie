@@ -125,7 +125,7 @@ async function main() {
       title: 'Jusqu\'à -50% sur les Packs',
       subtitle: 'Offre Rentrée 2026',
       description: 'Profitez de réductions exceptionnelles sur nos packs de fiches de révision.',
-      backgroundColor: 'from-[#002855] to-[#001a3a]',
+      backgroundColor: 'from-[#573500] to-[#1c1d1f]',
       badgeText: 'Promo Rentrée',
       featured: false,
       displayOrder: 1,

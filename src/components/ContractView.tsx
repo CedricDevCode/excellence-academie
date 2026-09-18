@@ -164,12 +164,12 @@ export default function ContractView({ onSign, signatureData, studentName, readO
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2 mb-2">
-        <FileText size={20} className="text-[#0056B3]" />
+        <FileText size={20} className="text-[#c97e00]" />
         <h2 className="text-xl font-black text-gray-900">Contrat de formation</h2>
       </div>
 
       {/* Instructions */}
-      <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+      <div className="bg-amber-50 border-2 border-amber-200 rounded p-4 text-sm text-amber-800">
         {localSignature && !readOnly ? (
           <span className="flex items-center gap-2">
             <CheckCircle size={16} className="text-green-600 shrink-0" />
@@ -183,7 +183,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
       </div>
 
       {/* PDF Viewer — native rendering for Safari compatibility */}
-      <div className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden">
+      <div className="bg-white border-2 border-gray-200 rounded overflow-hidden">
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <span className="font-semibold text-gray-700 text-sm flex items-center gap-2">
             <FileText size={16} className="text-gray-400" />
@@ -199,7 +199,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
 
         {loading && (
           <div className="flex flex-col items-center justify-center h-[400px] bg-gray-50 gap-3">
-            <Loader2 className="animate-spin text-[#0056B3]" size={32} />
+            <Loader2 className="animate-spin text-[#c97e00]" size={32} />
             <span className="text-sm text-gray-500">Chargement du contrat...</span>
           </div>
         )}
@@ -211,7 +211,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
               <span className="text-sm font-semibold">Impossible de charger le contrat.</span>
             </div>
             <a href="/doc/contrat_exacademy.pdf" target="_blank" rel="noopener noreferrer"
-              className="ml-3 text-sm text-[#0056B3] underline font-semibold">
+              className="ml-3 text-sm text-[#c97e00] underline font-semibold">
               Ouvrir le PDF directement
             </a>
           </div>
@@ -219,7 +219,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
 
         <div
           ref={scrollContainerRef}
-          className="bg-gray-100 overflow-auto"
+          className="bg-surface-50 overflow-auto"
           style={{ maxHeight: "70vh", display: (loading || pdfError) ? "none" : "block" }}
         >
           <iframe
@@ -236,16 +236,16 @@ export default function ContractView({ onSign, signatureData, studentName, readO
       {/* Signature Pad Section */}
       {!readOnly && !localSignature && (
         <div
-          className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden"
+          className="bg-white border-2 border-gray-200 rounded overflow-hidden"
           style={{
             opacity: scrolledToBottom || readOnly ? 1 : 0.5,
             pointerEvents: scrolledToBottom || readOnly ? "auto" : "none",
             transition: "opacity 0.3s ease",
           }}
         >
-          <div className="bg-linear-to-r from-[#0056B3]/5 to-[#0056B3]/10 px-4 py-3 border-b border-gray-200">
+          <div className="bg-linear-to-r from-[#c97e00]/5 to-[#c97e00]/10 px-4 py-3 border-b border-gray-200">
             <div className="flex items-center gap-2">
-              <Pen size={16} className="text-[#0056B3]" />
+              <Pen size={16} className="text-[#c97e00]" />
               <span className="font-bold text-gray-800 text-sm">
                 Signature du candidat — {fullName}
               </span>
@@ -258,7 +258,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
           <div className="p-4 flex flex-col items-center gap-4">
             <div className="relative w-full flex justify-center">
               <div
-                className="relative border-2 border-dashed border-[#0056B3]/40 rounded-xl bg-white overflow-hidden"
+                className="relative border-2 border-dashed border-[#c97e00]/40 rounded bg-white overflow-hidden"
                 style={{
                   width: "min(100%, 400px)",
                   aspectRatio: `${SIG_PAD_WIDTH} / ${SIG_PAD_HEIGHT}`,
@@ -301,7 +301,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
                     <Trash2 size={14} /> Effacer
                   </button>
                   <button type="button" onClick={confirmSignature}
-                    className="flex items-center gap-1.5 px-6 py-2.5 bg-[#0056B3] text-white text-sm font-bold rounded-lg hover:bg-[#003375] transition-all shadow-md hover:shadow-lg">
+                    className="flex items-center gap-1.5 px-6 py-2.5 bg-[#c97e00] text-white text-sm font-bold rounded-lg hover:bg-[#6b4500] transition-all shadow-md hover:shadow-lg">
                     <Check size={16} /> Confirmer ma signature
                   </button>
                 </>
@@ -319,7 +319,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
 
       {/* Signature Confirmed */}
       {localSignature && (
-        <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5">
+        <div className="bg-green-50 border-2 border-green-200 rounded p-5">
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle size={20} className="text-green-600" />
             <span className="font-bold text-green-800">Contrat signé électroniquement</span>
@@ -328,7 +328,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
             Signé par <strong>{fullName}</strong> — Votre signature est apposée dans la zone « Signature du candidat » en bas à gauche de la dernière page du contrat.
           </p>
           <div className="flex items-center gap-4">
-            <div className="bg-white rounded-xl p-3 border border-green-200 inline-block shadow-sm">
+            <div className="bg-white rounded p-3 border border-green-200 inline-block shadow-sm">
               <img src={localSignature} alt="Votre signature" className="h-14 max-w-[200px] object-contain" />
             </div>
             {!readOnly && (

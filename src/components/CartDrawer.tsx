@@ -94,7 +94,7 @@ export default function CartDrawer() {
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-surface-200 flex items-center justify-between bg-surface-100/70">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-primary-500/10 text-primary-500 flex items-center justify-center">
+                <div className="w-9 h-9 rounded bg-primary-500/10 text-primary-500 flex items-center justify-center">
                   <ShoppingCart size={18} />
                 </div>
                 <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export default function CartDrawer() {
                     key={totalCount}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary-500 text-white text-[10px] font-bold"
+                    className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary-500 text-[#3a2600] text-[10px] font-bold"
                   >
                     {totalCount}
                   </motion.span>
@@ -137,7 +137,7 @@ export default function CartDrawer() {
                       setIsOpen(false);
                       navigate('/shop');
                     }}
-                    className="px-5 py-2.5 rounded-xl bg-primary-500 text-white text-xs font-bold hover:bg-primary-700 transition-colors shadow-sm"
+                    className="px-5 py-2.5 rounded bg-primary-500 text-[#3a2600] text-xs font-bold hover:bg-primary-400 transition-colors"
                   >
                     Découvrir la boutique
                   </button>
@@ -152,7 +152,7 @@ export default function CartDrawer() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: 100, transition: { duration: 0.2 } }}
                       transition={{ type: 'spring', damping: 25, stiffness: 250 }}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-surface-200 hover:border-surface-300 transition-colors bg-white shadow-xs"
+                      className="flex items-center gap-3 p-3 rounded border border-surface-200 hover:border-surface-300 transition-colors bg-white shadow-xs"
                     >
                       {/* Thumbnail */}
                       <div className="w-14 h-16 rounded-lg bg-surface-100 overflow-hidden shrink-0 flex items-center justify-center border border-surface-200">
@@ -234,7 +234,7 @@ export default function CartDrawer() {
                 <div className="space-y-2 pt-1">
                   <button
                     onClick={handleCheckout}
-                    className="w-full py-3 px-4 rounded-xl bg-accent-500 hover:bg-accent-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-orange-500/20 transition-all hover:translate-y-[-1px]"
+                    className="w-full py-3 px-4 rounded bg-accent-500 hover:bg-accent-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-primary-500/20 transition-all hover:translate-y-[-1px]"
                   >
                     <span>Commander maintenant</span>
                     <ArrowRight size={14} />
@@ -242,7 +242,7 @@ export default function CartDrawer() {
 
                   <button
                     onClick={handleViewCart}
-                    className="w-full py-2 px-4 rounded-xl border border-surface-300 text-surface-700 font-semibold text-xs hover:bg-white transition-colors text-center"
+                    className="w-full py-2 px-4 rounded border border-surface-300 text-surface-700 font-semibold text-xs hover:bg-white transition-colors text-center"
                   >
                     Voir le panier complet
                   </button>

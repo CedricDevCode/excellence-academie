@@ -22,11 +22,11 @@ function BlogToolbar({ editor }: { editor: any }) {
   };
   return (
     <div className="flex flex-wrap gap-1 p-2 border-b border-gray-200 bg-gray-50 rounded-t-xl">
-      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('bold') ? 'bg-[#0056B3] text-white' : 'hover:bg-gray-200'}`}><Bold size={16} /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('italic') ? 'bg-[#0056B3] text-white' : 'hover:bg-gray-200'}`}><Italic size={16} /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('heading', { level: 2 }) ? 'bg-[#0056B3] text-white' : 'hover:bg-gray-200'}`}><Heading size={16} /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('bulletList') ? 'bg-[#0056B3] text-white' : 'hover:bg-gray-200'}`}><List size={16} /></button>
-      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('orderedList') ? 'bg-[#0056B3] text-white' : 'hover:bg-gray-200'}`}><ListOrdered size={16} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('bold') ? 'bg-[#c97e00] text-white' : 'hover:bg-gray-200'}`}><Bold size={16} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('italic') ? 'bg-[#c97e00] text-white' : 'hover:bg-gray-200'}`}><Italic size={16} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('heading', { level: 2 }) ? 'bg-[#c97e00] text-white' : 'hover:bg-gray-200'}`}><Heading size={16} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('bulletList') ? 'bg-[#c97e00] text-white' : 'hover:bg-gray-200'}`}><List size={16} /></button>
+      <button type="button" onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded-lg text-sm ${editor.isActive('orderedList') ? 'bg-[#c97e00] text-white' : 'hover:bg-gray-200'}`}><ListOrdered size={16} /></button>
       <button type="button" onClick={addImage} className="p-1.5 rounded-lg text-sm hover:bg-gray-200"><ImageIconLucide size={16} /></button>
       <span className="w-px bg-gray-300 mx-1" />
       <button type="button" onClick={() => editor.chain().focus().undo().run()} className="p-1.5 rounded-lg text-sm hover:bg-gray-200"><Undo size={16} /></button>
@@ -184,7 +184,7 @@ export default function BlogAdminView() {
           <p className="text-sm text-gray-500 mt-1">Gestion complète des articles du blog.</p>
         </div>
         {!showForm && (
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#0056B3] text-white font-bold rounded-lg hover:bg-[#003375] transition-colors">
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#c97e00] text-white font-bold rounded-lg hover:bg-[#6b4500] transition-colors">
             <Plus size={18} />
             Nouvel article
           </button>
@@ -193,11 +193,11 @@ export default function BlogAdminView() {
 
       {/* Inline Form */}
       {showForm && (
-        <div className="bg-white rounded-2xl shadow-xl border-2 border-blue-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 p-5 border-b border-blue-100 flex items-center justify-between">
+        <div className="bg-white rounded shadow-xl border-2 border-primary-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary-50 to-amber-50/50 p-5 border-b border-primary-100 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <BookOpen size={20} className="text-[#0056B3]" />
-              <h3 className="font-black text-[#002855] text-base">
+              <BookOpen size={20} className="text-[#c97e00]" />
+              <h3 className="font-black text-[#7a4b00] text-base">
                 {editingId ? "Modifier l'article" : "Nouvel article"}
               </h3>
             </div>
@@ -219,7 +219,7 @@ export default function BlogAdminView() {
                 value={formTitle}
                 onChange={e => setFormTitle(e.target.value)}
                 placeholder="Ex: Concours de Magistrature 2024 : Guide complet"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:ring-1 focus:ring-[#0056B3] outline-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:ring-1 focus:ring-[#c97e00] outline-none"
               />
             </div>
 
@@ -231,7 +231,7 @@ export default function BlogAdminView() {
                 value={formExcerpt}
                 onChange={e => setFormExcerpt(e.target.value)}
                 placeholder="Courte description de l'article..."
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:ring-1 focus:ring-[#0056B3] outline-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:ring-1 focus:ring-[#c97e00] outline-none"
               />
             </div>
 
@@ -240,7 +240,7 @@ export default function BlogAdminView() {
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Image de couverture</label>
                 {formCoverImage && (
-                  <img src={formCoverImage} alt="Couverture" className="w-full h-32 object-cover rounded-xl mb-2" />
+                  <img src={formCoverImage} alt="Couverture" className="w-full h-32 object-cover rounded mb-2" />
                 )}
                 <div className="flex gap-2">
                   <input
@@ -248,12 +248,12 @@ export default function BlogAdminView() {
                     value={formCoverImage}
                     onChange={e => setFormCoverImage(e.target.value)}
                     placeholder="URL de l'image..."
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] outline-none"
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => fileCoverRef.current?.click()}
-                    className="px-3 py-2 bg-gray-100 rounded-xl text-xs font-semibold cursor-pointer hover:bg-gray-200 flex items-center gap-1"
+                    className="px-3 py-2 bg-surface-50 rounded text-xs font-semibold cursor-pointer hover:bg-gray-200 flex items-center gap-1"
                   >
                     {uploadingCover ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                     Upload
@@ -266,7 +266,7 @@ export default function BlogAdminView() {
                 <select
                   value={formCourseId}
                   onChange={e => setFormCourseId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] outline-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] outline-none"
                 >
                   <option value="">Aucune</option>
                   {courses.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
@@ -279,7 +279,7 @@ export default function BlogAdminView() {
                   value={formTags}
                   onChange={e => setFormTags(e.target.value)}
                   placeholder="maths, physique, examen..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#0056B3] outline-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] outline-none"
                 />
               </div>
             </div>
@@ -298,7 +298,7 @@ export default function BlogAdminView() {
             {/* Rich Text Editor */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Contenu de l'article *</label>
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="border border-gray-200 rounded overflow-hidden">
                 {editor && <BlogToolbar editor={editor} />}
                 <div className="p-4 min-h-[300px]">
                   <EditorContent editor={editor} className="prose prose-lg max-w-none focus:outline-none min-h-[250px]" />
@@ -311,14 +311,14 @@ export default function BlogAdminView() {
               <button
                 type="button"
                 onClick={cancelForm}
-                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors"
+                className="px-4 py-2.5 rounded border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={submitting || !formTitle.trim()}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#0056B3] hover:bg-[#003375] text-white text-sm font-bold rounded-xl transition-all shadow-sm shadow-blue-500/25 disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#c97e00] hover:bg-[#6b4500] text-white text-sm font-bold rounded transition-all shadow-sm shadow-primary-700/25 disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}
                 <span>{editingId ? 'Enregistrer les modifications' : 'Publier l\'article'}</span>
@@ -330,14 +330,14 @@ export default function BlogAdminView() {
 
       {/* Posts List */}
       {loading ? (
-        <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#0056B3]" /></div>
+        <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#c97e00]" /></div>
       ) : posts.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+        <div className="bg-white rounded p-8 text-center shadow-sm border border-gray-100">
           <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
           <p className="text-gray-400 text-sm">Aucun article. Créez le premier !</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -362,10 +362,10 @@ export default function BlogAdminView() {
                     <td className="py-3 px-4 text-sm text-gray-500">{new Date(p.createdAt).toLocaleDateString("fr-FR")}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors" title="Modifier">
+                        <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
                           <Edit size={14} />
                         </button>
-                        <a href={`/blog/${p.slug}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-purple-50 text-purple-600 transition-colors" title="Voir">
+                        <a href={`/blog/${p.slug}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-accent-50 text-accent-700 transition-colors" title="Voir">
                           <Eye size={14} />
                         </a>
                         <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors" title="Supprimer">

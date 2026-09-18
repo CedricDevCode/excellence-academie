@@ -8,10 +8,21 @@ import {
   Upload, X as XIcon, Loader2, AlertCircle, Sparkles,
   Play, Target, Zap, TrendingUp, GraduationCap, Phone, Send
 } from "lucide-react";
-import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPublicBanners, fetchCourses } from '../utils/api';
+import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPublicBanners, fetchCourses, fetchSiteConfig, getMe } from '../utils/api';
 import { Link } from 'react-router-dom';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import { Badge, Button, Card, SectionTitle, Container, Rating } from '../components/ui';
+import {
+  DEFAULT_SITE_CONFIG,
+  mergeSiteConfig,
+  type HomeConfig,
+  type SectionConfig,
+  type HeroConfig,
+  type HowConfig,
+  type AtotsConfig,
+  type TarifsConfig,
+  type CtaConfig,
+} from '../constants/siteConfig';
 
 interface BannerItem {
   id: string;
@@ -45,8 +56,26 @@ const scaleIn = {
   visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" as const } },
 };
 
+function getDashboardUrl(user: any) {
+  if (!user) return "/student/login";
+  switch (user.role) {
+    case "ADMIN":
+      return "/admin/dashboard";
+    case "TEACHER":
+      return "/teacher/dashboard";
+    case "ACCOUNTANT":
+      return "/accountant/dashboard";
+    case "SECRETARY":
+      return "/secretary/dashboard";
+    default:
+      return "/student/dashboard";
+  }
+}
+
 /* ─── Hero Section ─── */
-function Hero() {
+function Hero({ config, currentUser }: { config: HeroConfig; currentUser?: any }) {
+  if (config.enabled === false) return null;
+
   return (
     <section id="hero" className="relative min-h-[90vh] flex items-center overflow-hidden bg-gradient-hero">
       {/* Background animated gradient orbs */}
@@ -72,7 +101,7 @@ function Hero() {
           >
             <motion.div variants={staggerItem}>
               <Badge variant="accent" dot className="mb-6">
-                L'école de référence en Côte d'Ivoire
+                {config.badge}
               </Badge>
             </motion.div>
 
@@ -80,34 +109,46 @@ function Hero() {
               variants={staggerItem}
               className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-[1.1] mb-6 tracking-tight"
             >
-              Votre réussite,{" "}
-              <span className="text-accent-500">notre priorité</span>{" "}
-              absolue.
+              {config.titleLine1}{" "}
+              <span className="text-accent-500">{config.titleHighlight}</span>{" "}
+              {config.titleLine2}
             </motion.h1>
 
             <motion.p
               variants={staggerItem}
               className="text-gray-300 text-base sm:text-lg lg:text-xl mb-8 max-w-xl leading-relaxed"
             >
-              Préparez vos concours de la{" "}
-              <strong className="text-white">Magistrature</strong>, de l'
-              <strong className="text-white">ENA</strong>, du{" "}
-              <strong className="text-white">Greffe</strong>, du{" "}
-              <strong className="text-white">Notariat</strong> et de la{" "}
-              <strong className="text-white">Agent pénitentiaire</strong> avec les meilleurs formateurs.
+              {config.subtitle}
             </motion.p>
 
             <motion.div variants={staggerItem} className="flex flex-col sm:flex-row gap-4 mb-10">
-              <a href="#formations">
-                <Button variant="accent" size="lg" iconRight={<ArrowRight size={18} />}>
-                  Découvrir les formations
-                </Button>
-              </a>
-              <Link to="/students/new">
-                <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
-                  S'inscrire en ligne
-                </Button>
-              </Link>
+              {currentUser ? (
+                <>
+                  <Link to={getDashboardUrl(currentUser)}>
+                    <Button variant="accent" size="lg" iconRight={<ArrowRight size={18} />}>
+                      Mon Espace
+                    </Button>
+                  </Link>
+                  <Link to="/catalogue">
+                    <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
+                      Découvrir les formations
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/catalogue">
+                    <Button variant="accent" size="lg" iconRight={<ArrowRight size={18} />}>
+                      {config.ctaPrimary}
+                    </Button>
+                  </Link>
+                  <Link to="/students/new">
+                    <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
+                      {config.ctaSecondary}
+                    </Button>
+                  </Link>
+                </>
+              )}
             </motion.div>
 
             <motion.div variants={staggerItem} className="flex flex-wrap items-center gap-6">
@@ -120,7 +161,7 @@ function Hero() {
                   ))}
                 </div>
                 <div>
-                  <div className="text-white font-bold text-sm">1000+</div>
+                  <div className="text-white font-bold text-sm">{config.heroStudentsCount}</div>
                   <div className="text-gray-400 text-xs">étudiants formés</div>
                 </div>
               </div>
@@ -130,7 +171,7 @@ function Hero() {
                     <Star key={i} size={14} fill="currentColor" />
                   ))}
                 </div>
-                <span className="text-white font-bold text-sm">4.8/5</span>
+                <span className="text-white font-bold text-sm">{config.heroRating}</span>
                 <span className="text-gray-400 text-xs">avis vérifiés</span>
               </div>
             </motion.div>
@@ -155,8 +196,8 @@ function Hero() {
                     <CheckCircle size={24} className="text-green-400" />
                   </div>
                   <div>
-                    <div className="text-white font-bold text-sm">10 Admis</div>
-                    <div className="text-gray-300 text-xs">Magistrature 2025</div>
+                    <div className="text-white font-bold text-sm">{config.heroAdmisLabel}</div>
+                    <div className="text-gray-300 text-xs">{config.heroAdmisConcours}</div>
                   </div>
                 </div>
               </motion.div>
@@ -172,7 +213,7 @@ function Hero() {
                     <TrendingUp size={24} className="text-accent-400" />
                   </div>
                   <div>
-                    <div className="text-white font-bold text-sm">65%</div>
+                    <div className="text-white font-bold text-sm">{config.heroTauxReussite}</div>
                     <div className="text-gray-300 text-xs">Taux de réussite</div>
                   </div>
                 </div>
@@ -182,8 +223,8 @@ function Hero() {
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 lg:p-12">
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { icon: <Gavel size={28} />, label: "Magistrature", color: "from-blue-500/20 to-blue-600/20" },
-                    { icon: <Building2 size={28} />, label: "ENA", color: "from-purple-500/20 to-purple-600/20" },
+                    { icon: <Gavel size={28} />, label: "Magistrature", color: "from-orange-500/20 to-orange-700/20" },
+                    { icon: <Building2 size={28} />, label: "ENA", color: "from-amber-500/20 to-amber-700/20" },
                     { icon: <Scale size={28} />, label: "Notariat", color: "from-green-500/20 to-green-600/20" },
                     { icon: <Shield size={28} />, label: "Greffe", color: "from-red-500/20 to-red-600/20" },
                   ].map((item, i) => (
@@ -216,14 +257,23 @@ function Hero() {
 }
 
 /* ─── Stats Ribbon ─── */
-function StatsRibbon() {
+function getStatIcon(icon?: string) {
+  switch (icon) {
+    case 'magistrature': return <Gavel size={20} />;
+    case 'ena':          return <Building2 size={20} />;
+    case 'cities':       return <MapPin size={20} />;
+    case 'online':       return <Globe size={20} />;
+    case 'trophy':       return <Trophy size={20} />;
+    case 'users':        return <Users size={20} />;
+    case 'award':        return <Award size={20} />;
+    case 'star':         return <Star size={20} />;
+    default:             return <Globe size={20} />;
+  }
+}
+
+function StatsRibbon({ config }: { config: HomeConfig['stats'] }) {
   const { ref, isInView } = useScrollAnimation();
-  const stats = [
-    { n: "10+", l: "Admis Magistrature", icon: <Gavel size={20} /> },
-    { n: "8+", l: "Admis ENA 2025", icon: <Building2 size={20} /> },
-    { n: "5+", l: "Villes couvertes", icon: <MapPin size={20} /> },
-    { n: "100%", l: "En ligne & Présentiel", icon: <Globe size={20} /> },
-  ];
+  if (config.enabled === false || !config.items || config.items.length === 0) return null;
 
   return (
     <div ref={ref} className="py-6 sm:py-8 bg-white border-b border-gray-100">
@@ -234,17 +284,17 @@ function StatsRibbon() {
           animate={isInView ? "visible" : "hidden"}
           className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6"
         >
-          {stats.map((s, i) => (
+          {config.items.map((s, i) => (
             <motion.div
               key={i}
               variants={staggerItem}
               className="text-center p-4 rounded-2xl bg-gray-50/50 border border-gray-100"
             >
               <div className="w-10 h-10 bg-primary-50 text-primary-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-                {s.icon}
+                {getStatIcon(s.icon)}
               </div>
-              <div className="text-3xl font-black text-primary-700">{s.n}</div>
-              <div className="text-xs text-gray-500 font-bold uppercase mt-1 tracking-wider">{s.l}</div>
+              <div className="text-3xl font-black text-primary-700">{s.number}</div>
+              <div className="text-xs text-gray-500 font-bold uppercase mt-1 tracking-wider">{s.label}</div>
             </motion.div>
           ))}
         </motion.div>
@@ -254,18 +304,18 @@ function StatsRibbon() {
 }
 
 /* ─── Actualité / Bannières ─── */
-function Actualite() {
+const DEFAULT_FEATURED_BANNERS: any[] = [
+  { id: "def-b1", title: "Sessions Préparatoires aux Concours Directs", subtitle: "Inscriptions ouvertes pour toutes les filières", imageUrl: "/images/image2.jpeg", linkUrl: "/catalogue" },
+  { id: "def-b2", title: "Encadrement par les Magistrats et Formateurs Experts", subtitle: "Méthodologie et sujets types décryptés", imageUrl: "/images/image1.jpeg", linkUrl: "/catalogue" },
+  { id: "def-b3", title: "Formations En ligne & Présentiel", subtitle: "Cours du soir, week-ends et suivi sur mesure", imageUrl: "/images/image3.jpeg", linkUrl: "/catalogue" },
+  { id: "def-b4", title: "Excellence Académie à vos côtés", subtitle: "L'école de référence pour votre réussite", imageUrl: "/images/images4.jpeg", linkUrl: "/catalogue" },
+];
+
+function Actualite({ config }: { config?: SectionConfig }) {
   const { ref, isInView } = useScrollAnimation();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [featuredItems, setFeaturedItems] = useState<BannerItem[]>([]);
-
-  const defaultImages = [
-    { id: '1', imageUrl: "/images/image2.jpeg", title: "Sessions Préparatoires aux Concours Directs", subtitle: "Inscriptions ouvertes pour toutes les filières" },
-    { id: '2', imageUrl: "/images/image1.jpeg", title: "Encadrement par les Magistrats et Formateurs Experts", subtitle: "Méthodologie et sujets types décryptés" },
-    { id: '3', imageUrl: "/images/image3.jpeg", title: "Formations En ligne & Présentiel", subtitle: "Cours du soir, week-ends et suivi sur mesure" },
-    { id: '4', imageUrl: "/images/images4.jpeg", title: "Excellence Académie à vos côtés", subtitle: "L'école de référence pour votre réussite" }
-  ];
+  const [featuredItems, setFeaturedItems] = useState<BannerItem[]>(DEFAULT_FEATURED_BANNERS);
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -273,24 +323,17 @@ function Actualite() {
         const banners = await fetchPublicBanners();
         if (Array.isArray(banners)) {
           const featured = banners.filter((b: any) => b.isActive && b.imageUrl && (b.featured || !b.productId));
-          if (featured.length > 0) { setFeaturedItems(featured); return; }
+          if (featured.length > 0) {
+            setFeaturedItems(featured);
+          }
         }
       } catch (error) { console.error('Erreur chargement bannières', error); }
     };
     loadFeatured();
   }, []);
 
-  const slides = featuredItems.length > 0 ? featuredItems : defaultImages;
-
-  useEffect(() => {
-    if (currentIndex >= slides.length) setCurrentIndex(0);
-  }, [slides.length, currentIndex]);
-
-  useEffect(() => {
-    if (slides.length <= 1 || isPaused) return;
-    const interval = setInterval(() => setCurrentIndex((prev) => (prev + 1) % slides.length), 5000);
-    return () => clearInterval(interval);
-  }, [slides.length, isPaused]);
+  if (config?.enabled === false) return null;
+  const slides = featuredItems.length > 0 ? featuredItems : DEFAULT_FEATURED_BANNERS;
 
   return (
     <section id="actualite" className="py-12 sm:py-16 bg-surface-50">
@@ -302,7 +345,8 @@ function Actualite() {
             variants={fadeUp}
           >
             <SectionTitle
-              title="À la une"
+              title={config?.title || 'À la une'}
+              subtitle={config?.subtitle}
               badge={
                 <Badge variant="accent" dot>
                   <Sparkles size={10} className="mr-1" />
@@ -325,7 +369,7 @@ function Actualite() {
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
-                    const src = typeof slide === 'string' ? slide : slide.imageUrl || '/images/image2.jpeg';
+                    const src = typeof slide === 'string' ? slide : slide.imageUrl;
                     return (
                       <motion.div
                         key={slide.id || i}
@@ -388,14 +432,15 @@ function Actualite() {
 }
 
 /* ─── Comment ça marche ─── */
-function CommentCaMarche() {
+function getHowIcon(index: number) {
+  const icons = [<User size={24} />, <BookOpen size={24} />, <Target size={24} />, <GraduationCap size={24} />];
+  return icons[index] ?? <Zap size={24} />;
+}
+
+function CommentCaMarche({ config }: { config: HowConfig }) {
   const { ref, isInView } = useScrollAnimation();
-  const steps = [
-    { icon: <User size={24} />, title: "Inscrivez-vous", desc: "Créez votre compte en ligne en quelques clics et choisissez votre concours cible." },
-    { icon: <BookOpen size={24} />, title: "Suivez les cours", desc: "Accédez à nos formations en ligne ou en présentiel encadrées par des experts." },
-    { icon: <Target size={24} />, title: "Pratiquez", desc: "Exercices, examens blancs et suivi personnalisé pour maîtriser chaque matière." },
-    { icon: <GraduationCap size={24} />, title: "Réussissez", desc: "Intégrez la fonction publique grâce à notre méthodologie éprouvée." },
-  ];
+  if (config.enabled === false) return null;
+  if (!config.steps || config.steps.length === 0) return null;
 
   return (
     <section className="py-16 sm:py-20 bg-white">
@@ -403,8 +448,8 @@ function CommentCaMarche() {
         <div ref={ref}>
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp}>
             <SectionTitle
-              title="Comment ça marche ?"
-              subtitle="Un parcours simple et efficace pour décrocher votre concours."
+              title={config.title}
+              subtitle={config.subtitle}
             />
           </motion.div>
 
@@ -417,10 +462,10 @@ function CommentCaMarche() {
             {/* Connector line (desktop) */}
             <div className="hidden lg:block absolute top-12 left-[12%] right-[12%] h-0.5 bg-gradient-to-r from-primary-200 via-accent-200 to-primary-200" />
 
-            {steps.map((step, i) => (
+            {config.steps.map((step, i) => (
               <motion.div key={i} variants={staggerItem} className="relative text-center">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 text-white flex items-center justify-center mx-auto mb-5 shadow-lg shadow-primary-500/20 relative z-10">
-                  {step.icon}
+                  {getHowIcon(i)}
                   <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent-500 rounded-full flex items-center justify-center text-white text-xs font-black">
                     {i + 1}
                   </div>
@@ -437,14 +482,24 @@ function CommentCaMarche() {
 }
 
 /* ─── Atouts / Pourquoi nous ─── */
-function Atouts() {
+function getAtoutIcon(icon?: string) {
+  switch (icon) {
+    case 'trophy':  return <Trophy size={24} />;
+    case 'users':   return <Users size={24} />;
+    case 'mappin':  return <MapPin size={24} />;
+    case 'globe':   return <Globe size={24} />;
+    case 'award':   return <Award size={24} />;
+    case 'shield':  return <Shield size={24} />;
+    case 'star':    return <Star size={24} />;
+    case 'zap':     return <Zap size={24} />;
+    default:        return <CheckCircle size={24} />;
+  }
+}
+
+function Atouts({ config }: { config: AtotsConfig }) {
   const { ref, isInView } = useScrollAnimation();
-  const atouts = [
-    { icon: <Trophy size={24} />, title: "Taux de réussite élevé", desc: "20% d'admis en Magistrature dès 2022, 15% en ENA 2023, et des dizaines d'admis chaque année.", color: "from-yellow-500 to-orange-500" },
-    { icon: <Users size={24} />, title: "Formateurs Experts", desc: "Encadrement assuré par des magistrats, hauts fonctionnaires et juristes de haut niveau.", color: "from-primary-500 to-primary-600" },
-    { icon: <MapPin size={24} />, title: "Couverture Nationale", desc: "Présent à Abidjan, Yamoussoukro, Bouaké, Daloa et Korhogo pour être au plus près de vous.", color: "from-green-500 to-emerald-500" },
-    { icon: <Globe size={24} />, title: "En ligne & Présentiel", desc: "Suivez nos cours en présentiel ou 100% en ligne via Google Meet / Zoom, où que vous soyez.", color: "from-purple-500 to-violet-500" },
-  ];
+  if (config.enabled === false) return null;
+  if (!config.items || config.items.length === 0) return null;
 
   return (
     <section id="atouts" className="py-16 sm:py-20 bg-surface-50">
@@ -452,8 +507,8 @@ function Atouts() {
         <div ref={ref}>
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp}>
             <SectionTitle
-              title="Pourquoi Excellence Académie ?"
-              subtitle="Les raisons qui font de nous la référence en préparation de concours."
+              title={config.title}
+              subtitle={config.subtitle}
             />
           </motion.div>
 
@@ -463,11 +518,11 @@ function Atouts() {
             animate={isInView ? "visible" : "hidden"}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
           >
-            {atouts.map((a, i) => (
+            {config.items.map((a, i) => (
               <motion.div key={i} variants={staggerItem}>
                 <Card hover className="h-full text-center p-6">
                   <div className={`w-14 h-14 bg-gradient-to-br ${a.color} text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg`}>
-                    {a.icon}
+                    {getAtoutIcon(a.icon)}
                   </div>
                   <h3 className="font-bold text-gray-900 text-base mb-2">{a.title}</h3>
                   <p className="text-gray-500 text-sm leading-relaxed">{a.desc}</p>
@@ -482,7 +537,7 @@ function Atouts() {
 }
 
 /* ─── Admis / Lauréats ─── */
-function AdmisSection() {
+function AdmisSection({ config }: { config: SectionConfig }) {
   const { ref, isInView } = useScrollAnimation();
   const [admisList, setAdmisList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -494,6 +549,7 @@ function AdmisSection() {
       .finally(() => setLoading(false));
   }, []);
 
+  if (config.enabled === false) return null;
   if (loading || admisList.length === 0) return null;
 
   return (
@@ -502,8 +558,8 @@ function AdmisSection() {
         <div ref={ref}>
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp}>
             <SectionTitle
-              title="Nos Lauréats & Admis aux Concours"
-              subtitle="Ils ont fait confiance à Excellence Académie et sont aujourd'hui Magistrats, Administrateurs civils et Greffiers en chef."
+              title={config.title || "Nos Lauréats & Admis aux Concours"}
+              subtitle={config.subtitle}
             />
           </motion.div>
 
@@ -577,7 +633,7 @@ function AdmisSection() {
 }
 
 /* ─── Formations ─── */
-function Formations() {
+function Formations({ config }: { config: SectionConfig }) {
   const { ref, isInView } = useScrollAnimation();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -600,6 +656,8 @@ function Formations() {
       .finally(() => setLoading(false));
   }, []);
 
+  if (config.enabled === false) return null;
+
   const displayCourses = courses.length > 0 ? courses : defaultForms;
 
   const getIcon = (title: string = '', category: string = '') => {
@@ -618,8 +676,8 @@ function Formations() {
         <div ref={ref}>
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp}>
             <SectionTitle
-              title="Nos Formations & Concours"
-              subtitle="Découvrez nos cycles préparatoires d'excellence encadrés par des magistrats et experts du domaine."
+              title={config.title || "Nos Formations & Concours"}
+              subtitle={config.subtitle}
             />
           </motion.div>
 
@@ -633,30 +691,40 @@ function Formations() {
               const mFee = f.monthlyFee !== undefined ? Number(f.monthlyFee) : 30000;
               return (
                 <motion.div key={f.id || i} variants={staggerItem}>
-                  <Card hover className="h-full flex flex-col">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-10 h-10 bg-accent-50 rounded-xl flex items-center justify-center text-accent-500 shrink-0 group-hover:scale-110 transition-transform">
-                        {getIcon(f.title, f.category)}
+                  <Link to={f.id ? `/formation/${f.id}` : '/catalogue'} className="block h-full">
+                    <Card hover className="h-full flex flex-col">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 bg-accent-50 rounded-xl flex items-center justify-center text-accent-500 shrink-0 group-hover:scale-110 transition-transform">
+                          {getIcon(f.title, f.category)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-gray-900 text-sm group-hover:text-primary-500 transition-colors truncate">{f.title}</h3>
+                          {f.category && <p className="text-xs text-gray-500 truncate">{f.category}</p>}
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-gray-900 text-sm group-hover:text-primary-500 transition-colors truncate">{f.title}</h3>
-                        {f.category && <p className="text-xs text-gray-500 truncate">{f.category}</p>}
-                      </div>
-                    </div>
 
-                    <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
-                      <div className="flex gap-1.5">
-                        {f.hasPresentiel !== false && <Badge size="sm">Présentiel</Badge>}
-                        {f.hasOnline !== false && <Badge variant="primary" size="sm">En ligne</Badge>}
+                      <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <div className="flex gap-1.5">
+                          {f.hasPresentiel !== false && <Badge size="sm">Présentiel</Badge>}
+                          {f.hasOnline !== false && <Badge variant="primary" size="sm">En ligne</Badge>}
+                        </div>
+                        <div className="font-black text-accent-500 text-sm">
+                          {mFee.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">F/mois</span>
+                        </div>
                       </div>
-                      <div className="font-black text-accent-500 text-sm">
-                        {mFee.toLocaleString('fr-FR')} <span className="text-[10px] font-normal text-gray-400">F/mois</span>
-                      </div>
-                    </div>
-                  </Card>
+                    </Card>
+                  </Link>
                 </motion.div>
               );
             })}
+          </motion.div>
+
+          <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp} className="mt-8 text-center">
+            <Link to="/catalogue">
+              <Button variant="outline" iconRight={<ArrowRight size={16} />}>
+                Voir tout le catalogue
+              </Button>
+            </Link>
           </motion.div>
         </div>
       </Container>
@@ -665,8 +733,20 @@ function Formations() {
 }
 
 /* ─── Tarifs ─── */
-function Tarifs() {
+function Tarifs({ config }: { config: TarifsConfig }) {
   const { ref, isInView } = useScrollAnimation();
+  if (config.enabled === false) return null;
+
+  const inscriptionList =
+    config.inscription && config.inscription.length > 0
+      ? config.inscription
+      : DEFAULT_SITE_CONFIG.tarifs.inscription;
+
+  const mensualitesList =
+    config.mensualites && config.mensualites.length > 0
+      ? config.mensualites
+      : DEFAULT_SITE_CONFIG.tarifs.mensualites;
+
   const paymentMethods = [
     { name: "Wave", logo: "/images/logo-wave.png" },
     { name: "Orange Money", logo: "https://upload.wikimedia.org/wikipedia/commons/c/c8/Orange_logo.svg" },
@@ -680,47 +760,70 @@ function Tarifs() {
       <Container>
         <div ref={ref}>
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp}>
-            <SectionTitle title="Tarifs & Inscription" subtitle="Des tarifs accessibles pour une préparation d'excellence." />
+            <SectionTitle title={config.title || "Tarifs & Inscription"} subtitle={config.subtitle || "Des tarifs accessibles pour une préparation d'excellence."} />
           </motion.div>
 
           <motion.div
             variants={staggerContainer}
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
-            className="grid md:grid-cols-2 gap-5 mb-8"
+            className="grid md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto"
           >
-            <motion.div variants={staggerItem}>
-              <Card className="h-full">
-                <div className="flex items-center gap-2 mb-4">
-                  <CheckCircle size={18} className="text-accent-500" />
-                  <h3 className="font-bold text-sm text-gray-900">Frais d'Inscription</h3>
-                </div>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li className="flex justify-between border-b border-gray-100 pb-2"><span>Présentiel - Abidjan/Ligne</span> <span className="font-bold text-gray-900">45.000 F</span></li>
-                  <li className="flex justify-between border-b border-gray-100 pb-2"><span>Présentiel - Intérieur</span> <span className="font-bold text-gray-900">35.000 F</span></li>
-                  <li className="flex justify-between pb-1"><span>Diaspora</span> <span className="font-bold text-gray-900">100.000 F</span></li>
-                </ul>
-              </Card>
-            </motion.div>
-            <motion.div variants={staggerItem}>
-              <Card className="h-full">
-                <div className="flex items-center gap-2 mb-4">
-                  <Clock size={18} className="text-accent-500" />
-                  <h3 className="font-bold text-sm text-gray-900">Mensualités</h3>
-                </div>
-                <ul className="space-y-3 text-sm text-gray-600">
-                  <li className="flex justify-between border-b border-gray-100 pb-2"><span>Présentiel Abidjan</span> <span className="font-bold text-gray-900">30.000 F/mois</span></li>
-                  <li className="flex justify-between border-b border-gray-100 pb-2"><span>Hybride Abidjan</span> <span className="font-bold text-gray-900">35.000 F/mois</span></li>
-                  <li className="flex justify-between pb-1"><span>En Ligne / Intérieur</span> <span className="font-bold text-gray-900">25.000 F/mois</span></li>
-                </ul>
-              </Card>
-            </motion.div>
+            {/* Inscription */}
+            {inscriptionList && inscriptionList.length > 0 && (
+              <motion.div variants={staggerItem}>
+                <Card className="h-full p-6 bg-white shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-gray-100">
+                    <div className="w-8 h-8 rounded-lg bg-accent-50 text-accent-600 flex items-center justify-center font-bold">
+                      <CheckCircle size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-base text-gray-900 leading-none">Frais d'Inscription</h3>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Payables une seule fois à l'admission</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-3.5 text-sm text-gray-600">
+                    {inscriptionList.map((ligne, i) => (
+                      <li key={i} className={`flex justify-between items-center ${i < inscriptionList.length - 1 ? 'border-b border-gray-50 pb-3' : 'pb-1'}`}>
+                        <span className="font-medium text-gray-700">{ligne.label}</span>
+                        <span className="font-black text-gray-900 text-base">{ligne.value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* Mensualités */}
+            {mensualitesList && mensualitesList.length > 0 && (
+              <motion.div variants={staggerItem}>
+                <Card className="h-full p-6 bg-white shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-gray-100">
+                    <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center font-bold">
+                      <Clock size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-base text-gray-900 leading-none">Mensualités</h3>
+                      <p className="text-[11px] text-gray-400 mt-0.5">Tarification mensuelle selon la formule</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-3.5 text-sm text-gray-600">
+                    {mensualitesList.map((ligne, i) => (
+                      <li key={i} className={`flex justify-between items-center ${i < mensualitesList.length - 1 ? 'border-b border-gray-50 pb-3' : 'pb-1'}`}>
+                        <span className="font-medium text-gray-700">{ligne.label}</span>
+                        <span className="font-black text-primary-700 text-base">{ligne.value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </motion.div>
+            )}
           </motion.div>
 
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={scaleIn}>
             <Card className="text-center">
               <Link to="/students/new">
-                <Button variant="accent" size="lg" className="mb-6">Rejoins-nous maintenant</Button>
+                <Button variant="accent" size="lg" className="mb-6">{config.ctaLabel || "Rejoins-nous maintenant"}</Button>
               </Link>
               <div className="flex flex-wrap justify-center items-center gap-4 mb-6">
                 {paymentMethods.map((m, i) => (
@@ -742,7 +845,7 @@ function Tarifs() {
 }
 
 /* ─── Testimonials ─── */
-function Testimonials() {
+function Testimonials({ config }: { config: SectionConfig }) {
   const { ref, isInView } = useScrollAnimation();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -796,6 +899,7 @@ function Testimonials() {
     } catch (err: any) { setFormError(err.message); } finally { setFormSubmitting(false); }
   };
 
+  if (config.enabled === false) return null;
   if (error || loading || data.length === 0) return null;
 
   return (
@@ -807,8 +911,8 @@ function Testimonials() {
         <div ref={ref}>
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp}>
             <SectionTitle
-              title="Ils nous font confiance"
-              subtitle="Découvrez les retours d'expérience de nos étudiants qui ont préparé et réussi leurs concours."
+              title={config.title || "Ils nous font confiance"}
+              subtitle={config.subtitle}
             />
           </motion.div>
 
@@ -968,8 +1072,9 @@ function Testimonials() {
 }
 
 /* ─── CTA Final ─── */
-function CtaFinal() {
+function CtaFinal({ config, currentUser }: { config: CtaConfig; currentUser?: any }) {
   const { ref, isInView } = useScrollAnimation();
+  if (config.enabled === false) return null;
 
   return (
     <section className="py-16 sm:py-20 bg-gradient-hero relative overflow-hidden">
@@ -982,22 +1087,34 @@ function CtaFinal() {
         <div ref={ref}>
           <motion.div initial="hidden" animate={isInView ? "visible" : "hidden"} variants={fadeUp} className="text-center max-w-2xl mx-auto">
             <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
-              Prêt à rejoindre l'excellence ?
+              {currentUser ? "Poursuivez votre préparation d'excellence" : config.title}
             </h2>
             <p className="text-gray-300 text-base sm:text-lg mb-8">
-              Inscrivez-vous dès maintenant et commencez votre préparation avec les meilleurs formateurs de Côte d'Ivoire.
+              {currentUser
+                ? "Retrouvez vos cours, devoirs et entraînements directement depuis votre tableau de bord."
+                : config.subtitle}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/students/new">
-                <Button variant="accent" size="lg" iconRight={<ArrowRight size={18} />}>
-                  S'inscrire maintenant
-                </Button>
-              </Link>
-              <a href="tel:0747439443">
-                <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white" icon={<Phone size={18} />}>
-                  Appeler un conseiller
-                </Button>
-              </a>
+              {currentUser ? (
+                <Link to={getDashboardUrl(currentUser)}>
+                  <Button variant="accent" size="lg" iconRight={<ArrowRight size={18} />}>
+                    Mon Espace
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/students/new">
+                  <Button variant="accent" size="lg" iconRight={<ArrowRight size={18} />}>
+                    {config.ctaPrimary}
+                  </Button>
+                </Link>
+              )}
+              {config.phone && (
+                <a href={`tel:${config.phone}`}>
+                  <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white" icon={<Phone size={18} />}>
+                    {config.ctaSecondary}
+                  </Button>
+                </a>
+              )}
             </div>
           </motion.div>
         </div>
@@ -1008,18 +1125,40 @@ function CtaFinal() {
 
 /* ─── Export ─── */
 export default function LandingPage() {
+  const [homeConfig, setHomeConfig] = useState<HomeConfig>(() => mergeSiteConfig(DEFAULT_SITE_CONFIG));
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem("user") || localStorage.getItem("currentUser");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    fetchSiteConfig()
+      .then((data) => setHomeConfig(mergeSiteConfig(data)))
+      .catch(() => {});
+
+    getMe()
+      .then((data) => {
+        setCurrentUser(data);
+        localStorage.setItem("user", JSON.stringify(data));
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen font-sans text-gray-800 bg-white selection:bg-accent-500 selection:text-white">
-      <Hero />
-      <StatsRibbon />
-      <Actualite />
-      <CommentCaMarche />
-      <Atouts />
-      <AdmisSection />
-      <Formations />
-      <Tarifs />
-      <Testimonials />
-      <CtaFinal />
+      <Hero config={homeConfig.hero} currentUser={currentUser} />
+      <StatsRibbon config={homeConfig.stats} />
+      <Actualite config={homeConfig.actualite} />
+      <CommentCaMarche config={homeConfig.how} />
+      <Atouts config={homeConfig.atouts} />
+      <AdmisSection config={homeConfig.admis} />
+      <Formations config={homeConfig.formations} />
+      <Testimonials config={homeConfig.testimonials} />
+      <CtaFinal config={homeConfig.cta} currentUser={currentUser} />
     </div>
   );
 }

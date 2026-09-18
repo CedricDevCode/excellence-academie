@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Home, DollarSign, TrendingUp, TrendingDown, FileText,
   Bell, LogOut, Menu, X, ChevronRight, Download, Filter,
-  CheckCircle, AlertCircle, Loader2, Calendar, Search, Plus, Printer, MapPin, PanelLeftClose, PanelLeftOpen, User, Clock
+  CheckCircle, AlertCircle, Loader2, Calendar, Search, Plus, Printer, MapPin, PanelLeftClose, PanelLeftOpen, User, Clock, Globe
 } from "lucide-react";
 import {
   getMe, logout as apiLogout, fetchPayments, fetchExpenses, fetchNotifications,
@@ -44,7 +44,7 @@ function formatPrice(n: number) {
 
 function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex items-center gap-3">
+    <div className="bg-red-50 border border-red-200 rounded p-5 flex items-center gap-3">
       <AlertCircle size={20} className="text-red-500 shrink-0" />
       <p className="text-red-700 text-sm flex-1">{message}</p>
       {onRetry && <button onClick={onRetry} className="text-red-600 text-sm font-semibold hover:underline shrink-0">Rï¿½essayer</button>}
@@ -302,7 +302,7 @@ export default function AccountantDashboard() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-100">
+      <div className="flex h-screen items-center justify-center bg-surface-50">
         <div className="text-center">
           <Loader2 size={32} className="animate-spin text-green-600 mx-auto mb-4" />
           <p className="text-gray-500 text-sm">Chargement...</p>
@@ -318,11 +318,11 @@ export default function AccountantDashboard() {
       case "revenues":
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
               <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><DollarSign size={18} className="text-green-500" /> Revenus</h2>
               <p className="text-gray-500 text-sm mt-1">Suivi des encaissements.</p>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="text-3xl font-black text-green-600">{formatPrice(totalRevenus)} <span className="text-sm font-normal text-gray-400">FCFA</span></div>
@@ -333,7 +333,7 @@ export default function AccountantDashboard() {
             </div>
 
             {monthlyData.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100">
                   <h3 className="font-bold text-gray-900 text-sm">Rï¿½partition mensuelle</h3>
                 </div>
@@ -362,9 +362,9 @@ export default function AccountantDashboard() {
 
             {/* Revenus par ville */}
             {cityData.filter((c: any) => c.revenue > 0).length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2"><MapPin size={14} className="text-purple-500" /> Revenus par ville</h3>
+                  <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2"><MapPin size={14} className="text-accent-700" /> Revenus par ville</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -380,7 +380,7 @@ export default function AccountantDashboard() {
                         <tr key={c.city} className="hover:bg-gray-50 transition-colors">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xs font-bold">
+                              <div className="w-7 h-7 rounded-full bg-accent-100 flex items-center justify-center text-accent-700 text-xs font-bold">
                                 {c.city.slice(0, 2).toUpperCase()}
                               </div>
                               <span className="font-semibold text-gray-900 text-sm">{c.city}</span>
@@ -397,12 +397,12 @@ export default function AccountantDashboard() {
             )}
 
             {dateFilteredPaidPayments.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-8 text-center shadow-sm border border-gray-100">
                 <DollarSign size={40} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-400 text-sm">Aucun revenu enregistrï¿½</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
@@ -433,17 +433,17 @@ export default function AccountantDashboard() {
       case "expenses":
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6 flex items-center justify-between">
               <div>
                 <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><TrendingDown size={18} className="text-red-500" /> Dï¿½penses</h2>
                 <p className="text-gray-500 text-sm mt-1">Suivi des dï¿½penses.</p>
               </div>
               <button onClick={() => setShowExpenseForm(true)}
-                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors">
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-red-700 transition-colors">
                 <Plus size={16} /> Ajouter une dï¿½pense
               </button>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="text-3xl font-black text-red-600">{formatPrice(totalDepenses)} <span className="text-sm font-normal text-gray-400">FCFA</span></div>
@@ -453,16 +453,16 @@ export default function AccountantDashboard() {
               </div>
             </div>
             {dateFilteredExpenses.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-8 text-center shadow-sm border border-gray-100">
                 <TrendingDown size={40} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-400 text-sm">Aucune dï¿½pense enregistrï¿½e</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+              <div className="bg-white rounded shadow-sm border border-gray-100">
                 <div className="divide-y divide-gray-100">
                   {dateFilteredExpenses.map((d: any) => (
                     <div key={d.id} className="p-5 flex items-center gap-4 hover:bg-gray-50 transition-colors">
-                      <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-500 shrink-0 font-bold text-xs">
+                      <div className="w-10 h-10 rounded bg-red-100 flex items-center justify-center text-red-500 shrink-0 font-bold text-xs">
                         {d.description?.slice(0, 2).toUpperCase() || "DP"}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -491,19 +491,19 @@ export default function AccountantDashboard() {
       case "receipts":
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
               <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><FileText size={18} className="text-green-500" /> Reï¿½us & Factures</h2>
               <p className="text-gray-500 text-sm mt-1">Consultez et gï¿½nï¿½rez les reï¿½us de paiement.</p>
             </div>
             {receipts.length === 0 && paidPayments.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center shadow-sm">
+              <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
                 <FileText size={40} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-400 text-sm">Aucun reï¿½u disponible. Effectuez des paiements pour gï¿½nï¿½rer des reï¿½us.</p>
               </div>
             ) : (
               <>
                 {paidPayments.length > 0 && (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-4 border-b border-gray-100">
                       <h3 className="font-bold text-gray-900 text-sm">Gï¿½nï¿½rer un reï¿½u</h3>
                     </div>
@@ -524,7 +524,7 @@ export default function AccountantDashboard() {
                               </span>
                             ) : (
                               <button onClick={() => handleGenerateReceipt(p.id)} disabled={generatingReceiptId === p.id}
-                                className="flex items-center gap-1 text-[#0056B3] text-xs font-semibold hover:underline disabled:opacity-50">
+                                className="flex items-center gap-1 text-[#c97e00] text-xs font-semibold hover:underline disabled:opacity-50">
                                 {generatingReceiptId === p.id ? (
                                   <Loader2 size={12} className="animate-spin" />
                                 ) : (
@@ -540,7 +540,7 @@ export default function AccountantDashboard() {
                   </div>
                 )}
                 {receipts.length > 0 && (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-4 border-b border-gray-100">
                       <h3 className="font-bold text-gray-900 text-sm">Reï¿½us existants</h3>
                     </div>
@@ -577,17 +577,17 @@ export default function AccountantDashboard() {
       case "cities":
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><MapPin size={18} className="text-purple-500" /> Revenus et dï¿½penses par ville</h2>
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
+              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><MapPin size={18} className="text-accent-700" /> Revenus et dï¿½penses par ville</h2>
               <p className="text-gray-500 text-sm mt-1">Rï¿½partition financiï¿½re par ville de rï¿½sidence des ï¿½tudiants et localisation des dï¿½penses.</p>
             </div>
             {cityData.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-8 text-center shadow-sm border border-gray-100">
                 <MapPin size={40} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-400 text-sm">Aucune donnï¿½e disponible</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50">
@@ -602,7 +602,7 @@ export default function AccountantDashboard() {
                         <tr key={c.city} className="hover:bg-gray-50 transition-colors">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 text-xs font-bold">
+                              <div className="w-8 h-8 rounded-full bg-accent-100 flex items-center justify-center text-accent-700 text-xs font-bold">
                                 {c.city.slice(0, 2).toUpperCase()}
                               </div>
                               <span className="font-semibold text-gray-900 text-sm">{c.city}</span>
@@ -635,30 +635,30 @@ export default function AccountantDashboard() {
       case "reports":
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6 flex items-center justify-between">
               <div>
                 <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><TrendingUp size={18} className="text-green-500" /> Rapports</h2>
                 <p className="text-gray-500 text-sm mt-1">Exportez les donnï¿½es financiï¿½res.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={handleExportCsv} className="flex items-center gap-2 bg-[#0056B3] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#003375] transition-colors">
+                <button onClick={handleExportCsv} className="flex items-center gap-2 bg-gradient-hero text-white px-4 py-2 rounded text-sm font-semibold hover:bg-[#6b4500] transition-colors">
                   <Download size={16} /> CSV
                 </button>
-                <button onClick={handleExportPdfReport} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors">
+                <button onClick={handleExportPdfReport} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-green-700 transition-colors">
                   <Printer size={16} /> Rapport PDF
                 </button>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-6 shadow-sm border border-gray-100">
                 <div className="text-green-600 text-2xl font-black">{formatPrice(totalRevenus)} FCFA</div>
                 <div className="text-gray-500 text-sm mt-1">Total Revenus</div>
               </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-6 shadow-sm border border-gray-100">
                 <div className="text-red-600 text-2xl font-black">{formatPrice(totalDepenses)} FCFA</div>
                 <div className="text-gray-500 text-sm mt-1">Total Dï¿½penses</div>
               </div>
-              <div className={`rounded-2xl p-6 shadow-sm border ${balance >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+              <div className={`rounded p-6 shadow-sm border ${balance >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
                 <div className={`text-2xl font-black ${balance >= 0 ? "text-green-700" : "text-red-700"}`}>
                   {balance >= 0 ? "+" : ""}{formatPrice(balance)} FCFA
                 </div>
@@ -669,7 +669,7 @@ export default function AccountantDashboard() {
             </div>
 
             {monthlyData.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b border-gray-100">
                   <h3 className="font-bold text-gray-900">ï¿½volution mensuelle</h3>
                 </div>
@@ -710,7 +710,7 @@ export default function AccountantDashboard() {
       case "alerts":
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center justify-between">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-6 flex items-center justify-between">
               <div>
                 <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><Bell size={18} className="text-green-500" /> Alertes</h2>
                 <p className="text-gray-500 text-sm mt-1">Notifications et alertes financiï¿½res.</p>
@@ -722,14 +722,14 @@ export default function AccountantDashboard() {
               )}
             </div>
             {notifs.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-8 text-center shadow-sm border border-gray-100">
                 <Bell size={40} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-400 text-sm">Aucune alerte</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {notifs.map((n: any) => (
-                  <div key={n.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                  <div key={n.id} className="bg-white rounded border border-gray-100 p-5 shadow-sm">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-gray-900">{n.title}</h3>
                       <span className="text-xs text-gray-400">{new Date(n.createdAt).toLocaleDateString("fr-FR")}</span>
@@ -751,13 +751,13 @@ export default function AccountantDashboard() {
       default:
         return (
           <>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 flex gap-1 w-fit mb-6">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-1 flex gap-1 w-fit mb-6">
               <button onClick={() => setDashboardTab('overview')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${dashboardTab === 'overview' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${dashboardTab === 'overview' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <Home size={16} /> Vue d'ensemble
               </button>
               <button onClick={() => setDashboardTab('salaries')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${dashboardTab === 'salaries' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${dashboardTab === 'salaries' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <DollarSign size={16} /> Salaires
               </button>
             </div>
@@ -767,25 +767,25 @@ export default function AccountantDashboard() {
             ) : (
             <>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-11 h-11 bg-green-500 rounded-xl flex items-center justify-center text-white"><TrendingUp size={22} /></div>
+                  <div className="w-11 h-11 bg-green-500 rounded flex items-center justify-center text-white"><TrendingUp size={22} /></div>
                   <span className="text-green-500 text-xs font-semibold bg-green-50 px-2 py-1 rounded-full">{paidPayments.length} transactions</span>
                 </div>
                 <div className="text-2xl font-black text-gray-900">{formatPrice(totalRevenus)} <span className="text-sm font-normal text-gray-400">FCFA</span></div>
                 <div className="text-gray-500 text-sm mt-1">Revenus</div>
               </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div className="bg-white rounded p-6 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-11 h-11 bg-red-500 rounded-xl flex items-center justify-center text-white"><TrendingDown size={22} /></div>
+                  <div className="w-11 h-11 bg-red-500 rounded flex items-center justify-center text-white"><TrendingDown size={22} /></div>
                   <span className="text-red-500 text-xs font-semibold bg-red-50 px-2 py-1 rounded-full">{expenses.length} entrï¿½es</span>
                 </div>
                 <div className="text-2xl font-black text-gray-900">{formatPrice(totalDepenses)} <span className="text-sm font-normal text-gray-400">FCFA</span></div>
                 <div className="text-gray-500 text-sm mt-1">Dï¿½penses</div>
               </div>
-              <div className={`rounded-2xl p-6 shadow-sm border ${balance >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+              <div className={`rounded p-6 shadow-sm border ${balance >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
                 <div className="flex items-center justify-between mb-4">
-                  <div className={`w-11 h-11 ${balance >= 0 ? "bg-green-500" : "bg-red-500"} rounded-xl flex items-center justify-center text-white`}>
+                  <div className={`w-11 h-11 ${balance >= 0 ? "bg-green-500" : "bg-red-500"} rounded flex items-center justify-center text-white`}>
                     <DollarSign size={22} />
                   </div>
                   <span className={`text-xs font-semibold px-2 py-1 rounded-full ${balance >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
@@ -800,7 +800,7 @@ export default function AccountantDashboard() {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                   <h2 className="font-black text-gray-900 flex items-center gap-2"><CheckCircle size={18} className="text-green-500" /> Transactions rï¿½centes</h2>
                   <div className="relative">
@@ -842,7 +842,7 @@ export default function AccountantDashboard() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                   <h2 className="font-black text-gray-900 flex items-center gap-2"><TrendingDown size={18} className="text-red-500" /> Derniï¿½res dï¿½penses</h2>
                   <button onClick={() => setShowExpenseForm(true)}
@@ -879,7 +879,7 @@ export default function AccountantDashboard() {
             </div>
 
             {monthlyData.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-6">
+              <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden mt-6">
                 <div className="p-4 border-b border-gray-100">
                   <h3 className="font-bold text-gray-900">Rï¿½sumï¿½ mensuel</h3>
                 </div>
@@ -916,8 +916,8 @@ export default function AccountantDashboard() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-[Inter,sans-serif] overflow-hidden">
-      <aside className={`fixed inset-y-0 left-0 z-50 bg-green-700 text-white transform transition-all duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`} role="navigation" aria-label="Menu comptabilitï¿½">
+    <div className="flex h-screen bg-surface-50 font-[Inter,sans-serif] overflow-hidden">
+      <aside className={`fixed inset-y-0 left-0 z-50 bg-gradient-hero text-white transform transition-all duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`} role="navigation" aria-label="Menu comptabilitï¿½">
         <div className={`flex items-center justify-between border-b border-green-600/30 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
           {sidebarCollapsed ? (
             <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0" />
@@ -937,7 +937,7 @@ export default function AccountantDashboard() {
         <nav className={`space-y-1 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           {NAV_ITEMS.map(item => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/20 text-white font-bold" : "text-green-100 hover:bg-white/10"}`}
+              className={`w-full flex items-center gap-3 rounded text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
               aria-current={activeTab === item.id ? "page" : undefined}
               title={sidebarCollapsed ? item.label : undefined}>
               <span className="shrink-0">{item.icon}</span>
@@ -946,16 +946,24 @@ export default function AccountantDashboard() {
             </button>
           ))}
         </nav>
-        <div className={`absolute bottom-0 left-0 right-0 border-t border-green-600/30 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
-          <button onClick={toggleSidebar} className={`w-full flex items-center gap-3 text-green-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
-            title={sidebarCollapsed ? "Agrandir" : "Rï¿½duire"}>
+        <div className={`absolute bottom-0 left-0 right-0 border-t border-green-600/30 ${sidebarCollapsed ? "p-2" : "p-4"} space-y-1`}>
+          <Link
+            to="/"
+            className={`w-full flex items-center gap-3 text-green-200 hover:text-white text-sm rounded hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"} font-semibold`}
+            title="Aller sur la page d'accueil sans se déconnecter"
+          >
+            <Globe size={18} className="text-accent-300 shrink-0" />
+            {!sidebarCollapsed && <span>Voir le site</span>}
+          </Link>
+          <button onClick={toggleSidebar} className={`w-full flex items-center gap-3 text-green-200 hover:text-white text-sm rounded hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}
+            title={sidebarCollapsed ? "Agrandir" : "Réduire"}>
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-            {!sidebarCollapsed && <span>Rï¿½duire</span>}
+            {!sidebarCollapsed && <span>Réduire</span>}
           </button>
-          <button onClick={handleLogout} className={`w-full flex items-center gap-3 text-green-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
-            title="Dï¿½connexion">
+          <button onClick={handleLogout} className={`w-full flex items-center gap-3 text-green-200 hover:text-white text-sm rounded hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}
+            title="Déconnexion">
             <LogOut size={18} />
-            {!sidebarCollapsed && <span>Dï¿½connexion</span>}
+            {!sidebarCollapsed && <span>Déconnexion</span>}
           </button>
         </div>
       </aside>
@@ -969,12 +977,20 @@ export default function AccountantDashboard() {
               <Menu size={22} />
             </button>
             <div>
-              <h1 className="font-black text-gray-900">Tableau de bord ï¿½ Comptabilitï¿½</h1>
-              <p className="text-gray-400 text-xs">Excellence Acadï¿½mie ï¿½ {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+              <h1 className="font-black text-gray-900">Tableau de bord – Comptabilité</h1>
+              <p className="text-gray-400 text-xs">Excellence Académie • {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={handleExportCsv} className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-100 transition-colors" aria-label="Exporter le rapport">
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:text-green-800 hover:bg-gray-50 text-xs font-bold transition-all shadow-2xs"
+              title="Accéder à la page d'accueil sans se déconnecter"
+            >
+              <Globe size={14} className="text-green-600" />
+              <span className="hidden sm:inline">Voir le site public</span>
+            </Link>
+            <button onClick={handleExportCsv} className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded text-sm font-semibold hover:bg-green-100 transition-colors" aria-label="Exporter le rapport">
               <Download size={16} /> Exporter rapport
             </button>
             <div className="relative" ref={profileRef}>
@@ -983,14 +999,14 @@ export default function AccountantDashboard() {
                 {initials}
               </button>
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded shadow-xl border border-gray-100 z-50 overflow-hidden">
                   <div className="p-4 border-b border-gray-100">
                     <div className="font-bold text-gray-900 text-sm truncate">{user?.name || 'Comptable'}</div>
                     <div className="text-gray-400 text-xs truncate">{user?.email || ''}</div>
                   </div>
                   <div className="p-2">
                     <button onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-red-600 hover:bg-red-50 transition-colors">
                       <LogOut size={16} /> Dï¿½connexion
                     </button>
                   </div>
@@ -1001,7 +1017,7 @@ export default function AccountantDashboard() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="bg-linear-to-r from-green-700 to-green-900 rounded-2xl p-6 text-white mb-6">
+          <div className="bg-linear-to-r from-green-700 to-green-900 rounded p-6 text-white mb-6">
             <h2 className="font-black text-xl mb-1">Bon retour parmi nous, {user?.name?.split(" ")[0] || "Comptable"} !</h2>
           </div>
           {renderContent()}
@@ -1010,7 +1026,7 @@ export default function AccountantDashboard() {
 
       {showExpenseForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <div className="bg-white rounded p-6 w-full max-w-md shadow-xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-black text-gray-900">Nouvelle dï¿½pense</h3>
               <button onClick={() => setShowExpenseForm(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -1021,17 +1037,17 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Description *</label>
                 <input type="text" value={expenseForm.description} onChange={e => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" required placeholder="Ex: Fournitures de bureau" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none" required placeholder="Ex: Fournitures de bureau" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Montant (FCFA) *</label>
                 <input type="number" value={expenseForm.amount} onChange={e => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" required min="1" placeholder="50000" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none" required min="1" placeholder="50000" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Catï¿½gorie</label>
                 <select value={expenseForm.category} onChange={e => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none">
                   {EXPENSE_CATEGORIES.map(cat => (
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
@@ -1040,7 +1056,7 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ville</label>
                 <input type="text" value={expenseForm.ville} list="city-list-acc" onChange={e => setExpenseForm({ ...expenseForm, ville: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" placeholder="Ex: Abidjan, Bouakï¿½..." />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none" placeholder="Ex: Abidjan, Bouakï¿½..." />
                 <datalist id="city-list-acc">
                   {cities.map(c => <option key={c.id} value={c.name} />)}
                 </datalist>
@@ -1048,7 +1064,7 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Mï¿½thode de paiement</label>
                 <select value={expenseForm.paymentMethod} onChange={e => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none">
                   <option value="Espï¿½ces">Espï¿½ces</option>
                   <option value="Virement bancaire">Virement bancaire</option>
                   <option value="Mobile Money">Mobile Money (Orange Money / MTN)</option>
@@ -1059,7 +1075,7 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Enseignant (optionnel)</label>
                 <select value={expenseForm.teacherId} onChange={e => setExpenseForm({ ...expenseForm, teacherId: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none">
                   <option value="">Sï¿½lectionner un enseignant</option>
                   {teachers.map((t: any) => (
                     <option key={t.id} value={t.id}>{t.name || t.email}</option>
@@ -1067,7 +1083,7 @@ export default function AccountantDashboard() {
                 </select>
               </div>
               <button type="submit" disabled={creatingExpense}
-                className="w-full bg-red-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                className="w-full bg-red-600 text-white py-3 rounded font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {creatingExpense ? <Loader2 size={16} className="animate-spin" /> : null}
                 {creatingExpense ? "Enregistrement..." : "Enregistrer la dï¿½pense"}
               </button>

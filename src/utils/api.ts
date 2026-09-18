@@ -93,9 +93,18 @@ export const authFetch = (url: string, options: RequestInit = {}) => {
 
 // Auth
 export const getMe = async () => {
-  const res = await authFetch(`${API_BASE_URL}/auth/me`);
-  if (!res.ok) throw new Error('Not authenticated');
-  return res.json();
+  // Le backend répond 503 pendant son initialisation (quelques secondes à chaud).
+  // On réessaie pour que la session se rétablisse sans intervention de l'utilisateur.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await authFetch(`${API_BASE_URL}/auth/me`);
+    if (res.status === 503 && attempt < 3) {
+      await new Promise((r) => setTimeout(r, 1200));
+      continue;
+    }
+    if (!res.ok) throw new Error('Not authenticated');
+    return res.json();
+  }
+  throw new Error('Not authenticated');
 };
 
 export const logout = async () => {
@@ -424,13 +433,60 @@ export const fetchCourses = async () => {
   return res.json();
 };
 
+export const fetchCourseById = async (id: string) => {
+  const res = await authFetch(`${API_BASE_URL}/courses`);
+  if (!res.ok) throw new Error('Failed to fetch courses');
+  const courses = await res.json();
+  return courses.find((c: any) => c.id === id) || null;
+};
+
 export const fetchPublicBanners = async () => {
   const res = await fetch(`${API_BASE_URL}/banners/public`);
   if (!res.ok) throw new Error('Failed to fetch banners');
   return res.json();
 };
 
-export const createCourse = async (data: { title: string; category?: string; description?: string; price: number }) => {
+// Site config (homepage)
+export const fetchSiteConfig = async () => {
+  const res = await fetch(`${API_BASE_URL}/siteconfig/public`);
+  if (!res.ok) throw new Error('Failed to fetch site config');
+  return res.json();
+};
+
+export const fetchSiteConfigAdmin = async () => {
+  const res = await authFetch(`${API_BASE_URL}/siteconfig`);
+  if (!res.ok) throw new Error('Failed to fetch site config');
+  return res.json();
+};
+
+export const updateSiteConfig = async (content: unknown) => {
+  const res = await authFetch(`${API_BASE_URL}/siteconfig`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message || 'Failed to update site config');
+  }
+  return res.json();
+};
+
+export interface CourseInputData {
+  title?: string;
+  category?: string;
+  description?: string;
+  price?: number;
+  registrationFee?: number;
+  registrationFeeInterieur?: number;
+  registrationFeeDiaspora?: number;
+  monthlyFee?: number;
+  monthlyFeeInterieur?: number;
+  monthlyFeeDiaspora?: number;
+  hasPresentiel?: boolean;
+  hasOnline?: boolean;
+}
+
+export const createCourse = async (data: CourseInputData) => {
   const res = await authFetch(`${API_BASE_URL}/courses`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -439,7 +495,7 @@ export const createCourse = async (data: { title: string; category?: string; des
   return res.json();
 };
 
-export const updateCourse = async (id: string, data: { title?: string; category?: string; description?: string; price?: number }) => {
+export const updateCourse = async (id: string, data: CourseInputData) => {
   const res = await authFetch(`${API_BASE_URL}/courses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -993,6 +1049,48 @@ export const evaluateSubmission = async (id: string, data: { grade?: number; fee
     method: 'PUT', body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to evaluate');
+  return res.json();
+};
+
+// ─── App Settings (Tarification globale) ─────────────────────────
+export const fetchAppSettings = async () => {
+  const res = await fetch(`${API_BASE_URL}/app-settings`);
+  if (!res.ok) throw new Error('Failed to fetch app settings');
+  return res.json();
+};
+
+export const updateAppSettings = async (data: {
+  additionalCourseAmount?: number;
+  defaultRegistrationFee?: number;
+  defaultRegistrationFeeInterieur?: number;
+  defaultRegistrationFeeDiaspora?: number;
+}) => {
+  const res = await authFetch(`${API_BASE_URL}/app-settings`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || 'Failed to update app settings');
+  }
+  return res.json();
+};
+
+// ─── Add course for existing student (Tarif supplémentaire) ─────
+export const addCourseForExistingStudent = async (data: {
+  courseIds: string[];
+  paymentMethod?: string;
+  geniusPhone?: string;
+  mode?: string;
+}) => {
+  const res = await authFetch(`${API_BASE_URL}/auth/add-course`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || 'Erreur lors de l\'ajout de la formation');
+  }
   return res.json();
 };
 

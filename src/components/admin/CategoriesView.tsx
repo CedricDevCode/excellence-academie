@@ -14,23 +14,23 @@ export default function CategoriesView() {
   const [loading, setLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', color: '#0056B3', displayOrder: '' });
+  const [form, setForm] = useState({ name: '', description: '', color: '#c97e00', displayOrder: '' });
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
 
   const COLOR_PRESETS = [
-    { hex: '#4F46E5', label: 'Indigo' },
-    { hex: '#0056B3', label: 'Bleu' },
+    { hex: '#f5a623', label: 'Or' },
+    { hex: '#c97e00', label: 'Or foncé' },
     { hex: '#D97706', label: 'Ambre' },
-    { hex: '#059669', label: 'Vert' },
+    { hex: '#1e9e54', label: 'Vert' },
+    { hex: '#059669', label: 'Vert émeraude' },
     { hex: '#DC2626', label: 'Rouge' },
-    { hex: '#7C3AED', label: 'Violet' },
-    { hex: '#0284C7', label: 'Cyan' },
+    { hex: '#EA580C', label: 'Orange' },
     { hex: '#DB2777', label: 'Rose' },
     { hex: '#65A30D', label: 'Lime' },
-    { hex: '#EA580C', label: 'Orange' },
+    { hex: '#92400E', label: 'Bronze' },
   ];
 
   const loadCategories = async () => {
@@ -49,7 +49,7 @@ export default function CategoriesView() {
 
   const openAdd = () => {
     setEditTarget(null);
-    setForm({ name: '', description: '', color: '#0056B3', displayOrder: String(categories.length + 1) });
+    setForm({ name: '', description: '', color: '#c97e00', displayOrder: String(categories.length + 1) });
     setShowPanel(true);
   };
 
@@ -58,7 +58,7 @@ export default function CategoriesView() {
     setForm({
       name: cat.name || '',
       description: cat.description || '',
-      color: cat.color || '#0056B3',
+      color: cat.color || '#c97e00',
       displayOrder: String(cat.displayOrder ?? ''),
     });
     setShowPanel(true);
@@ -72,7 +72,7 @@ export default function CategoriesView() {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        color: form.color || '#0056B3',
+        color: form.color || '#c97e00',
         displayOrder: form.displayOrder ? Number(form.displayOrder) : undefined,
       };
       if (editTarget) {
@@ -113,10 +113,10 @@ export default function CategoriesView() {
       {/* ── Main List ── */}
       <div className={`flex-1 min-w-0 space-y-6 ${showPanel ? 'hidden xl:block' : ''}`}>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded shadow-sm border border-gray-100">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-blue-50 text-[#0056B3]"><Layers size={22} /></span>
+              <span className="p-2 rounded bg-primary-50 text-[#c97e00]"><Layers size={22} /></span>
               <h2 className="text-xl font-black text-gray-900">Catégories de Formations</h2>
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -125,7 +125,7 @@ export default function CategoriesView() {
           </div>
           <button
             onClick={openAdd}
-            className="flex items-center justify-center gap-2 bg-[#0056B3] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm shrink-0"
+            className="flex items-center justify-center gap-2 bg-[#c97e00] text-white px-5 py-2.5 rounded font-bold text-sm hover:bg-[#7a4b00] transition-colors shadow-sm shrink-0"
           >
             <Plus size={18} /><span>Nouvelle catégorie</span>
           </button>
@@ -133,22 +133,22 @@ export default function CategoriesView() {
 
         {/* Stats row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#0056B3] flex items-center justify-center"><Layers size={24} /></div>
+          <div className="bg-white p-5 rounded border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded bg-primary-50 text-[#c97e00] flex items-center justify-center"><Layers size={24} /></div>
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Catégories</div>
               <div className="text-2xl font-black text-gray-900">{categories.length}</div>
             </div>
           </div>
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><BookOpen size={24} /></div>
+          <div className="bg-white p-5 rounded border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center"><BookOpen size={24} /></div>
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Formations Classées</div>
               <div className="text-2xl font-black text-gray-900">{categories.reduce((a: number, c: any) => a + (c.coursesCount || 0), 0)}</div>
             </div>
           </div>
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center"><Tag size={24} /></div>
+          <div className="bg-white p-5 rounded border border-gray-100 shadow-sm flex items-center gap-4">
+            <div className="w-12 h-12 rounded bg-accent-50 text-accent-700 flex items-center justify-center"><Tag size={24} /></div>
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories Actives</div>
               <div className="text-2xl font-black text-gray-900">{categories.filter((c: any) => (c.coursesCount || 0) > 0).length}</div>
@@ -158,31 +158,31 @@ export default function CategoriesView() {
 
         {/* Categories grid */}
         {categories.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
-            <div className="w-16 h-16 bg-blue-50 text-[#0056B3] rounded-full flex items-center justify-center mx-auto mb-3">
+          <div className="bg-white rounded p-12 text-center border border-gray-100 shadow-sm">
+            <div className="w-16 h-16 bg-primary-50 text-[#c97e00] rounded-full flex items-center justify-center mx-auto mb-3">
               <Layers size={32} />
             </div>
             <h3 className="text-base font-bold text-gray-900 mb-1">Aucune catégorie</h3>
             <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">Les catégories par défaut seront créées automatiquement au prochain chargement.</p>
-            <button onClick={openAdd} className="bg-[#0056B3] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#003d80]">Créer une catégorie</button>
+            <button onClick={openAdd} className="bg-[#c97e00] text-white px-4 py-2 rounded text-xs font-bold hover:bg-[#7a4b00]">Créer une catégorie</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {categories.map((cat: any) => (
               <div
                 key={cat.id}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all group relative overflow-hidden"
+                className="bg-white rounded p-5 shadow-sm border border-gray-100 hover:border-primary-200 hover:shadow-md transition-all group relative overflow-hidden"
               >
                 {/* Color accent strip */}
                 <div
                   className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
-                  style={{ background: cat.color || '#0056B3' }}
+                  style={{ background: cat.color || '#c97e00' }}
                 />
                 <div className="flex items-start justify-between gap-2 mt-1">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                      style={{ backgroundColor: `${cat.color || '#0056B3'}18`, color: cat.color || '#0056B3' }}
+                      className="w-10 h-10 rounded flex items-center justify-center shrink-0 shadow-sm"
+                      style={{ backgroundColor: `${cat.color || '#c97e00'}18`, color: cat.color || '#c97e00' }}
                     >
                       <Tag size={18} />
                     </div>
@@ -194,7 +194,7 @@ export default function CategoriesView() {
                   <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={() => openEdit(cat)}
-                      className="w-8 h-8 rounded-lg bg-blue-50 text-[#0056B3] flex items-center justify-center hover:bg-blue-100 transition-colors"
+                      className="w-8 h-8 rounded-lg bg-primary-50 text-[#c97e00] flex items-center justify-center hover:bg-primary-100 transition-colors"
                       title="Modifier"
                     ><Edit size={14} /></button>
                     <button
@@ -211,8 +211,8 @@ export default function CategoriesView() {
 
                 <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200" style={{ backgroundColor: cat.color || '#0056B3' }} />
-                    <span className="text-[10px] text-gray-400 font-mono">{cat.color || '#0056B3'}</span>
+                    <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200" style={{ backgroundColor: cat.color || '#c97e00' }} />
+                    <span className="text-[10px] text-gray-400 font-mono">{cat.color || '#c97e00'}</span>
                   </div>
                   <span className="text-[10px] text-gray-300">Ordre : {cat.displayOrder ?? '–'}</span>
                 </div>
@@ -225,11 +225,11 @@ export default function CategoriesView() {
       {/* ── Inline Panel ── */}
       {showPanel && (
         <div className="w-full xl:w-[380px] shrink-0">
-          <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 sticky top-4" style={{maxHeight: 'calc(100vh - 7rem)'}}>
+          <div className="bg-white rounded overflow-hidden shadow-lg border border-gray-100 sticky top-4" style={{maxHeight: 'calc(100vh - 7rem)'}}>
             {/* Panel header */}
-            <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-[#0056B3]/5 to-blue-50/50 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-[#c97e00]/5 from-primary-50/50 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-[#0056B3] text-white shadow-sm"><Layers size={16} /></span>
+                <span className="p-2 rounded bg-[#c97e00] text-white shadow-sm"><Layers size={16} /></span>
                 <div>
                   <h3 className="font-black text-gray-900 text-sm">{editTarget ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</h3>
                   <p className="text-[11px] text-gray-400">{editTarget ? 'Mettre à jour les informations' : 'Définir une nouvelle thématique'}</p>
@@ -253,7 +253,7 @@ export default function CategoriesView() {
                     value={form.name}
                     onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="Ex: Concours Juridiques & Judiciaires"
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
                   />
                 </div>
 
@@ -265,7 +265,7 @@ export default function CategoriesView() {
                     value={form.description}
                     onChange={e => setForm({ ...form, description: e.target.value })}
                     placeholder="Brève description de la catégorie..."
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none resize-none transition-colors"
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none resize-none transition-colors"
                   />
                 </div>
 
@@ -291,14 +291,14 @@ export default function CategoriesView() {
                       type="color"
                       value={form.color}
                       onChange={e => setForm({ ...form, color: e.target.value })}
-                      className="w-10 h-10 rounded-xl border-2 border-gray-200 cursor-pointer p-0.5"
+                      className="w-10 h-10 rounded border-2 border-gray-200 cursor-pointer p-0.5"
                     />
                     <input
                       type="text"
                       value={form.color}
                       onChange={e => setForm({ ...form, color: e.target.value })}
-                      placeholder="#0056B3"
-                      className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-mono focus:border-[#0056B3] focus:outline-none"
+                      placeholder="#c97e00"
+                      className="flex-1 px-3 py-2 border-2 border-gray-200 rounded text-sm font-mono focus:border-[#c97e00] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -312,17 +312,17 @@ export default function CategoriesView() {
                     value={form.displayOrder}
                     onChange={e => setForm({ ...form, displayOrder: e.target.value })}
                     placeholder="Ex: 1"
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors"
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
                   />
                   <p className="text-[10px] text-gray-400 mt-1">Les catégories s'affichent du plus petit au plus grand numéro.</p>
                 </div>
 
                 {/* Preview */}
-                <div className="bg-gray-50 rounded-xl p-4">
+                <div className="bg-gray-50 rounded p-4">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Aperçu</div>
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center"
+                      className="w-9 h-9 rounded flex items-center justify-center"
                       style={{ backgroundColor: `${form.color}20`, color: form.color }}
                     >
                       <Tag size={16} />
@@ -341,12 +341,12 @@ export default function CategoriesView() {
                 <button
                   type="button"
                   onClick={() => setShowPanel(false)}
-                  className="px-4 py-2 text-gray-500 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors"
+                  className="px-4 py-2 text-gray-500 font-semibold text-sm hover:bg-surface-50 rounded transition-colors"
                 >Annuler</button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 bg-[#0056B3] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-[#003d80] transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center gap-2 bg-[#c97e00] text-white px-5 py-2.5 rounded font-bold text-sm hover:bg-[#7a4b00] transition-colors shadow-sm disabled:opacity-50"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   <span>{editTarget ? 'Mettre à jour' : 'Créer la catégorie'}</span>
@@ -360,7 +360,7 @@ export default function CategoriesView() {
       {/* Delete confirm modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+          <div className="bg-white rounded w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
                 <AlertCircle size={26} className="text-red-500" />
@@ -377,8 +377,8 @@ export default function CategoriesView() {
               )}
             </p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-gray-100 rounded-xl transition-colors">Annuler</button>
-              <button onClick={confirmDelete} disabled={deleting} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-red-700 disabled:opacity-50">
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="px-4 py-2 text-gray-600 font-semibold text-sm hover:bg-surface-50 rounded transition-colors">Annuler</button>
+              <button onClick={confirmDelete} disabled={deleting} className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded font-bold text-sm hover:bg-red-700 disabled:opacity-50">
                 {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 Supprimer
               </button>

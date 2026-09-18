@@ -1,4 +1,4 @@
-import { MODES, VILLES, PAYS, Mode, calcRegistrationPrice, calcMonthlyAmount, formatPrice, isDiaspora } from "../constants/student";
+import { MODES, VILLES, PAYS, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora, isAbidjan, courseRegistrationFee, courseMonthlyFee } from "../constants/student";
 
 export interface StudentFormState {
   nom: string;
@@ -53,7 +53,7 @@ export function StudentPersonalFields({
             value={form.nom}
             onChange={(e) => onChange("nom", e.target.value)}
             placeholder="Votre nom de famille"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
           />
         </div>
         <div>
@@ -63,7 +63,7 @@ export function StudentPersonalFields({
             value={form.prenom}
             onChange={(e) => onChange("prenom", e.target.value)}
             placeholder="Votre prénom"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
           />
         </div>
       </div>
@@ -77,7 +77,7 @@ export function StudentPersonalFields({
             value={form.email}
             onChange={(e) => onChange("email", e.target.value)}
             placeholder="votre@email.com"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
           />
         </div>
         {showPassword && (
@@ -89,7 +89,7 @@ export function StudentPersonalFields({
               value={form.password}
               onChange={(e) => onChange("password", e.target.value)}
               placeholder="Créez un mot de passe"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
             />
           </div>
         )}
@@ -103,7 +103,7 @@ export function StudentPersonalFields({
           value={form.telephone}
           onChange={(e) => onChange("telephone", e.target.value)}
           placeholder="07 XX XX XX XX"
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
         />
       </div>
 
@@ -114,7 +114,7 @@ export function StudentPersonalFields({
             type="date"
             value={form.dateNaissance}
             onChange={(e) => onChange("dateNaissance", e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
           />
         </div>
       )}
@@ -125,7 +125,7 @@ export function StudentPersonalFields({
           required
           value={form.pays}
           onChange={(e) => onChange("pays", e.target.value)}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
         >
           <option value="">Sélectionnez votre pays...</option>
           {PAYS.map((p) => (
@@ -140,7 +140,7 @@ export function StudentPersonalFields({
           required
           value={form.ville}
           onChange={(e) => onChange("ville", e.target.value)}
-          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#0056B3] focus:outline-none text-sm"
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm"
         >
           <option value="">Sélectionnez votre ville...</option>
           {VILLES.map((ville) => (
@@ -163,11 +163,45 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
     onChange("courseIds", next);
   };
 
-  const inscPrice = calcRegistrationPrice(selectedPays, form.mode || 'presentiel', form.ville, form.coursParticuliers);
-  const monthlyAmount = calcMonthlyAmount(selectedPays, form.mode || 'presentiel', form.coursParticuliers, form.courseIds.length);
+  const selectedCourses = courses.filter((c) => form.courseIds.includes(c.id));
+  const inscPrice = calcRegistrationTotal(selectedCourses, form.coursParticuliers, form.pays, form.ville);
+  const monthlyAmount = calcMonthlyTotal(selectedCourses, form.coursParticuliers, form.pays, form.mode);
+
+  const isInterieur = form.ville && !isAbidjan(form.ville);
 
   return (
     <div className="space-y-5">
+      {/* Zone Indicator Badge */}
+      {form.pays && (
+        <div className={`p-3 rounded-lg border flex items-center gap-3 ${
+          diaspora
+            ? "bg-accent-50 border-accent-200 text-accent-900"
+            : isInterieur
+            ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+            : "bg-amber-50 border-amber-200 text-amber-900"
+        }`}>
+          <span className="text-xl shrink-0">
+            {diaspora ? "🌍" : isInterieur ? "📍" : "🏙️"}
+          </span>
+          <div className="text-xs">
+            <span className="font-bold block">
+              {diaspora
+                ? "Tarif Diaspora & International appliqué"
+                : isInterieur
+                ? "Tarif Intérieur de la Côte d'Ivoire appliqué"
+                : "Tarif Abidjan & Siège appliqué"}
+            </span>
+            <span className="opacity-80">
+              {diaspora
+                ? `Pour les résidents hors Côte d'Ivoire (${form.pays}) - Formation 100% en ligne`
+                : isInterieur
+                ? `Tarif avantageux pour toutes les villes hors Abidjan (${form.ville})`
+                : `Tarif standard pour la zone d'Abidjan (${form.ville || 'Abidjan'})`}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-1">Formation(s) et Concours visé(s) *</label>
         <p className="text-xs text-gray-500 mb-3">Sélectionnez une ou plusieurs formations dispensées par notre académie</p>
@@ -176,40 +210,40 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
             const catCourses = courses.filter(c => (c.category || 'Autres formations') === cat);
             return (
               <div key={cat} className="space-y-2">
-                <div className="text-xs font-bold uppercase tracking-wider text-[#0056B3] bg-blue-50/60 px-2.5 py-1 rounded-md inline-block">
+                <div className="text-xs font-bold uppercase tracking-wider text-[#c97e00] bg-primary-50/60 px-2.5 py-1 rounded-md inline-block">
                   {cat}
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {catCourses.map((c) => {
                     const isSelected = form.courseIds.includes(c.id);
-                    const regFee = c.registrationFee !== undefined && c.registrationFee !== null ? Number(c.registrationFee) : (c.price ? Number(c.price) : 35000);
-                    const mFee = c.monthlyFee !== undefined && c.monthlyFee !== null ? Number(c.monthlyFee) : 30000;
+                    const regFee = courseRegistrationFee(c, form.pays, form.ville);
+                    const mFee = courseMonthlyFee(c, form.pays, form.mode);
                     const hasPres = c.hasPresentiel !== false;
                     const hasOnl = c.hasOnline !== false;
 
                     return (
                       <label
                         key={c.id}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 border-2 rounded-xl cursor-pointer transition-all ${isSelected ? "border-[#0056B3] bg-blue-50/50 shadow-sm" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 border-2 rounded cursor-pointer transition-all ${isSelected ? "border-[#c97e00] bg-primary-50/50 shadow-sm" : "border-gray-200 hover:border-gray-300 bg-white"}`}
                       >
                         <div className="flex items-start sm:items-center gap-3">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleCourse(c.id)}
-                            className="accent-[#0056B3] w-5 h-5 rounded mt-0.5 sm:mt-0 shrink-0"
+                            className="accent-[#c97e00] w-5 h-5 rounded mt-0.5 sm:mt-0 shrink-0"
                           />
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-bold text-gray-900 block">{c.title}</span>
                               <div className="flex items-center gap-1">
                                 {hasPres && (
-                                  <span className="inline-block text-[10px] font-semibold bg-blue-100/70 text-[#0056B3] px-1.5 py-0.5 rounded">
+                                  <span className="inline-block text-[10px] font-semibold bg-primary-100/70 text-[#c97e00] px-1.5 py-0.5 rounded">
                                     Présentiel
                                   </span>
                                 )}
                                 {hasOnl && (
-                                  <span className="inline-block text-[10px] font-semibold bg-purple-100/70 text-purple-700 px-1.5 py-0.5 rounded">
+                                  <span className="inline-block text-[10px] font-semibold bg-accent-100/70 text-accent-700 px-1.5 py-0.5 rounded">
                                     En ligne
                                   </span>
                                 )}
@@ -225,7 +259,7 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
                           <span className="text-[11px] text-gray-500 font-medium">
                             Inscription : <strong className="text-gray-900">{regFee.toLocaleString('fr-FR')} F</strong>
                           </span>
-                          <span className="text-xs font-black text-[#FF6B00]">
+                          <span className="text-xs font-black text-primary-600">
                             {mFee.toLocaleString('fr-FR')} F<span className="text-[10px] font-semibold text-gray-400">/mois</span>
                           </span>
                         </div>
@@ -242,40 +276,29 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
       {!diaspora && (
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">Mode de formation *</label>
-          <div className="space-y-3">
+          <select
+            required
+            value={form.mode}
+            onChange={(e) => onChange("mode", e.target.value as Mode)}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:border-[#c97e00] focus:outline-none text-sm bg-white"
+          >
+            <option value="">Sélectionnez un mode...</option>
             {MODES.map((m) => (
-              <label
-                key={m.id}
-                className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${form.mode === m.id ? "border-[#0056B3] bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
-              >
-                <input
-                  type="radio"
-                  name="mode"
-                  value={m.id}
-                  checked={form.mode === m.id}
-                  onChange={(e) => onChange("mode", e.target.value as Mode)}
-                  className="accent-[#0056B3]"
-                  required
-                />
-                <div className="flex-1">
-                  <div className="font-bold text-gray-900 text-sm">{m.name}</div>
-                  <div className="text-gray-500 text-xs">{m.desc}</div>
-                </div>
-              </label>
+              <option key={m.id} value={m.id}>{m.name} — {m.desc}</option>
             ))}
-          </div>
+          </select>
         </div>
       )}
 
       <div>
         <label
-          className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${form.coursParticuliers ? "border-[#0056B3] bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
+          className={`flex items-center gap-4 p-4 border-2 rounded cursor-pointer transition-all ${form.coursParticuliers ? "border-[#c97e00] bg-primary-50" : "border-gray-200 hover:border-gray-300"}`}
         >
           <input
             type="checkbox"
             checked={form.coursParticuliers}
             onChange={(e) => onChange("coursParticuliers", e.target.checked)}
-            className="accent-[#0056B3] w-5 h-5"
+            className="accent-[#c97e00] w-5 h-5"
           />
           <div className="flex-1">
             <div className="font-bold text-gray-900 text-sm">Cours particuliers</div>
@@ -285,7 +308,7 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
       </div>
 
       {form.courseIds.length > 0 && (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 space-y-2 text-sm">
+        <div className="bg-primary-50 border-2 border-primary-200 rounded p-4 space-y-2 text-sm">
           <div className="flex justify-between items-center">
             <span className="text-gray-600">Frais d'inscription</span>
             <span className="font-bold text-gray-900">{formatPrice(inscPrice)} FCFA</span>
@@ -297,7 +320,7 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
             </div>
           )}
           {form.courseIds.length > 1 && !form.coursParticuliers && (
-            <p className="text-xs text-gray-500 italic">+10 000 FCFA/cours supplémentaire</p>
+            <p className="text-xs text-gray-500 italic">Total = somme des frais d'inscription et mensualités des formations sélectionnées</p>
           )}
           {form.coursParticuliers && (
             <p className="text-xs text-gray-500 italic">Paiement unique, pas de mensualité</p>

@@ -4,9 +4,9 @@ import { fetchAdminProducts, createProduct, updateProduct, deleteProduct, upload
 import { useToast } from './Toast';
 
 const PRODUCT_TYPES = [
-  { value: 'DOCUMENT', label: 'Document', color: 'bg-blue-100 text-blue-700' },
-  { value: 'LIVRE', label: 'Livre', color: 'bg-purple-100 text-purple-700' },
-  { value: 'AUTRE', label: 'Autre', color: 'bg-gray-100 text-gray-700' },
+  { value: 'DOCUMENT', label: 'Document', color: 'bg-primary-100 text-primary-700' },
+  { value: 'LIVRE', label: 'Livre', color: 'bg-accent-100 text-accent-700' },
+  { value: 'AUTRE', label: 'Autre', color: 'bg-surface-50 text-gray-700' },
 ];
 
 function formatPrice(n: number) {
@@ -170,14 +170,14 @@ export default function ShopProductsView() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-            <ShoppingBag size={22} className="text-orange-500" /> Gestion des Produits
+            <ShoppingBag size={22} className="text-primary-600" /> Gestion des Produits
           </h2>
           <p className="text-gray-400 text-sm mt-0.5">{products.length} produit{products.length !== 1 ? 's' : ''} enregistré{products.length !== 1 ? 's' : ''}</p>
         </div>
         {!showForm && (
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 bg-linear-to-r from-orange-500 to-orange-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+            className="flex items-center gap-2 bg-linear-to-r from-[#c97e00] to-[#a36200] text-white px-5 py-2.5 rounded font-bold text-sm shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
           >
             <Plus size={16} /> Ajouter un produit
           </button>
@@ -186,13 +186,13 @@ export default function ShopProductsView() {
 
       {/* Inline Form */}
       {showForm && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden form-enter">
-          <div className="bg-linear-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
+        <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden form-enter">
+          <div className="bg-linear-to-r from-[#c97e00] to-[#a36200] px-6 py-4 flex items-center justify-between">
             <div>
               <h3 className="font-black text-white text-lg">
                 {editingId ? 'Modifier le produit' : 'Nouveau produit'}
               </h3>
-              <p className="text-orange-100 text-sm mt-0.5">
+              <p className="text-primary-100 text-sm mt-0.5">
                 {editingId ? 'Mettez à jour les informations du produit' : 'Ajoutez un produit à votre boutique'}
               </p>
             </div>
@@ -213,7 +213,7 @@ export default function ShopProductsView() {
                   required type="text"
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                   placeholder="Ex : Livre de Mathématiques CM2"
                 />
               </div>
@@ -227,7 +227,7 @@ export default function ShopProductsView() {
                   value={form.description}
                   onChange={e => setForm({ ...form, description: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all resize-none"
                   placeholder="Décrivez le produit..."
                 />
               </div>
@@ -242,7 +242,7 @@ export default function ShopProductsView() {
                     required type="number" min="0"
                     value={form.price}
                     onChange={e => setForm({ ...form, price: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                     placeholder="5 000"
                   />
                 </div>
@@ -254,7 +254,7 @@ export default function ShopProductsView() {
                     type="number" min="0"
                     value={form.originalPrice}
                     onChange={e => setForm({ ...form, originalPrice: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                     placeholder="6 250"
                   />
                   {form.originalPrice && Number(form.originalPrice) > Number(form.price) && (
@@ -270,7 +270,7 @@ export default function ShopProductsView() {
                   <select
                     value={form.type}
                     onChange={e => setForm({ ...form, type: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all bg-white"
                   >
                     {PRODUCT_TYPES.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -285,7 +285,7 @@ export default function ShopProductsView() {
                     type="number" min="0"
                     value={form.stock}
                     onChange={e => setForm({ ...form, stock: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                     placeholder="Illimité"
                   />
                 </div>
@@ -300,7 +300,7 @@ export default function ShopProductsView() {
                   {[0, 1, 2].map(idx => (
                     <div key={idx}>
                       {form.imageUrls[idx] ? (
-                        <div className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                        <div className="relative aspect-square rounded overflow-hidden border border-gray-200 bg-gray-50">
                           <img src={form.imageUrls[idx]} alt={`Image ${idx + 1}`} className="w-full h-full object-cover" />
                           <button type="button" onClick={() => removeImageAt(idx)}
                             className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors shadow-md">
@@ -310,10 +310,10 @@ export default function ShopProductsView() {
                       ) : (
                         <div
                           onClick={() => fileInputRefs.current[idx]?.click()}
-                          className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center bg-gray-50 cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-all"
+                          className="aspect-square rounded border-2 border-dashed border-gray-200 flex flex-col items-center justify-center bg-gray-50 cursor-pointer hover:border-primary-300 hover:bg-primary-50 transition-all"
                         >
                           {uploadingIdx === idx ? (
-                            <Loader2 size={24} className="animate-spin text-orange-400" />
+                            <Loader2 size={24} className="animate-spin text-primary-500" />
                           ) : (
                             <>
                               <ImageIcon size={24} className="text-gray-300 mb-1" />
@@ -339,11 +339,11 @@ export default function ShopProductsView() {
             {/* Actions */}
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3 bg-gray-50">
               <button type="button" onClick={cancelForm}
-                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-colors">
+                className="flex-1 py-3 rounded border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition-colors">
                 Annuler
               </button>
               <button type="submit" disabled={submitting}
-                className="flex-1 py-3 rounded-xl bg-linear-to-r from-orange-500 to-orange-600 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+                className="flex-1 py-3 rounded bg-linear-to-r from-[#c97e00] to-[#a36200] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all disabled:opacity-60 flex items-center justify-center gap-2">
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 {submitting ? 'Enregistrement...' : (editingId ? 'Mettre à jour' : 'Ajouter le produit')}
               </button>
@@ -354,17 +354,17 @@ export default function ShopProductsView() {
 
       {/* Product Grid */}
       {!showForm && (loading ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-          <Loader2 size={32} className="animate-spin text-orange-400 mx-auto mb-3" />
+        <div className="bg-white rounded shadow-sm border border-gray-100 p-12 text-center">
+          <Loader2 size={32} className="animate-spin text-primary-500 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">Chargement des produits...</p>
         </div>
       ) : products.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
+        <div className="bg-white rounded shadow-sm border border-gray-100 p-16 text-center">
           <Package size={48} className="text-gray-200 mx-auto mb-4" />
           <h3 className="font-bold text-gray-700 mb-2">Aucun produit</h3>
           <p className="text-gray-400 text-sm mb-6">Commencez par ajouter votre premier produit à la boutique.</p>
           <button onClick={openCreate}
-            className="inline-flex items-center gap-2 bg-linear-to-r from-orange-500 to-orange-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:shadow-md transition-all">
+            className="inline-flex items-center gap-2 bg-linear-to-r from-[#c97e00] to-[#a36200] text-white px-5 py-2.5 rounded font-bold text-sm shadow-sm hover:shadow-md transition-all">
             <Plus size={16} /> Ajouter un produit
           </button>
         </div>
@@ -374,13 +374,13 @@ export default function ShopProductsView() {
             const imgs = parseImages(p.imageUrl);
             const cnt = imgs.length;
             return (
-            <div key={p.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group">
+            <div key={p.id} className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group">
               {/* Image */}
-              <div className="relative h-24 bg-linear-to-br from-orange-50 to-amber-50 flex items-center justify-center overflow-hidden">
+              <div className="relative h-24 bg-linear-to-br from-primary-50 to-amber-50 flex items-center justify-center overflow-hidden">
                 {imgs[0] ? (
                   <img src={imgs[0]} alt={p.title} className="w-full h-full object-cover" />
                 ) : (
-                  <Package size={32} className="text-orange-200" />
+                  <Package size={32} className="text-primary-200" />
                 )}
                 {cnt > 1 && (
                   <div className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
@@ -389,7 +389,7 @@ export default function ShopProductsView() {
                 )}
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
                   <button onClick={() => openEdit(p)}
-                    className="w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-blue-600 hover:bg-blue-50 transition-colors">
+                    className="w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-primary-600 hover:bg-primary-50 transition-colors">
                     <Edit size={12} />
                   </button>
                   <button onClick={() => handleDelete(p.id)} disabled={deletingId === p.id}
@@ -408,7 +408,7 @@ export default function ShopProductsView() {
                 <h3 className="font-bold text-gray-900 text-sm truncate">{p.title}</h3>
                 {p.description && <p className="text-gray-400 text-xs truncate mt-0.5">{p.description}</p>}
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm font-black text-orange-600">{formatPrice(p.price)} <span className="text-[10px] font-normal text-gray-400">FCFA</span></span>
+                  <span className="text-sm font-black text-primary-600">{formatPrice(p.price)} <span className="text-[10px] font-normal text-gray-400">FCFA</span></span>
                   <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-lg">
                     {p.stock === null || p.stock === undefined ? 'Illimité' : `${p.stock}`}
                   </span>

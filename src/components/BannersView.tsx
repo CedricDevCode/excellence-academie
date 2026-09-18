@@ -32,11 +32,11 @@ interface BannersViewProps {
 }
 
 const GRADIENT_COLORS = [
-  { value: 'from-[#FF6B00] to-[#e65c00]', label: 'Orange (Defaut)' },
+  { value: 'from-[#f5a623] to-[#c97e00]', label: 'Orange (Defaut)' },
   { value: 'from-red-600 to-red-700', label: 'Rouge' },
-  { value: 'from-blue-600 to-blue-700', label: 'Bleu' },
+  { value: 'from-primary-600 to-primary-700', label: 'Bleu' },
   { value: 'from-green-600 to-green-700', label: 'Vert' },
-  { value: 'from-purple-600 to-purple-700', label: 'Violet' },
+  { value: 'from-accent-700 to-accent-700', label: 'Violet' },
   { value: 'from-pink-600 to-pink-700', label: 'Rose' },
 ];
 
@@ -45,7 +45,7 @@ const emptyForm = {
   subtitle: '',
   description: '',
   imageUrl: '',
-  backgroundColor: 'from-[#FF6B00] to-[#e65c00]',
+  backgroundColor: 'from-[#f5a623] to-[#c97e00]',
   badgeText: 'Promotion',
   featured: false,
   displayOrder: 0,
@@ -201,7 +201,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 size={40} className="animate-spin text-[#FF6B00] mx-auto mb-2" />
+          <Loader2 size={40} className="animate-spin text-primary-600 mx-auto mb-2" />
           <p className="text-gray-500">Chargement...</p>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
           <p className="text-sm text-gray-500 mt-1">{isHomepageMode ? 'Ajoutez les images qui apparaîtront dans la section À la une de la page d\'accueil.' : 'Gérez les bannières promotionnelles visibles dans la boutique.'}</p>
         </div>
         {!showForm && (
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#FF6B00] text-white font-bold rounded-lg hover:bg-[#e65c00] transition-colors">
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-colors">
             <Plus size={18} />
             {isHomepageMode ? 'Nouvelle image' : 'Nouvelle bannière'}
           </button>
@@ -228,11 +228,11 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
 
       {/* Inline Form */}
       {showForm && (
-        <div className="bg-white rounded-2xl shadow-xl border-2 border-orange-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-50 to-amber-50/50 p-5 border-b border-orange-100 flex items-center justify-between">
+        <div className="bg-white rounded shadow-xl border-2 border-primary-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-primary-50 to-amber-50/50 p-5 border-b border-primary-100 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <ImageIcon size={20} className="text-[#FF6B00]" />
-              <h3 className="font-black text-[#002855] text-base">
+              <ImageIcon size={20} className="text-primary-600" />
+              <h3 className="font-black text-[#7a4b00] text-base">
                 {editingId ? `Modifier ${isHomepageMode ? 'l\'image' : 'la bannière'}` : `Nouvelle ${isHomepageMode ? 'image' : 'bannière'}`}
               </h3>
             </div>
@@ -257,7 +257,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
                   placeholder={isHomepageMode ? 'Ex: Offre du mois' : 'Ex: Nouvelle Collection'}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                 />
               </div>
 
@@ -270,7 +270,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       value={form.subtitle}
                       onChange={e => setForm({ ...form, subtitle: e.target.value })}
                       placeholder="Ex: Jusqu'à -50%"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                   <div>
@@ -280,7 +280,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       value={form.badgeText}
                       onChange={e => setForm({ ...form, badgeText: e.target.value })}
                       placeholder="Ex: Promo"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                 </>
@@ -294,7 +294,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                   onChange={e => setForm({ ...form, description: e.target.value })}
                   placeholder="Détails de la bannière..."
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none resize-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none resize-none"
                 />
               </div>
 
@@ -302,12 +302,12 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
               <div className="md:col-span-2">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Image</label>
                 {form.imageUrl && (
-                  <img src={form.imageUrl} alt="Preview" className="w-full h-40 object-cover rounded-xl mb-3" />
+                  <img src={form.imageUrl} alt="Preview" className="w-full h-40 object-cover rounded mb-3" />
                 )}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 w-full justify-center text-sm font-bold text-gray-700 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded hover:bg-gray-50 w-full justify-center text-sm font-bold text-gray-700 transition-colors"
                 >
                   {uploadingImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                   {uploadingImage ? 'Téléchargement...' : 'Choisir une image'}
@@ -322,7 +322,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                     <select
                       value={form.backgroundColor}
                       onChange={e => setForm({ ...form, backgroundColor: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     >
                       {GRADIENT_COLORS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
@@ -332,7 +332,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                     <select
                       value={form.productId}
                       onChange={e => setForm({ ...form, productId: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     >
                       <option value="">Aucun produit</option>
                       {products.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -344,7 +344,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       type="date"
                       value={form.startDate}
                       onChange={e => setForm({ ...form, startDate: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                   <div>
@@ -353,7 +353,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       type="date"
                       value={form.endDate}
                       onChange={e => setForm({ ...form, endDate: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                 </>
@@ -365,7 +365,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                   type="number"
                   value={form.displayOrder}
                   onChange={e => setForm({ ...form, displayOrder: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                 />
               </div>
 
@@ -397,14 +397,14 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
               <button
                 type="button"
                 onClick={cancelForm}
-                className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors"
+                className="px-4 py-2.5 rounded border border-gray-200 text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex items-center gap-2 px-6 py-2.5 bg-[#FF6B00] hover:bg-[#e65c00] text-white text-sm font-bold rounded-xl transition-all shadow-sm shadow-orange-500/25 disabled:opacity-50"
+                className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded transition-all shadow-sm shadow-primary-500/25 disabled:opacity-50"
               >
                 {submitting && <Loader2 size={16} className="animate-spin" />}
                 <span>{editingId ? 'Enregistrer les modifications' : 'Créer'}</span>
@@ -437,14 +437,14 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-gray-900 truncate">{banner.title}</h3>
                     {banner.featured && <span className="text-xs font-bold px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full shrink-0">{isHomepageMode ? 'À la une' : 'En avant'}</span>}
-                    {!banner.isActive && <span className="text-xs font-bold px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full shrink-0">Inactif</span>}
+                    {!banner.isActive && <span className="text-xs font-bold px-2 py-0.5 bg-surface-50 text-gray-600 rounded-full shrink-0">Inactif</span>}
                   </div>
                   <p className="text-sm text-gray-500 truncate mt-0.5">{banner.subtitle || banner.description || 'Pas de description'}</p>
-                  {!isHomepageMode && banner.product && <p className="text-xs text-[#FF6B00] font-bold mt-1">Produit: {banner.product.title}</p>}
+                  {!isHomepageMode && banner.product && <p className="text-xs text-primary-600 font-bold mt-1">Produit: {banner.product.title}</p>}
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => openEdit(banner)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600">
+                <button onClick={() => openEdit(banner)} className="p-2 hover:bg-surface-50 rounded-lg transition-colors text-primary-600">
                   <Edit size={18} />
                 </button>
                 <button onClick={() => handleDelete(banner.id)} disabled={deletingId === banner.id} className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600 disabled:opacity-50">

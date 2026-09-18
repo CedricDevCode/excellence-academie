@@ -148,7 +148,7 @@ export default function Shop() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 pt-20 pb-12">
+      <div className="min-h-screen bg-surface-50 pt-20 pb-12">
         <div className="h-[80px]" />
         <Container>
           <div className="mb-6">
@@ -157,12 +157,12 @@ export default function Shop() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div key={i} className="bg-white rounded border border-gray-100 overflow-hidden">
                 <Skeleton className="aspect-square rounded-none" />
                 <div className="p-3 space-y-2">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-8 w-full rounded-xl" />
+                  <Skeleton className="h-8 w-full rounded" />
                 </div>
               </div>
             ))}
@@ -173,7 +173,7 @@ export default function Shop() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-12">
+    <div className="min-h-screen bg-surface-50 pb-12">
       <style>{`
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -189,9 +189,9 @@ export default function Shop() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Rechercher un produit..."
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
+                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
             </div>
-            <Link to="/cart" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors">
+            <Link to="/cart" className="relative p-2 hover:bg-surface-50 rounded transition-colors">
               <ShoppingCart size={22} className="text-primary-600" />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-accent-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full">{cartCount}</span>
@@ -210,7 +210,7 @@ export default function Shop() {
               {/* LEFT - Categories block */}
               <div className="hidden lg:block w-[200px] shrink-0">
                 <Card padding="none" className="overflow-hidden">
-                  <div className="px-4 py-3 bg-primary-600 text-white font-bold text-sm flex items-center gap-2">
+                  <div className="px-4 py-3 bg-primary-800 text-white font-bold text-sm flex items-center gap-2">
                     <MenuIcon size={16} /> Catégories
                   </div>
                   <div className="divide-y divide-gray-100">
@@ -238,7 +238,7 @@ export default function Shop() {
               {/* CENTER - Carousel */}
               <div className="flex-1 min-w-0">
                 {banners.length > 0 && (
-                  <div className="relative overflow-hidden rounded-2xl shadow-card group/carousel">
+                  <div className="relative overflow-hidden rounded shadow-card group/carousel">
                     <div className="relative min-h-[300px] md:min-h-[340px]">
                       {banners.map((banner, idx) => {
                         const imgSrc = banner.imageUrl || getProductImg(banner.product?.imageUrl);
@@ -267,7 +267,7 @@ export default function Shop() {
                                     </div>
                                   )}
                                   <button onClick={() => banner.product ? navigate(`/shop/product/${banner.product.id}`) : window.scrollTo(0, 400)}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-accent-600 font-bold rounded-xl hover:bg-gray-50 transition-all hover:scale-105 text-xs md:text-sm shadow-lg">
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-accent-600 font-bold rounded hover:bg-gray-50 transition-all hover:scale-105 text-xs md:text-sm shadow-lg">
                                     {banner.product ? 'Voir le produit' : 'Découvrir'} <ChevronRight size={16} />
                                   </button>
                                 </div>
@@ -278,7 +278,7 @@ export default function Shop() {
                                         idx === bannerIdx ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
                                       }`} />
                                   ) : (
-                                    <div className="w-36 h-36 bg-white/10 rounded-2xl flex items-center justify-center">
+                                    <div className="w-36 h-36 bg-white/10 rounded flex items-center justify-center">
                                       <Package size={60} className="text-white/30" />
                                     </div>
                                   )}
@@ -327,7 +327,7 @@ export default function Shop() {
               {/* RIGHT - Quick links */}
               <div className="hidden lg:flex flex-col gap-3 w-[200px] shrink-0">
                 <a href="tel:0747439443"
-                  className="bg-white rounded-2xl shadow-card p-4 flex flex-col items-center justify-center gap-2 hover:shadow-card-hover transition-all group border border-gray-100">
+                  className="bg-white rounded shadow-card p-4 flex flex-col items-center justify-center gap-2 hover:shadow-card-hover transition-all group border border-gray-100">
                   <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center group-hover:bg-primary-500 transition-colors">
                     <Phone size={22} className="text-primary-500 group-hover:text-white transition-colors" />
                   </div>
@@ -337,7 +337,7 @@ export default function Shop() {
                   </div>
                 </a>
                 <button onClick={() => setShowVendorPopup(true)}
-                  className="bg-white rounded-2xl shadow-card p-4 flex flex-col items-center justify-center gap-2 hover:shadow-card-hover transition-all group border border-gray-100">
+                  className="bg-white rounded shadow-card p-4 flex flex-col items-center justify-center gap-2 hover:shadow-card-hover transition-all group border border-gray-100">
                   <div className="w-12 h-12 rounded-full bg-accent-50 flex items-center justify-center group-hover:bg-accent-500 transition-colors">
                     <Store size={22} className="text-accent-500 group-hover:text-white transition-colors" />
                   </div>
@@ -371,7 +371,7 @@ export default function Shop() {
 
         {/* Product Grid */}
         {filteredProducts.length === 0 ? (
-          <div key={activeType + searchQuery} className="text-center py-16 bg-white rounded-2xl shadow-card">
+          <div key={activeType + searchQuery} className="text-center py-16 bg-white rounded shadow-card">
             <Package size={48} className="mx-auto text-gray-200 mb-3" />
             <p className="text-gray-500 font-medium">Aucun produit trouvé</p>
             <p className="text-gray-400 text-sm mt-1">Essayez de modifier vos filtres</p>
@@ -399,7 +399,7 @@ export default function Shop() {
                         whileHover={{ y: -4, scale: 1.02 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                         onClick={() => navigate(`/shop/product/${product.id}`)}
-                        className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col shadow-card hover:shadow-card-hover cursor-pointer transition-shadow duration-300 h-full"
+                        className="bg-white rounded border border-gray-100 overflow-hidden flex flex-col shadow-card hover:shadow-card-hover cursor-pointer transition-shadow duration-300 h-full"
                       >
                         {/* Image */}
                         <div className="relative w-full aspect-square bg-gray-50 overflow-hidden">
@@ -428,8 +428,8 @@ export default function Shop() {
                           </h3>
                           {/* Price */}
                           <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="font-black text-base text-accent-500">
-                              {product.price.toLocaleString()} <span className="text-xs font-medium">FCFA</span>
+                            <span className="font-black text-base text-surface-900">
+                              {product.price.toLocaleString()} <span className="text-xs font-medium text-surface-500">FCFA</span>
                             </span>
                             {hasDiscount && (
                               <span className="text-xs text-gray-400 line-through">
@@ -443,7 +443,7 @@ export default function Shop() {
                               <div className="flex items-center gap-1.5 text-xs font-bold text-accent-500 mb-0.5">
                                 <span>{product.stock} disponible{product.stock > 1 ? 's' : ''}</span>
                               </div>
-                              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="w-full h-2 bg-surface-50 rounded-full overflow-hidden">
                                 <div className="h-full bg-accent-500 rounded-full transition-all" style={{ width: `${stockRatio! * 100}%` }} />
                               </div>
                             </div>
@@ -484,10 +484,10 @@ export default function Shop() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="relative bg-white rounded-2xl shadow-2xl p-8 mx-4 max-w-sm w-full text-center"
+              className="relative bg-white rounded shadow-2xl p-8 mx-4 max-w-sm w-full text-center"
             >
               <button onClick={() => setShowVendorPopup(false)}
-                className="absolute top-3 right-3 p-1 hover:bg-gray-100 rounded-full transition-colors">
+                className="absolute top-3 right-3 p-1 hover:bg-surface-50 rounded-full transition-colors">
                 <X size={18} />
               </button>
               <div className="w-16 h-16 rounded-full bg-accent-50 flex items-center justify-center mx-auto mb-4">

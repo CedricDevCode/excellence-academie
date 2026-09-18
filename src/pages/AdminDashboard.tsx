@@ -1,10 +1,11 @@
 import { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Bell, Settings, LogOut, BarChart3, BookOpen, Menu, X,
   Home, CreditCard, FileText, GraduationCap, ChevronRight, ChevronDown,
-  CheckCircle, ShoppingCart, Layers, Award, Sparkles, PanelLeftClose, PanelLeftOpen, User
+  CheckCircle, ShoppingCart, Layers, Award, Sparkles, PanelLeftClose, PanelLeftOpen, User, LayoutTemplate,
+  Globe, HelpCircle, ShieldCheck, BarChart2, Megaphone, PhoneCall
 } from "lucide-react";
 import {
   fetchStats, getMe, logout as apiLogout,
@@ -30,6 +31,7 @@ const BannersView = lazy(() => import("../components/BannersView"));
 const TeacherSessionsView = lazy(() => import("../components/TeacherSessionsView"));
 const BlogAdminView = lazy(() => import("../components/admin/BlogAdminView"));
 const SettingsView = lazy(() => import("../components/admin/SettingsView"));
+const SiteConfigView = lazy(() => import("../components/admin/SiteConfigView"));
 
 const NAV_GROUPS = [
   {
@@ -41,8 +43,14 @@ const NAV_GROUPS = [
       { icon: <Users size={18} />, label: "Étudiants", id: "students" },
       { icon: <FileText size={18} />, label: "Séances", id: "sessions" },
       { icon: <FileText size={18} />, label: "Contrats", id: "contracts" },
+    ]
+  },
+  {
+    category: "Paramètres du site",
+    items: [
+      { icon: <LayoutTemplate size={18} />, label: "Vue d'ensemble", id: "site_config" },
+      { icon: <Megaphone size={18} />, label: "Bannières À la une", id: "home_featured" },
       { icon: <Award size={18} />, label: "Lauréats & Avis", id: "testimonials" },
-      { icon: <Sparkles size={18} />, label: "Actualités À la une", id: "home_featured" },
     ]
   },
   {
@@ -72,7 +80,7 @@ const NAV_GROUPS = [
       { icon: <Users size={18} />, label: "Utilisateurs", id: "users" },
       { icon: <Bell size={18} />, label: "Notifications", id: "notifs" },
       { icon: <FileText size={18} />, label: "Rapports", id: "reports" },
-      { icon: <Settings size={18} />, label: "Paramètres", id: "settings" },
+      { icon: <Settings size={18} />, label: "Paramètres généraux", id: "settings" },
     ]
   }
 ];
@@ -92,10 +100,19 @@ const TAB_TITLES: Record<string, string> = {
   testimonials: "Lauréats & Avis",
   shop_products: "Produits",
   shop_orders: "Commandes",
-  shop_banners: "Bannières",
-  home_featured: "Bannières accueil",
+  shop_banners: "Bannières boutique",
+  home_featured: "Bannières À la une",
   blog: "Blog",
-  settings: "Paramètres",
+  settings: "Paramètres généraux",
+  site_config: "Paramètres du site",
+  "site_config:hero": "Hero & En-tête (Accueil)",
+  "site_config:stats": "Statistiques (Accueil)",
+  "site_config:how": "Comment ça marche (Accueil)",
+  "site_config:atouts": "Pourquoi nous ? (Accueil)",
+  "site_config:admis": "Lauréats & Admis (Accueil)",
+  "site_config:catalogue": "Catalogue & Formations (Accueil)",
+  "site_config:testimonials": "Témoignages (Accueil)",
+  "site_config:cta": "Appel à l'action (Accueil)",
 };
 
 export default function AdminDashboard() {
@@ -126,6 +143,7 @@ export default function AdminDashboard() {
     getMe()
       .then(user => {
         setCurrentUser(user);
+        localStorage.setItem("user", JSON.stringify(user));
         if (user.role !== 'ADMIN') {
           navigate('/student/login');
           return;
@@ -191,6 +209,7 @@ export default function AdminDashboard() {
   const toggleSidebar = () => setSidebarCollapsed(prev => !prev);
 
   const handleLogout = async () => {
+    localStorage.removeItem("user");
     try {
       await apiLogout();
     } catch (e) { /* ignore */ }
@@ -199,7 +218,7 @@ export default function AdminDashboard() {
 
   if (!authChecked) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-100">
+      <div className="flex h-screen items-center justify-center bg-surface-50">
         <div className="w-full max-w-sm space-y-4 p-6">
           <div className="flex items-center gap-4">
             <Skeleton variant="circular" className="w-12 h-12 shrink-0" />
@@ -239,15 +258,21 @@ export default function AdminDashboard() {
       case 'shop_banners': return <BannersView mode="shop" />;
       case 'home_featured': return <BannersView mode="homepage" />;
       case 'blog': return <BlogAdminView />;
+      case 'site_config': return <SiteConfigView />;
       case 'settings': return <SettingsView currentUser={currentUser} onRefresh={() => getMe().then(setCurrentUser)} />;
-      default: return <DashboardView apiStats={apiStats} />;
+      default:
+        if (activeTab.startsWith('site_config:')) {
+          const subTab = activeTab.replace('site_config:', '');
+          return <SiteConfigView initialTab={subTab} />;
+        }
+        return <DashboardView apiStats={apiStats} />;
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-[Inter,sans-serif] overflow-hidden">
-      <aside className={`fixed inset-y-0 left-0 z-50 bg-primary-500 text-white flex flex-col h-screen transform transition-all duration-300 lg:relative lg:translate-x-0 shadow-2xl ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`}>
-        <div className={`shrink-0 flex items-center justify-between border-b border-blue-400/30 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
+    <div className="flex h-screen bg-surface-50 font-[Inter,sans-serif] overflow-hidden">
+      <aside className={`fixed inset-y-0 left-0 z-50 bg-gradient-hero text-white flex flex-col h-screen transform transition-all duration-300 lg:relative lg:translate-x-0 shadow-2xl ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`}>
+        <div className={`shrink-0 flex items-center justify-between border-b border-white/15 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
           {sidebarCollapsed ? (
             <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0 shadow-sm" />
           ) : (
@@ -255,11 +280,11 @@ export default function AdminDashboard() {
               <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0 shadow-sm" />
               <div className="min-w-0">
                 <div className="font-black text-sm truncate tracking-tight">Excellence Académie</div>
-                <div className="text-blue-200 text-xs truncate">Panneau Administration</div>
+                <div className="text-amber-200/90 text-xs truncate">Panneau Administration</div>
               </div>
             </div>
           )}
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-blue-200 hover:text-white shrink-0 p-1">
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-amber-200/90 hover:text-white shrink-0 p-1">
             <X size={20} />
           </button>
         </div>
@@ -274,10 +299,10 @@ export default function AdminDashboard() {
                     type="button"
                     onClick={() => setOpenCategories(prev =>
                       prev.includes(group.category)
-                        ? prev.filter(c => c !== group.category)
-                        : [...prev, group.category]
+                        ? []
+                        : [group.category]
                     )}
-                    className="w-full flex items-center justify-between text-blue-200 hover:text-white px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-white/5 transition-all"
+                    className="w-full flex items-center justify-between text-amber-200/90 hover:text-white px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-white/5 transition-all"
                   >
                     <span>{group.category}</span>
                     <span className="shrink-0 transition-transform duration-200">
@@ -296,7 +321,7 @@ export default function AdminDashboard() {
                         onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
                         whileHover={{ scale: 1.02, x: 2 }}
                         whileTap={{ scale: 0.98 }}
-                        className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-3.5 py-2.5"} ${isActive ? "bg-white/20 text-white font-bold shadow-sm" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}
+                        className={`w-full flex items-center gap-3 rounded text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-3.5 py-2.5"} ${isActive ? "bg-white/20 text-white font-bold shadow-sm" : "text-amber-100 hover:bg-white/10 hover:text-white"}`}
                         title={sidebarCollapsed ? item.label : undefined}
                       >
                         <span className="shrink-0">{item.icon}</span>
@@ -310,11 +335,11 @@ export default function AdminDashboard() {
           })}
         </nav>
 
-        <div className={`shrink-0 border-t border-blue-400/30 bg-[#004799] space-y-1 z-10 shadow-lg ${sidebarCollapsed ? "p-2" : "p-3"}`}>
+        <div className={`shrink-0 border-t border-white/15 bg-primary-900/50 space-y-1 z-10 shadow-lg ${sidebarCollapsed ? "p-2" : "p-3"}`}>
           <button
             type="button"
             onClick={toggleSidebar}
-            className={`w-full flex items-center gap-3 text-blue-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"}`}
+            className={`w-full flex items-center gap-3 text-amber-200/90 hover:text-white text-sm rounded hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"}`}
             title={sidebarCollapsed ? "Agrandir le menu" : "Réduire le menu"}
           >
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -323,7 +348,7 @@ export default function AdminDashboard() {
           <button
             type="button"
             onClick={handleLogout}
-            className={`w-full flex items-center gap-3 text-red-200 hover:text-white text-sm rounded-xl hover:bg-red-500/20 transition-all ${sidebarCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"}`}
+            className={`w-full flex items-center gap-3 text-red-200 hover:text-white text-sm rounded hover:bg-red-500/20 transition-all ${sidebarCollapsed ? "justify-center p-2.5" : "px-3 py-2.5"}`}
             title="Déconnexion"
           >
             <LogOut size={18} className="text-red-300" />
@@ -346,6 +371,14 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:text-primary-700 hover:bg-gray-50 text-xs font-bold transition-all shadow-2xs"
+              title="Accéder à la page d'accueil sans se déconnecter"
+            >
+              <Globe size={14} className="text-primary-600" />
+              <span className="hidden sm:inline">Voir le site public</span>
+            </Link>
             <div className="relative" ref={notifRef}>
               <button onClick={(e) => { e.stopPropagation(); setNotifOpen(!notifOpen); }} className="relative p-2 text-gray-500 hover:text-gray-700 transition-colors">
                 <Bell size={20} />
@@ -366,7 +399,7 @@ export default function AdminDashboard() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-84 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden"
+                    className="absolute right-0 mt-2 w-84 bg-white rounded shadow-xl border border-gray-100 z-50 overflow-hidden"
                   >
                     <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                       <div className="flex items-center gap-2">
@@ -399,7 +432,7 @@ export default function AdminDashboard() {
                           <div
                             key={n.id}
                             onClick={() => { if (!n.isRead) handleMarkSingleRead(n.id); }}
-                            className={`px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-gray-50 ${!n.isRead ? 'bg-blue-50/60' : ''}`}
+                            className={`px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-gray-50 ${!n.isRead ? 'bg-primary-50/70' : ''}`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="font-semibold text-gray-900 text-xs flex items-center gap-1.5">
@@ -435,7 +468,7 @@ export default function AdminDashboard() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden"
+                    className="absolute right-0 mt-2 w-56 bg-white rounded shadow-xl border border-gray-100 z-50 overflow-hidden"
                   >
                     <div className="p-4 border-b border-gray-100">
                       <div className="font-bold text-gray-900 text-sm truncate">{currentUser?.name || 'Administrateur'}</div>
@@ -443,11 +476,11 @@ export default function AdminDashboard() {
                     </div>
                     <div className="p-2">
                       <button onClick={() => { localStorage.setItem('adminSettingsTab', 'account'); setActiveTab('settings'); setProfileOpen(false); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                         <User size={16} className="text-gray-400" /> Profil
                       </button>
                       <button onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors">
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-red-600 hover:bg-red-50 transition-colors">
                         <LogOut size={16} /> Déconnexion
                       </button>
                     </div>
@@ -466,7 +499,7 @@ export default function AdminDashboard() {
                 animate={{ opacity: 1, y: 0, height: 'auto', marginBottom: 24 }}
                 exit={{ opacity: 0, y: -20, height: 0, marginBottom: 0 }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="bg-linear-to-r from-primary-500 to-primary-600 rounded-2xl text-white overflow-hidden p-6"
+                className="bg-linear-to-r from-primary-500 to-primary-600 rounded text-white overflow-hidden p-6"
               >
                 <h2 className="font-black text-xl mb-1">Bon retour parmi nous, {currentUser?.name?.split(" ")[0] || "Admin"} !</h2>
               </motion.div>

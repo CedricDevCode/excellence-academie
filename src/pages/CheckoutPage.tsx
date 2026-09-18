@@ -130,10 +130,10 @@ export default function CheckoutPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
               <div className="space-y-4">
                 {[1, 2, 3].map(i => (
-                  <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                  <Skeleton key={i} className="h-40 w-full rounded" />
                 ))}
               </div>
-              <Skeleton className="h-96 w-full rounded-xl" />
+              <Skeleton className="h-96 w-full rounded" />
             </div>
           </div>
         </Container>
@@ -228,7 +228,7 @@ export default function CheckoutPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {paymentMethods.map(m => (
                         <button key={m.id} type="button" onClick={() => setPaymentMethod(m.id)}
-                          className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl border-2 text-xs font-semibold transition-all cursor-pointer ${paymentMethod === m.id ? 'border-accent-500 bg-accent-50 text-accent-600' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                          className={`flex flex-col items-center justify-center py-3 px-2 rounded border-2 text-xs font-semibold transition-all cursor-pointer ${paymentMethod === m.id ? 'border-accent-500 bg-accent-50 text-accent-600' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                           {m.image ? (
                             <img src={m.image} alt={m.name} className="h-8 w-auto object-contain mb-1" />
                           ) : (

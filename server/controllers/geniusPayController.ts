@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import prisma from '../utils/prisma';
-import { calcRegistrationPrice, calcMonthlyAmount, METHOD_TO_GP } from '../constants';
+import { calcRegistrationTotal, METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, GENIUSPAY_ENVIRONMENT, GENIUSPAY_WEBHOOK_SECRET, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { sendDirectEmail } from './notificationController';
@@ -24,16 +24,14 @@ export const initPayment = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    const userPays = pays || user.pays || '';
-    const userVille = ville || user.ville || '';
-    const userMode = mode || 'presentiel';
     const isCoursParticuliers = coursParticuliers || false;
-    const amount = calcRegistrationPrice(userPays, userMode, userVille, isCoursParticuliers);
 
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) {
       return res.status(404).json({ error: 'Formation introuvable' });
     }
+
+    const amount = calcRegistrationTotal([course], isCoursParticuliers);
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
@@ -250,6 +248,46 @@ export const handleWebhook = async (req: Request, res: Response) => {
           }
           console.log(`[Webhook] Commande boutique payée : ${orderId}`);
         }
+
+      // ── Ajout formation supplémentaire (étudiant existant) ───────────────────
+      } else if (metadata.action === 'add_course' && metadata.user_id && metadata.course_ids) {
+        const userId = metadata.user_id;
+        const courseIdList = String(metadata.course_ids).split(',').filter(Boolean);
+        const monthlyAmt = Number(metadata.monthly_amount) || 0;
+
+        const existingPayment = await prisma.payment.findFirst({
+          where: { geniusPayReference: reference },
+        });
+        if (!existingPayment) {
+          const payment = await prisma.payment.create({
+            data: { amount: data.amount || 0, userId, status: 'SUCCESS', geniusPayReference: reference },
+          });
+          const receiptNumber = generateReceiptNumber();
+          await prisma.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        for (const cId of courseIdList) {
+          const existingSub = await prisma.subscription.findFirst({
+            where: { userId, courseId: cId },
+          });
+          if (!existingSub) {
+            const np = new Date();
+            np.setMonth(np.getMonth() + 1);
+            await prisma.subscription.create({
+              data: {
+                userId,
+                courseId: cId,
+                amount: monthlyAmt / courseIdList.length,
+                status: 'ACTIVE',
+                nextPayment: np,
+                formule: user?.pays && user.pays.toLowerCase() !== "côte d'ivoire" ? 'en_ligne' : 'presentiel',
+                coursParticuliers: false,
+              },
+            });
+          }
+        }
+        console.log(`[Webhook] Formation(s) supplémentaire(s) ajoutée(s) pour userId: ${userId}`);
 
       // Inscription via token sécurisé PendingRegistration
       } else if (metadata.action === 'register' && metadata.pending_token) {

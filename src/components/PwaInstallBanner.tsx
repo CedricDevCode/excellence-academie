@@ -40,8 +40,8 @@ export default function PwaInstallBanner() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6">
-      <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-gray-200 p-5 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-[#0056B3] flex items-center justify-center shrink-0">
+      <div className="max-w-lg mx-auto bg-white rounded shadow-2xl border border-gray-200 p-5 flex items-center gap-4">
+        <div className="w-14 h-14 rounded bg-[#c97e00] flex items-center justify-center shrink-0">
           <Smartphone size={28} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
@@ -50,12 +50,12 @@ export default function PwaInstallBanner() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={handleInstall}
-            className="flex items-center gap-1.5 bg-[#0056B3] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#003d80] transition-colors">
+            className="flex items-center gap-1.5 bg-[#c97e00] text-white px-4 py-2 rounded text-xs font-bold hover:bg-[#7a4b00] transition-colors">
             <Download size={14} />
             Installer
           </button>
           <button onClick={handleDismiss}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-surface-50 transition-colors">
             <X size={16} />
           </button>
         </div>

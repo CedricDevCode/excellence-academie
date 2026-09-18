@@ -63,11 +63,17 @@ model Course {
   title           String
   category        String?        @default("Général")
   description     String?
-  price           Float          @default(35000)
-  registrationFee Float?         @default(35000)
-  monthlyFee      Float?         @default(30000)
-  hasPresentiel   Boolean        @default(true)
-  hasOnline       Boolean        @default(true)
+  price                    Float          @default(45000)
+  registrationFee          Float?         @default(45000)
+  registrationFeeInterieur Float?         @default(35000)
+  registrationFeeDiaspora  Float?         @default(100000)
+  monthlyFee               Float?         @default(30000)
+  monthlyFeeInterieur      Float?         @default(25000)
+  monthlyFeeOnline         Float?         @default(25000)
+  monthlyFeeBoth           Float?         @default(35000)
+  monthlyFeeDiaspora       Float?         @default(35000)
+  hasPresentiel            Boolean        @default(true)
+  hasOnline                Boolean        @default(true)
   payments        Payment[]
   subscriptions   Subscription[]
   events          CalendarEvent[]
@@ -440,6 +446,23 @@ model BlogSubmission {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
   @@unique([exerciseId, studentId])
+}
+
+/// Configuration de la page d'accueil (texte + visibilité des sections).
+model SiteConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique @default("home")
+  content   String   @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+/// Paramètres globaux de l'application (tarification, configuration métier).
+model AppSettings {
+  id                     String   @id @default(uuid())
+  key                    String   @unique @default("global")
+  /// Montant payé par un étudiant déjà inscrit lors de l'ajout d'une formation supplémentaire (s'ajoute à la mensualité, en FCFA)
+  additionalCourseAmount Float    @default(10000)
+  updatedAt              DateTime @updatedAt
 }
 
 /// Stockage temporaire des données d'inscription avant confirmation du paiement.

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { register, registerAndPay, confirmPayment, login, logout, getMe } from '../controllers/authController';
+import { register, registerAndPay, confirmPayment, login, logout, getMe, addCourseForExistingStudent } from '../controllers/authController';
 import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -8,10 +8,10 @@ const router = Router();
 // ─── Rate limiting sur les routes d'authentification ─────────────────────────
 // Protège contre les attaques brute-force et par dictionnaire
 
-/** 10 tentatives de connexion par IP toutes les 15 minutes */
+/** 20 tentatives de connexion par IP toutes les 15 minutes */
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -27,7 +27,7 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: 'Trop d\'inscriptions depuis cette adresse. Veuillez réessayer dans une heure.',
+    error: "Trop d'inscriptions depuis cette adresse. Veuillez réessayer dans une heure.",
   },
 });
 
@@ -51,5 +51,7 @@ router.post('/register-and-pay', registerLimiter, paymentInitLimiter, registerAn
 // ─── Routes protégées ─────────────────────────────────────────────────────────
 router.get('/me', authenticateToken, getMe);
 router.post('/confirm-payment', authenticateToken, confirmPayment);
+// Ajout d'une nouvelle formation pour un étudiant déjà inscrit
+router.post('/add-course', authenticateToken, paymentInitLimiter, addCourseForExistingStudent);
 
 export default router;

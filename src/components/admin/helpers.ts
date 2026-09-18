@@ -55,9 +55,9 @@ export const EXPENSE_CATEGORIES = [
 ];
 
 export const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; badge: string }> = {
-  'Concours Juridiques & Judiciaires': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', badge: 'bg-indigo-100 text-indigo-800' },
-  'Administration Publique': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-800' },
-  'Sécurité & Force Publique': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', badge: 'bg-amber-100 text-amber-800' },
+  'Concours Juridiques & Judiciaires': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', badge: 'bg-amber-100 text-amber-800' },
+  'Administration Publique': { bg: 'bg-primary-50', text: 'text-primary-700', border: 'border-primary-200', badge: 'bg-primary-100 text-primary-800' },
+  'Sécurité & Force Publique': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', badge: 'bg-rose-100 text-rose-800' },
   'Technologies & Métiers Numériques': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-800' },
 };
 

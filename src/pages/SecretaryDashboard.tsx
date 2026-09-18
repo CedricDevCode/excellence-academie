@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { LogOut, Menu, X, Clock, DollarSign, Bell, User, PanelLeftClose, PanelLeftOpen, Home, Loader2, ChevronRight, ShoppingCart } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { LogOut, Menu, X, Clock, DollarSign, Bell, User, PanelLeftClose, PanelLeftOpen, Home, Loader2, ChevronRight, ShoppingCart, Globe } from "lucide-react";
 import { getMe, logout as apiLogout, fetchNotifications, markNotificationRead } from "../utils/api";
 import TeacherSessionsView from "../components/TeacherSessionsView";
 import TeacherSalariesView from "../components/TeacherSalariesView";
@@ -56,9 +56,9 @@ export default function SecretaryDashboard() {
   };
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-gray-100">
+    <div className="flex h-screen items-center justify-center bg-surface-50">
       <div className="text-center">
-        <Loader2 size={32} className="animate-spin text-[#0056B3] mx-auto mb-4" />
+        <Loader2 size={32} className="animate-spin text-[#c97e00] mx-auto mb-4" />
         <p className="text-gray-500 text-sm">Chargement...</p>
       </div>
     </div>
@@ -69,13 +69,13 @@ export default function SecretaryDashboard() {
       case 'sessions':
         return (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 flex gap-1 w-fit">
+            <div className="bg-white rounded shadow-sm border border-gray-100 p-1 flex gap-1 w-fit">
               <button onClick={() => setSecSessionsTab('sessions')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${secSessionsTab === 'sessions' ? 'bg-[#0056B3] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${secSessionsTab === 'sessions' ? 'bg-gradient-hero text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <Clock size={16} /> Séances
               </button>
               <button onClick={() => setSecSessionsTab('salaries')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${secSessionsTab === 'salaries' ? 'bg-[#0056B3] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${secSessionsTab === 'salaries' ? 'bg-gradient-hero text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <DollarSign size={16} /> Salaires
               </button>
             </div>
@@ -94,8 +94,8 @@ export default function SecretaryDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 bg-[#0056B3] text-white transform transition-all duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`}>
-        <div className={`flex items-center justify-between border-b border-blue-400/30 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 bg-gradient-hero text-white transform transition-all duration-300 lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "w-16" : "w-64"}`}>
+        <div className={`flex items-center justify-between border-b border-primary-400/30 ${sidebarCollapsed ? "p-3 justify-center" : "p-5"}`}>
           {sidebarCollapsed ? (
             <img src="/images/logo exacademy.jpeg" alt="Logo" className="w-9 h-9 rounded-full object-cover bg-white shrink-0" />
           ) : (
@@ -108,7 +108,7 @@ export default function SecretaryDashboard() {
         <nav className={`space-y-1 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           {NAV_ITEMS.map((item) => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/20 text-white font-bold" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}
+              className={`w-full flex items-center gap-3 rounded text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10 hover:text-white"}`}
               title={sidebarCollapsed ? item.label : undefined}>
               {item.icon}
               {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
@@ -116,15 +116,23 @@ export default function SecretaryDashboard() {
             </button>
           ))}
         </nav>
-        <div className={`absolute bottom-0 left-0 right-0 border-t border-blue-400/30 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+        <div className={`absolute bottom-0 left-0 right-0 border-t border-primary-400/30 ${sidebarCollapsed ? "p-2" : "p-4"} space-y-1`}>
+          <Link
+            to="/"
+            className={`w-full flex items-center gap-3 text-primary-200 hover:text-white text-sm rounded hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"} font-semibold`}
+            title="Aller sur la page d'accueil sans se déconnecter"
+          >
+            <Globe size={18} className="text-accent-300 shrink-0" />
+            {!sidebarCollapsed && <span>Voir le site</span>}
+          </Link>
           <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`w-full flex items-center gap-3 text-blue-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
+            className={`w-full flex items-center gap-3 text-primary-200 hover:text-white text-sm rounded hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}
             title={sidebarCollapsed ? "Agrandir" : "Réduire"}>
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             {!sidebarCollapsed && <span>Réduire</span>}
           </button>
           <button onClick={handleLogout}
-            className={`w-full flex items-center gap-3 text-blue-200 hover:text-white text-sm rounded-xl hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"}`}
+            className={`w-full flex items-center gap-3 text-primary-200 hover:text-white text-sm rounded hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}
             title="Déconnexion">
             <LogOut size={18} />
             {!sidebarCollapsed && <span>Déconnexion</span>}
@@ -144,24 +152,32 @@ export default function SecretaryDashboard() {
             <h1 className="font-black text-gray-900 text-sm lg:text-base">Secrétariat - Excellence Académie</h1>
           </div>
           <div className="flex items-center gap-4">
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:text-primary-700 hover:bg-gray-50 text-xs font-bold transition-all shadow-2xs"
+              title="Accéder à la page d'accueil sans se déconnecter"
+            >
+              <Globe size={14} className="text-primary-600" />
+              <span className="hidden sm:inline">Voir le site public</span>
+            </Link>
             <div className="relative" ref={profileRef}>
               <button onClick={(e) => { e.stopPropagation(); setProfileOpen(!profileOpen); }}
                 className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xs hover:opacity-90 transition-opacity cursor-pointer overflow-hidden">
                 {currentUser?.image ? (
                   <img src={currentUser.image} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-[#0056B3] flex items-center justify-center">{initials}</div>
+                  <div className="w-full h-full bg-[#c97e00] flex items-center justify-center">{initials}</div>
                 )}
               </button>
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded shadow-xl border border-gray-100 z-50 overflow-hidden">
                   <div className="p-4 border-b border-gray-100">
                     <div className="font-bold text-gray-900 text-sm truncate">{currentUser?.name || 'Secrétaire'}</div>
                     <div className="text-gray-400 text-xs truncate">{currentUser?.email || ''}</div>
                   </div>
                   <div className="p-2">
                     <button onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-red-600 hover:bg-red-50 transition-colors">
                       <LogOut size={16} /> Déconnexion
                     </button>
                   </div>
@@ -173,7 +189,7 @@ export default function SecretaryDashboard() {
 
         {/* Content */}
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
-          <div className="bg-linear-to-r from-[#0056B3] to-[#003375] rounded-2xl p-6 text-white mb-6">
+          <div className="bg-linear-to-r from-[#c97e00] to-[#6b4500] rounded p-6 text-white mb-6">
             <h2 className="font-black text-xl mb-1">Bon retour parmi nous, {currentUser?.name?.split(" ")[0] || "Secrétaire"} !</h2>
           </div>
           {renderContent()}
@@ -199,26 +215,26 @@ function NotifsView() {
     } catch { toast('error', 'Erreur'); }
   };
 
-  if (loading) return <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#0056B3]" /></div>;
+  if (loading) return <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-[#c97e00]" /></div>;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white rounded shadow-sm border border-gray-100">
       <div className="p-6 border-b border-gray-100">
-        <h2 className="font-black text-gray-900 flex items-center gap-2"><Bell size={18} className="text-[#0056B3]" /> Notifications</h2>
+        <h2 className="font-black text-gray-900 flex items-center gap-2"><Bell size={18} className="text-[#c97e00]" /> Notifications</h2>
       </div>
       <div className="divide-y divide-gray-100">
         {notifs.length === 0 ? (
           <div className="p-6 text-center text-gray-400 text-sm">Aucune notification</div>
         ) : (
           notifs.map((n: any) => (
-            <div key={n.id} className={`p-4 flex items-start justify-between gap-4 ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
+            <div key={n.id} className={`p-4 flex items-start justify-between gap-4 ${!n.isRead ? 'bg-primary-50/50' : ''}`}>
               <div className="flex-1 min-w-0">
                 <p className={`text-sm ${!n.isRead ? 'font-bold text-gray-900' : 'text-gray-600'}`}>{n.title}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{n.message}</p>
                 <p className="text-xs text-gray-300 mt-1">{new Date(n.createdAt).toLocaleDateString('fr-FR')}</p>
               </div>
               {!n.isRead && (
-                <button onClick={() => handleMarkRead(n.id)} className="text-xs text-[#0056B3] font-semibold hover:underline shrink-0">Marquer lue</button>
+                <button onClick={() => handleMarkRead(n.id)} className="text-xs text-[#c97e00] font-semibold hover:underline shrink-0">Marquer lue</button>
               )}
             </div>
           ))

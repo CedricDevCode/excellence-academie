@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchCourses, registerAndPay } from "../utils/api";
-import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, FileText, Loader2, AlertCircle } from "lucide-react";
+import { fetchCourses, registerAndPay, getMe } from "../utils/api";
+import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, FileText, Loader2, AlertCircle, Sparkles } from "lucide-react";
 import { StudentPersonalFields, StudentProgramFields } from "./StudentRegistrationFields";
-import { MODES, Mode, calcRegistrationPrice, calcMonthlyAmount, formatPrice, isDiaspora } from "../constants/student";
+import { MODES, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora } from "../constants/student";
 import { paymentMethods } from "../utils/payment";
 import ContractView from "./ContractView";
 
@@ -27,12 +27,21 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const [step, setStep] = useState(1);
   const [courses, setCourses] = useState<any[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [loggedInUser, setLoggedInUser] = useState<any | null>(null);
 
   useEffect(() => {
     fetchCourses()
       .then(setCourses)
       .catch(() => { })
       .finally(() => setLoadingCourses(false));
+
+    getMe()
+      .then(user => {
+        if (user && user.role === 'STUDENT') {
+          setLoggedInUser(user);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const [form, setForm] = useState({
@@ -129,10 +138,10 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     await payWithMethod();
   };
 
-  const effectiveMode = form.mode || (isDiaspora(form.pays) ? 'en_ligne' as Mode : undefined);
-  const inscPrice = calcRegistrationPrice(form.pays, form.mode || 'presentiel', form.ville, form.coursParticuliers);
-  const monthlyAmount = calcMonthlyAmount(form.pays, (form.mode || 'presentiel') as Mode, form.coursParticuliers, form.courseIds.length);
-  const totalAmount = inscPrice + (form.coursParticuliers ? 0 : monthlyAmount);
+  const selectedCourses = courses.filter((c) => form.courseIds.includes(c.id));
+  const inscPrice = calcRegistrationTotal(selectedCourses, form.coursParticuliers, form.pays, form.ville);
+  const monthlyAmount = calcMonthlyTotal(selectedCourses, form.coursParticuliers, form.pays, form.mode);
+  const totalAmount = inscPrice + monthlyAmount;
 
   if (successMsg) {
     return (
@@ -142,7 +151,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         </div>
         <h2 className="text-2xl font-black text-gray-900 mb-3">Inscription réussie !</h2>
         <p className="text-gray-500 text-sm mb-4">{successMsg}</p>
-        <Loader2 size={24} className="animate-spin text-[#0056B3] mx-auto" />
+        <Loader2 size={24} className="animate-spin text-[#c97e00] mx-auto" />
       </div>
     );
   }
@@ -166,12 +175,36 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     setError(null);
   };
 
-  const selectedCourses = courses.filter((c) => form.courseIds.includes(c.id));
-
   return (
     <form onSubmit={handleSubmit} noValidate>
+      {/* Banner if already logged in */}
+      {loggedInUser && (
+        <div className="mb-6 p-4 rounded-xl bg-linear-to-r from-amber-50 to-orange-50 border-2 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="p-2 rounded-lg bg-[#c97e00] text-white">
+              <Sparkles size={18} />
+            </span>
+            <div className="text-xs">
+              <span className="font-bold text-gray-900 block">
+                Vous êtes déjà connecté en tant que {loggedInUser.name || loggedInUser.email} !
+              </span>
+              <span className="text-gray-600">
+                Vous n'avez pas besoin de remplir ce formulaire. Ajoutez une formation supplémentaire à tarif préférentiel depuis votre espace.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/student/dashboard?tab=courses&openAdd=1')}
+            className="shrink-0 px-4 py-2 bg-[#c97e00] text-white text-xs font-bold rounded-lg hover:bg-[#7a4b00] transition-colors shadow-xs cursor-pointer"
+          >
+            Ajouter depuis mon compte →
+          </button>
+        </div>
+      )}
+
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3" role="alert">
+        <div className="mb-6 bg-red-50 border border-red-200 rounded p-4 flex items-start gap-3" role="alert">
           <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
           <p className="text-red-700 text-sm">{error}</p>
         </div>
@@ -180,7 +213,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       {step === 1 && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 mb-6">
-            <User size={20} className="text-[#0056B3]" />
+            <User size={20} className="text-[#c97e00]" />
             <h2 className="text-xl font-black text-gray-900">Informations personnelles</h2>
           </div>
           <StudentPersonalFields form={form as any} onChange={update as any} />
@@ -190,12 +223,12 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       {step === 2 && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 mb-6">
-            <BookOpen size={20} className="text-[#0056B3]" />
+            <BookOpen size={20} className="text-[#c97e00]" />
             <h2 className="text-xl font-black text-gray-900">Choix de la formation</h2>
           </div>
           {loadingCourses ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 size={24} className="animate-spin text-[#0056B3]" />
+              <Loader2 size={24} className="animate-spin text-[#c97e00]" />
               <span className="ml-2 text-gray-500 text-sm">Chargement des formations...</span>
             </div>
           ) : (
@@ -207,10 +240,10 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       {step === 3 && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 mb-6">
-            <BookOpen size={20} className="text-[#0056B3]" />
+            <BookOpen size={20} className="text-[#c97e00]" />
             <h2 className="text-xl font-black text-gray-900">Récapitulatif de votre inscription</h2>
           </div>
-          <div className="bg-gray-50 rounded-2xl p-6 text-left space-y-3">
+          <div className="bg-gray-50 rounded p-6 text-left space-y-3">
             {[
               { label: "Nom complet", val: `${form.prenom} ${form.nom}` },
               { label: "Email", val: form.email },
@@ -239,7 +272,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
               )}
               <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                 <span className="font-black text-gray-900">Total à payer aujourd'hui</span>
-                <span className="font-black text-2xl text-[#0056B3]">{formatPrice(totalAmount)} FCFA</span>
+                <span className="font-black text-2xl text-[#c97e00]">{formatPrice(totalAmount)} FCFA</span>
               </div>
             </div>
           </div>
@@ -255,10 +288,10 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       {step === 5 && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 mb-6">
-            <CreditCard size={20} className="text-[#0056B3]" />
+            <CreditCard size={20} className="text-[#c97e00]" />
             <h2 className="text-xl font-black text-gray-900">Paiement de l'inscription</h2>
           </div>
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 space-y-2">
+          <div className="bg-primary-50 border-2 border-primary-200 rounded sm:rounded p-3 sm:p-4 space-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-bold text-gray-900">Frais d'inscription</div>
@@ -275,9 +308,9 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
                 <div className="font-black text-gray-900">{formatPrice(monthlyAmount)} FCFA</div>
               </div>
             )}
-            <div className="flex items-center justify-between pt-2 border-t border-blue-200">
+            <div className="flex items-center justify-between pt-2 border-t border-primary-200">
               <span className="font-black text-gray-900">Total</span>
-              <span className="font-black text-xl sm:text-2xl text-[#0056B3]">{formatPrice(totalAmount)} FCFA</span>
+              <span className="font-black text-xl sm:text-2xl text-[#c97e00]">{formatPrice(totalAmount)} FCFA</span>
             </div>
           </div>
           <div>
@@ -288,13 +321,13 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
                   key={p.id}
                   type="button"
                   onClick={() => handleMethodSelect(p.id)}
-                  className={`flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 border-2 rounded-xl sm:rounded-2xl transition-all cursor-pointer hover:shadow-lg hover:border-[#0056B3]
-                    ${form.paymentMethod === p.id ? "border-[#0056B3] bg-blue-50 shadow-md" : "border-gray-200 bg-white"}`}
+                  className={`flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 border-2 rounded sm:rounded transition-all cursor-pointer hover:shadow-lg hover:border-[#c97e00]
+                    ${form.paymentMethod === p.id ? "border-[#c97e00] bg-primary-50 shadow-md" : "border-gray-200 bg-white"}`}
                 >
                   {p.image ? (
                     <img src={p.image} alt={p.name} className="h-8 sm:h-14 w-auto object-contain" />
                   ) : (
-                    <div className="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded-xl bg-gray-100 flex items-center justify-center text-lg sm:text-2xl">💳</div>
+                    <div className="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded bg-surface-50 flex items-center justify-center text-lg sm:text-2xl">💳</div>
                   )}
                   <span className="font-semibold text-gray-900 text-xs sm:text-sm">{p.name}</span>
                 </button>
@@ -306,19 +339,19 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
               <label className="block text-sm font-semibold text-gray-700 mb-1">Numéro de téléphone pour le paiement</label>
               <input type="tel" value={form.geniusPhone} onChange={e => update("geniusPhone", e.target.value)}
                 placeholder="Ex: 07 01 02 03 04"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-[#0056B3] focus:outline-none transition-colors" />
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors" />
             </div>
           )}
-          <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 text-sm text-green-800 flex items-center gap-2">
+          <div className="bg-green-50 border-2 border-green-200 rounded p-4 text-sm text-green-800 flex items-center gap-2">
             <span>🔒</span>
             <span><strong>Paiement sécurisé</strong> via GeniusPay.</span>
           </div>
           {!embedded && (
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={form.cgu} onChange={e => update("cgu", e.target.checked)}
-                className="mt-1 accent-[#0056B3]" />
+                className="mt-1 accent-[#c97e00]" />
               <span className="text-sm text-gray-600">
-                J'accepte les <a href="/cgu" className="text-[#0056B3] hover:underline" target="_blank">conditions générales d'utilisation</a> et je confirme que les informations fournies sont exactes.
+                J'accepte les <a href="/cgu" className="text-[#c97e00] hover:underline" target="_blank">conditions générales d'utilisation</a> et je confirme que les informations fournies sont exactes.
               </span>
             </label>
           )}
@@ -328,13 +361,13 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-100">
         {step > 1 ? (
           <button type="button" onClick={() => { setError(null); setStep(s => s - 1); }}
-            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border-2 border-gray-200 text-gray-600 rounded-xl hover:border-gray-300 font-semibold text-xs sm:text-sm transition-all">
+            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border-2 border-gray-200 text-gray-600 rounded hover:border-gray-300 font-semibold text-xs sm:text-sm transition-all">
             <ArrowLeft size={14} /> Précédent
           </button>
         ) : (
           onCancel && (
             <button type="button" onClick={onCancel}
-              className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border-2 border-gray-200 text-gray-600 rounded-xl hover:border-gray-300 font-semibold text-xs sm:text-sm transition-all">
+              className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border-2 border-gray-200 text-gray-600 rounded hover:border-gray-300 font-semibold text-xs sm:text-sm transition-all">
               <ArrowLeft size={14} /> Annuler
             </button>
           )
@@ -342,22 +375,22 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
 
         {step < 3 ? (
           <button type="button" onClick={goNextStep}
-            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#0056B3] hover:bg-[#003375] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md hover:shadow-lg">
+            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#c97e00] hover:bg-[#6b4500] text-white font-bold text-xs sm:text-sm rounded transition-all shadow-md hover:shadow-lg">
             Suivant <ArrowRight size={14} />
           </button>
         ) : step === 3 ? (
           <button type="button" onClick={() => { setError(null); setStep(4); }}
-            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#0056B3] hover:bg-[#003375] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md hover:shadow-lg">
+            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#c97e00] hover:bg-[#6b4500] text-white font-bold text-xs sm:text-sm rounded transition-all shadow-md hover:shadow-lg">
             <FileText size={14} /> Voir le contrat <ArrowRight size={14} />
           </button>
         ) : step === 4 ? (
           <button type="button" onClick={goNextStep}
-            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md hover:shadow-lg">
+            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs sm:text-sm rounded transition-all shadow-md hover:shadow-lg">
             Procéder au paiement <ArrowRight size={14} />
           </button>
         ) : (
           <button type="submit" disabled={submitting}
-            className="flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold sm:font-black text-sm sm:text-base rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
+            className="flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold sm:font-black text-sm sm:text-base rounded transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
             {submitting ? <Loader2 size={18} className="animate-spin" /> : "💳"}
             {submitting ? "Paiement en cours..." : "Payer maintenant"} <ArrowRight size={16} />
           </button>

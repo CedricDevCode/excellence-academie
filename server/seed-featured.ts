@@ -61,7 +61,7 @@ async function main() {
       title: 'Code Civil Annoté',
       subtitle: 'L\'outil indispensable du juriste',
       description: 'Édition spéciale concours avec annotations et commentaires. Préparez efficacement la Magistrature et le Greffe.',
-      backgroundColor: 'from-[#002855] to-[#001a3a]',
+      backgroundColor: 'from-[#573500] to-[#1c1d1f]',
       badgeText: 'Nouveauté',
       featured: false,
       displayOrder: 1,
