@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import {
   fetchUsers, createUser, updateUser, deleteUser, registerStudent, registerAndPay,
-  sendBulkNotification, fetchCourses
+  sendBulkNotification, fetchCourses, fetchPaymentsByUser, fetchSubscriptionsByUser
 } from "../../utils/api";
 import { useToast } from "../Toast";
 import LoadingSpinner from "./LoadingSpinner";
@@ -38,6 +38,13 @@ function StudentsView() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [editForm, setEditForm] = useState({ nom: '', prenom: '', email: '', telephone: '', ville: '', isActive: true });
+
+  const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+  const [paymentsStudent, setPaymentsStudent] = useState<any>(null);
+  const [studentPayments, setStudentPayments] = useState<any[]>([]);
+  const [studentSubscriptions, setStudentSubscriptions] = useState<any[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsTab, setPaymentsTab] = useState<'paid' | 'unpaid' | 'upcoming'>('paid');
   const { toast, confirm } = useToast();
 
   const loadUsers = () => {
@@ -183,6 +190,26 @@ function StudentsView() {
       toast('error', 'Erreur lors de l\'envoi du message.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openPaymentsModal = async (student: any) => {
+    setPaymentsStudent(student);
+    setShowPaymentsModal(true);
+    setPaymentsTab('paid');
+    setPaymentsLoading(true);
+    try {
+      const [payments, subscriptions] = await Promise.all([
+        fetchPaymentsByUser(student.id),
+        fetchSubscriptionsByUser(student.id)
+      ]);
+      setStudentPayments(payments);
+      setStudentSubscriptions(subscriptions);
+    } catch (err) {
+      console.error(err);
+      toast('error', 'Erreur lors du chargement des paiements');
+    } finally {
+      setPaymentsLoading(false);
     }
   };
 
@@ -470,7 +497,9 @@ function StudentsView() {
                                 {u.name?.[0]?.toUpperCase() || '?'}
                               </div>
                               <div>
-                                <span className="font-semibold text-gray-900 text-sm block">{u.name || 'Sans nom'}</span>
+                                <button onClick={() => openPaymentsModal(u)} className="font-semibold text-gray-900 text-sm block hover:text-[#c97e00] hover:underline transition-colors text-left cursor-pointer">
+                                  {u.name || 'Sans nom'}
+                                </button>
                                 {u.matricule && (
                                   <span className="text-[11px] text-gray-400 font-mono">Matr: {u.matricule}</span>
                                 )}
@@ -587,6 +616,144 @@ function StudentsView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Student Payments Modal */}
+      {showPaymentsModal && paymentsStudent && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
+          <div className="bg-white rounded w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+              <div>
+                <h3 className="font-black text-gray-900 text-lg">Paiements — {paymentsStudent.name || 'Étudiant'}</h3>
+                <p className="text-gray-500 text-xs mt-0.5">{paymentsStudent.email}</p>
+              </div>
+              <button onClick={() => { setShowPaymentsModal(false); setPaymentsStudent(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {paymentsLoading ? (
+                <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-[#c97e00]" /></div>
+              ) : (
+                <>
+                  {/* Tabs */}
+                  <div className="flex border-b border-gray-100 bg-gray-50/70 px-6">
+                    {(['paid', 'unpaid', 'upcoming'] as const).map(tab => {
+                      const labels = { paid: 'Payés', unpaid: 'Impayés', upcoming: 'À venir' };
+                      const count = tab === 'paid'
+                        ? studentPayments.filter(p => p.status === 'SUCCESS').length
+                        : tab === 'unpaid'
+                          ? studentPayments.filter(p => p.status !== 'SUCCESS').length
+                          : studentSubscriptions.length;
+                      return (
+                        <button
+                          key={tab}
+                          onClick={() => setPaymentsTab(tab)}
+                          className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                            paymentsTab === tab
+                              ? 'border-[#c97e00] text-[#c97e00]'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {labels[tab]} <span className="ml-1 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="p-6">
+                    {/* PAID tab */}
+                    {paymentsTab === 'paid' && (() => {
+                      const paid = studentPayments.filter(p => p.status === 'SUCCESS');
+                      if (paid.length === 0) return <p className="text-sm text-gray-400 text-center py-8">Aucun paiement réussi.</p>;
+                      return (
+                        <div className="space-y-3">
+                          {paid.map(p => (
+                            <div key={p.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-100 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <CheckCircle size={18} className="text-green-600 shrink-0" />
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">{Number(p.amount).toLocaleString('fr-FR')} FCFA</p>
+                                  <p className="text-xs text-gray-500">{p.course?.title || '—'}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</p>
+                                {p.receiptNumber && <p className="text-[10px] text-gray-400 font-mono">Reçu: {p.receiptNumber}</p>}
+                              </div>
+                            </div>
+                          ))}
+                          <div className="pt-2 border-t border-gray-100 text-right">
+                            <span className="text-sm font-bold text-green-700">Total payé : {paid.reduce((s, p) => s + Number(p.amount), 0).toLocaleString('fr-FR')} FCFA</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* UNPAID tab */}
+                    {paymentsTab === 'unpaid' && (() => {
+                      const unpaid = studentPayments.filter(p => p.status !== 'SUCCESS');
+                      if (unpaid.length === 0) return <p className="text-sm text-gray-400 text-center py-8">Aucun paiement en attente.</p>;
+                      return (
+                        <div className="space-y-3">
+                          {unpaid.map(p => (
+                            <div key={p.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <X size={18} className="text-red-600 shrink-0" />
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">{Number(p.amount).toLocaleString('fr-FR')} FCFA</p>
+                                  <p className="text-xs text-gray-500">{p.course?.title || '—'}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.status === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                  {p.status === 'FAILED' ? 'Échoué' : 'En attente'}
+                                </span>
+                                <p className="text-xs text-gray-500 mt-1">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* UPCOMING tab (from subscriptions) */}
+                    {paymentsTab === 'upcoming' && (() => {
+                      if (studentSubscriptions.length === 0) return <p className="text-sm text-gray-400 text-center py-8">Aucun abonnement actif.</p>;
+                      const now = new Date();
+                      return (
+                        <div className="space-y-3">
+                          {studentSubscriptions.map(sub => {
+                            const nextDate = new Date(sub.nextPayment);
+                            const isOverdue = nextDate <= now;
+                            return (
+                              <div key={sub.id} className={`flex items-center justify-between p-3 border rounded-lg ${isOverdue ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-100'}`}>
+                                <div className="flex items-center gap-3">
+                                  <Clock size={18} className={isOverdue ? 'text-orange-600' : 'text-blue-600'} />
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-900">{Number(sub.amount).toLocaleString('fr-FR')} FCFA / mois</p>
+                                    <p className="text-xs text-gray-500">{sub.course?.title || '—'}</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className={`text-xs font-semibold ${isOverdue ? 'text-orange-700' : 'text-blue-700'}`}>
+                                    {isOverdue ? 'En retard' : 'Prochain paiement'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{nextDate.toLocaleDateString('fr-FR')}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0 flex justify-end">
+              <button onClick={() => { setShowPaymentsModal(false); setPaymentsStudent(null); }} className="px-4 py-2 text-gray-600 font-semibold text-sm hover:text-gray-800">Fermer</button>
+            </div>
           </div>
         </div>
       )}

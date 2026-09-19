@@ -55,7 +55,8 @@ export const getPayments = async (req: Request, res: Response) => {
     const payments = await prisma.payment.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } }
+        user: { select: { id: true, name: true, email: true } },
+        course: { select: { id: true, title: true } }
       },
       orderBy: { createdAt: 'desc' }
     });

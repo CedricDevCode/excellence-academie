@@ -36,7 +36,7 @@ function FormationsView() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  
+
   // Full-page form states
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -319,7 +319,7 @@ function FormationsView() {
 
         {/* 2-Columns layout for clean, spacious editing */}
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
+
           {/* LEFT COLUMN: Course info & Description (5 cols) */}
           <div className="lg:col-span-5 space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
@@ -455,7 +455,7 @@ function FormationsView() {
 
               {/* 3 Zone Cards */}
               <div className="space-y-4">
-                
+
                 {/* ZONE 1 : Abidjan */}
                 <div className="border-2 border-primary-200 bg-linear-to-r from-primary-50/30 to-white rounded-xl p-5 relative">
                   <div className="flex items-center justify-between mb-3">
@@ -737,7 +737,7 @@ function FormationsView() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mt-2">
                   <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-200 text-center">
-                    <span className="text-[11px] text-blue-700 block font-semibold">Mensuel En ligne</span>
+                    <span className="text-[11px] text-blue-700 block font-semibold">Mensualité En ligne</span>
                     <strong className="text-blue-900 text-sm">{form.monthlyFeeOnline} F/mois</strong>
                   </div>
                   <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-200 text-center">
@@ -909,11 +909,10 @@ function FormationsView() {
         <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar">
           <button
             onClick={() => setSelectedCategory('ALL')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-              selectedCategory === 'ALL'
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === 'ALL'
                 ? 'bg-[#c97e00] text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+              }`}
           >
             Toutes ({courses.length})
           </button>
@@ -924,11 +923,10 @@ function FormationsView() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
-                  selectedCategory === cat
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedCategory === cat
                     ? 'bg-[#c97e00] text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 {cat} ({count})
               </button>
@@ -1062,7 +1060,7 @@ function FormationsView() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <span className="text-gray-500 font-medium">Mensuel En ligne / Both :</span>
+                    <span className="text-gray-500 font-medium">Mensualité En ligne / Both :</span>
                     <span className="font-black text-blue-600 text-[11px]">
                       {Number(c.monthlyFeeOnline || 25000).toLocaleString('fr-FR')} / {Number(c.monthlyFeeBoth || 35000).toLocaleString('fr-FR')} F
                     </span>

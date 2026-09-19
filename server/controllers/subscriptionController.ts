@@ -3,6 +3,24 @@ import prisma from '../utils/prisma';
 import { METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 
+export const getSubscriptionsByUser = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId requis' });
+    }
+    const subs = await prisma.subscription.findMany({
+      where: { userId: userId as string },
+      include: { course: { select: { id: true, title: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(subs);
+  } catch (error) {
+    console.error('Error fetching subscriptions by user:', error);
+    res.status(500).json({ error: 'Failed to fetch subscriptions' });
+  }
+};
+
 export const getMySubscriptions = async (req: Request, res: Response) => {
   try {
     const subs = await prisma.subscription.findMany({

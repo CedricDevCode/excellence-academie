@@ -769,7 +769,8 @@ var getPayments = async (req, res) => {
     const payments = await prisma_default.payment.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } }
+        user: { select: { id: true, name: true, email: true } },
+        course: { select: { id: true, title: true } }
       },
       orderBy: { createdAt: "desc" }
     });
@@ -3535,6 +3536,23 @@ var sessionRoutes_default = router13;
 import { Router as Router14 } from "express";
 
 // server/controllers/subscriptionController.ts
+var getSubscriptionsByUser = async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({ error: "userId requis" });
+    }
+    const subs = await prisma_default.subscription.findMany({
+      where: { userId },
+      include: { course: { select: { id: true, title: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(subs);
+  } catch (error) {
+    console.error("Error fetching subscriptions by user:", error);
+    res.status(500).json({ error: "Failed to fetch subscriptions" });
+  }
+};
 var getMySubscriptions = async (req, res) => {
   try {
     const subs = await prisma_default.subscription.findMany({
@@ -3655,6 +3673,7 @@ var paySubscription = async (req, res) => {
 // server/routes/subscriptionRoutes.ts
 var router14 = Router14();
 router14.use(authenticateToken);
+router14.get("/by-user", requireRole(["ADMIN", "ACCOUNTANT"]), getSubscriptionsByUser);
 router14.get("/my-subscriptions", getMySubscriptions);
 router14.get("/overdue", requireRole(["ADMIN", "ACCOUNTANT", "STUDENT"]), getOverdueItems);
 router14.post("/pay", requireRole(["STUDENT"]), paySubscription);

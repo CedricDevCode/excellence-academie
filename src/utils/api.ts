@@ -193,6 +193,18 @@ export const fetchPayments = async (): Promise<Payment[]> => {
   return res.json();
 };
 
+export const fetchPaymentsByUser = async (userId: string): Promise<Payment[]> => {
+  const res = await authFetch(`${API_BASE_URL}/payments?userId=${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error('Failed to fetch payments');
+  return res.json();
+};
+
+export const fetchSubscriptionsByUser = async (userId: string): Promise<Subscription[]> => {
+  const res = await authFetch(`${API_BASE_URL}/subscriptions/by-user?userId=${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error('Failed to fetch subscriptions');
+  return res.json();
+};
+
 export const fetchMyPayments = async () => {
   const res = await authFetch(`${API_BASE_URL}/payments/my-payments`);
   if (!res.ok) throw new Error('Failed to fetch payments');
