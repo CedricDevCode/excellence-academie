@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { User, MapPin, BookOpen, Plus, Edit, Trash2, Loader2, X, Save, CheckCircle, Camera, DollarSign, Info } from "lucide-react";
-import { fetchCities, createCity, updateCity, deleteCity, updateUser, fetchAppSettings, updateAppSettings } from "../../utils/api";
+import { fetchCities, createCity, updateCity, deleteCity, updateUser, uploadProfileImage, fetchAppSettings, updateAppSettings } from "../../utils/api";
 import { useToast } from "../Toast";
 import FormationsView from "./FormationsView";
 import { AFRICA_COUNTRIES, EUROPE_COUNTRIES } from "./helpers";
@@ -185,13 +185,16 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
                 </label>
                 <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 border-2 border-white rounded-full" />
                 <input type="file" accept="image/*" className="hidden" id="photo-upload"
-                  onChange={e => {
+                  onChange={async e => {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     if (file.size > 2 * 1024 * 1024) { setMessage('Image trop volumineuse (max 2 Mo)'); setMessageType('error'); return; }
-                    const reader = new FileReader();
-                    reader.onload = () => setForm({ ...form, image: reader.result as string });
-                    reader.readAsDataURL(file);
+                    try {
+                      const { url } = await uploadProfileImage(file);
+                      setForm({ ...form, image: url });
+                    } catch (err: any) {
+                      setMessage(err.message || "Erreur lors de l'upload"); setMessageType('error');
+                    }
                   }} />
               </div>
               <div>

@@ -119,6 +119,32 @@ export const logout = async () => {
   return res.json();
 };
 
+export const forgotPassword = async (email: string) => {
+  const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Erreur lors de la demande');
+  }
+  return res.json();
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+  const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Erreur lors de la réinitialisation');
+  }
+  return res.json();
+};
+
 // Stats
 export const fetchStats = async () => {
   const res = await authFetch(`${API_BASE_URL}/stats`);
@@ -183,6 +209,17 @@ export const updateMyProfile = async (data: Partial<UpdateUserData>) => {
   return res.json();
 };
 
+export const uploadProfileImage = async (file: File): Promise<{ url: string }> => {
+  const formData = new FormData();
+  formData.append('image', file);
+  const res = await authFetch(`${API_BASE_URL}/users/me/image`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) throw new Error("Erreur lors de l'upload de l'image");
+  return res.json();
+};
+
 export const updateUser = async (id: string, data: UpdateUserData) => {
   const res = await authFetch(`${API_BASE_URL}/users/${id}`, {
     method: 'PUT',
@@ -231,24 +268,6 @@ export const fetchMyPayments = async () => {
   return res.json();
 };
 
-export const initializePayment = async (data: { amount: number; userId: string; courseId: string }) => {
-  const res = await authFetch(`${API_BASE_URL}/payments/initialize`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Payment initialization failed');
-  return res.json();
-};
-
-export const verifyPayment = async (data: { paymentId: string; reference: string }) => {
-  const res = await authFetch(`${API_BASE_URL}/payments/verify`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Payment verification failed');
-  return res.json();
-};
-
 // Expenses
 export const fetchExpenses = async () => {
   const res = await authFetch(`${API_BASE_URL}/expenses`);
@@ -262,15 +281,6 @@ export const createExpense = async (data: { amount: string; description: string;
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to create expense');
-  return res.json();
-};
-
-export const updateExpense = async (id: string, data: { amount?: string; description?: string; category?: string; ville?: string; paymentMethod?: string; status?: string; teacherId?: string; attachmentUrl?: string }) => {
-  const res = await authFetch(`${API_BASE_URL}/expenses/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update expense');
   return res.json();
 };
 
@@ -291,12 +301,6 @@ export const deleteExpense = async (id: string) => {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete expense');
-  return res.json();
-};
-
-export const fetchExpenseSummary = async () => {
-  const res = await authFetch(`${API_BASE_URL}/expenses/summary`);
-  if (!res.ok) throw new Error('Failed to fetch expense summary');
   return res.json();
 };
 
@@ -768,6 +772,14 @@ export const updateEvaluation = async (id: string, data: { title?: string; score
   return res.json();
 };
 
+export const deleteEvaluation = async (id: string) => {
+  const res = await authFetch(`${API_BASE_URL}/evaluations/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete evaluation');
+  return res.json();
+};
+
 // Cities
 export const fetchCities = async () => {
   const res = await authFetch(`${API_BASE_URL}/cities`);
@@ -828,15 +840,6 @@ export const createSession = async (data: {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error || 'Failed to create session');
   }
-  return res.json();
-};
-
-export const updateSession = async (id: string, data: any) => {
-  const res = await authFetch(`${API_BASE_URL}/sessions/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update session');
   return res.json();
 };
 

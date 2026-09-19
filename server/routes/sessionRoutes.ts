@@ -3,6 +3,7 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { requireRole } from '../middleware/authMiddleware';
+import { validateBody, createSessionSchema } from '../middleware/validate';
 import {
   createSession, getSessions, updateSession, deleteSession,
   getMonthlySalaryReport, payTeacherSalary, getStudentSessions,
@@ -28,7 +29,7 @@ router.get('/salary-report', requireRole(['ADMIN', 'ACCOUNTANT', 'SECRETARY']), 
 router.post('/pay-salary', requireRole(['ADMIN', 'ACCOUNTANT']), payTeacherSalary);
 router.get('/my-sessions', requireRole(['STUDENT']), getStudentSessions);
 
-router.post('/', requireRole(['ADMIN', 'ACCOUNTANT', 'SECRETARY']), createSession);
+router.post('/', requireRole(['ADMIN', 'ACCOUNTANT', 'SECRETARY']), validateBody(createSessionSchema), createSession);
 router.get('/', requireRole(['ADMIN', 'ACCOUNTANT', 'SECRETARY', 'TEACHER', 'STUDENT']), getSessions);
 router.put('/:id', requireRole(['ADMIN', 'ACCOUNTANT', 'SECRETARY']), updateSession);
 router.delete('/:id', requireRole(['ADMIN', 'ACCOUNTANT']), deleteSession);

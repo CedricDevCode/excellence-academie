@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { register, registerAndPay, confirmPayment, login, logout, getMe, addCourseForExistingStudent } from '../controllers/authController';
+import { forgotPassword, resetPassword } from '../controllers/passwordResetController';
 import { authenticateToken } from '../middleware/authMiddleware';
+import { validateBody, loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from '../middleware/validate';
 
 const router = Router();
 
@@ -43,10 +45,12 @@ const paymentInitLimiter = rateLimit({
 });
 
 // ─── Routes publiques ─────────────────────────────────────────────────────────
-router.post('/login', loginLimiter, login);
+router.post('/login', loginLimiter, validateBody(loginSchema), login);
 router.post('/logout', logout);
-router.post('/register', registerLimiter, register);
-router.post('/register-and-pay', registerLimiter, paymentInitLimiter, registerAndPay);
+router.post('/register', registerLimiter, validateBody(registerSchema), register);
+router.post('/register-and-pay', registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
+router.post('/forgot-password', loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
+router.post('/reset-password', validateBody(resetPasswordSchema), resetPassword);
 
 // ─── Routes protégées ─────────────────────────────────────────────────────────
 router.get('/me', authenticateToken, getMe);

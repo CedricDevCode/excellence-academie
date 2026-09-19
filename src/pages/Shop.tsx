@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, X, Search, Star, Package, Menu as MenuIcon, Zap, ChevronRight, ChevronLeft, Phone, Store, BookOpen, FileText } from 'lucide-react';
+import { ShoppingCart, X, Search, Star, Package, Menu as MenuIcon, Zap, ChevronRight, ChevronLeft, Phone, Store, BookOpen, FileText, Loader2, CheckCircle } from 'lucide-react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton, Card, Badge, Button, Container } from '@/components/ui';
@@ -77,6 +77,10 @@ export default function Shop() {
   const [activeType, setActiveType] = useState<string>(urlCategory?.toUpperCase() || 'ALL');
   const [bannerIdx, setBannerIdx] = useState(0);
   const [showVendorPopup, setShowVendorPopup] = useState(false);
+  const [vendorForm, setVendorForm] = useState({ name: '', email: '', phone: '', businessName: '', productType: '', message: '' });
+  const [vendorSubmitting, setVendorSubmitting] = useState(false);
+  const [vendorSuccess, setVendorSuccess] = useState(false);
+  const [vendorError, setVendorError] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -478,26 +482,116 @@ export default function Shop() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-70 flex items-center justify-center"
           >
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowVendorPopup(false)} />
+            <div className="absolute inset-0 bg-black/40" onClick={() => { setShowVendorPopup(false); setVendorSuccess(false); setVendorError(''); }} />
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="relative bg-white rounded shadow-2xl p-8 mx-4 max-w-sm w-full text-center"
+              className="relative bg-white rounded shadow-2xl p-8 mx-4 max-w-md w-full max-h-[90vh] overflow-y-auto"
             >
-              <button onClick={() => setShowVendorPopup(false)}
+              <button onClick={() => { setShowVendorPopup(false); setVendorSuccess(false); setVendorError(''); }}
                 className="absolute top-3 right-3 p-1 hover:bg-surface-50 rounded-full transition-colors">
                 <X size={18} />
               </button>
-              <div className="w-16 h-16 rounded-full bg-accent-50 flex items-center justify-center mx-auto mb-4">
-                <Store size={28} className="text-accent-500" />
-              </div>
-              <h3 className="text-lg font-black text-primary-700 mb-2">Bientôt disponible</h3>
-              <p className="text-sm text-gray-500 mb-6">La fonction "Vendre sur Exacademy" sera bientôt disponible. Restez à l'écoute !</p>
-              <Button variant="accent" onClick={() => setShowVendorPopup(false)}>
-                D'accord
-              </Button>
+
+              {vendorSuccess ? (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle size={28} className="text-green-500" />
+                  </div>
+                  <h3 className="text-lg font-black text-green-700 mb-2">Demande envoyee !</h3>
+                  <p className="text-sm text-gray-500 mb-6">Votre demande pour devenir vendeur a ete envoyee a l'administration. Vous serez contacte(e) prochainement.</p>
+                  <Button variant="accent" onClick={() => { setShowVendorPopup(false); setVendorSuccess(false); setVendorForm({ name: '', email: '', phone: '', businessName: '', productType: '', message: '' }); }}>
+                    Fermer
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 rounded-full bg-accent-50 flex items-center justify-center mx-auto mb-4">
+                      <Store size={28} className="text-accent-500" />
+                    </div>
+                    <h3 className="text-lg font-black text-primary-700 mb-1">Vendre sur Exacademy</h3>
+                    <p className="text-sm text-gray-500">Devenez partenaire et proposez vos produits sur notre boutique.</p>
+                  </div>
+
+                  {vendorError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{vendorError}</div>
+                  )}
+
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!vendorForm.name || !vendorForm.email || !vendorForm.phone || !vendorForm.businessName) {
+                      setVendorError('Veuillez remplir tous les champs obligatoires.');
+                      return;
+                    }
+                    setVendorSubmitting(true);
+                    setVendorError('');
+                    try {
+                      await api.post('/notifications/bulk', {
+                        title: 'Nouvelle demande vendeur',
+                        message: `${vendorForm.name} (${vendorForm.email}, ${vendorForm.phone}) souhaite vendre sur Exacademy. Boutique: ${vendorForm.businessName}. Type: ${vendorForm.productType || 'Non precise'}. ${vendorForm.message ? 'Message: ' + vendorForm.message : ''}`,
+                        targetRoles: ['ADMIN'],
+                      });
+                      setVendorSuccess(true);
+                    } catch (err: any) {
+                      setVendorError(err?.message || "Erreur lors de l'envoi. Reessayez.");
+                    } finally {
+                      setVendorSubmitting(false);
+                    }
+                  }} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Nom complet *</label>
+                      <input type="text" required value={vendorForm.name} onChange={e => setVendorForm({ ...vendorForm, name: e.target.value })}
+                        placeholder="Votre nom"
+                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-accent-500 focus:outline-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Email *</label>
+                        <input type="email" required value={vendorForm.email} onChange={e => setVendorForm({ ...vendorForm, email: e.target.value })}
+                          placeholder="email@exemple.com"
+                          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-accent-500 focus:outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Telephone *</label>
+                        <input type="tel" required value={vendorForm.phone} onChange={e => setVendorForm({ ...vendorForm, phone: e.target.value })}
+                          placeholder="07 01 02 03 04"
+                          className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-accent-500 focus:outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Nom de votre boutique / activite *</label>
+                      <input type="text" required value={vendorForm.businessName} onChange={e => setVendorForm({ ...vendorForm, businessName: e.target.value })}
+                        placeholder="Ex: Librairie du Savoir"
+                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-accent-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Type de produit</label>
+                      <select value={vendorForm.productType} onChange={e => setVendorForm({ ...vendorForm, productType: e.target.value })}
+                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-accent-500 focus:outline-none bg-white">
+                        <option value="">Selectionnez...</option>
+                        <option value="DOCUMENT">Documents / Cours</option>
+                        <option value="LIVRE">Livres</option>
+                        <option value="MATERIEL">Materiel scolaire</option>
+                        <option value="AUTRE">Autre</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Message (optionnel)</label>
+                      <textarea rows={3} value={vendorForm.message} onChange={e => setVendorForm({ ...vendorForm, message: e.target.value })}
+                        placeholder="Decrivez brievement vos produits..."
+                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg text-sm focus:border-accent-500 focus:outline-none resize-none" />
+                    </div>
+                    <button type="submit" disabled={vendorSubmitting}
+                      className="w-full py-3 bg-accent-500 text-white font-bold rounded-lg hover:bg-accent-600 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
+                      {vendorSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Store size={18} />}
+                      {vendorSubmitting ? 'Envoi...' : 'Envoyer ma demande'}
+                    </button>
+                  </form>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

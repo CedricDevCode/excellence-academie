@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
+import logger from '../utils/logger';
 
 export const getEvaluations = async (req: Request, res: Response) => {
   try {
@@ -20,7 +21,7 @@ export const getEvaluations = async (req: Request, res: Response) => {
     });
     res.json(evaluations);
   } catch (error) {
-    console.error('Error fetching evaluations:', error);
+    logger.error('Failed to fetch evaluations', 'evaluation', error);
     res.status(500).json({ error: 'Failed to fetch evaluations' });
   }
 };
@@ -51,7 +52,7 @@ export const createEvaluation = async (req: Request, res: Response) => {
 
     res.status(201).json(evaluation);
   } catch (error) {
-    console.error('Error creating evaluation:', error);
+    logger.error('Failed to create evaluation', 'evaluation', error);
     res.status(500).json({ error: 'Failed to create evaluation' });
   }
 };
@@ -73,7 +74,28 @@ export const updateEvaluation = async (req: Request, res: Response) => {
 
     res.json(evaluation);
   } catch (error) {
-    console.error('Error updating evaluation:', error);
+    logger.error('Failed to update evaluation', 'evaluation', error);
     res.status(500).json({ error: 'Failed to update evaluation' });
+  }
+};
+
+export const deleteEvaluation = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    const evaluation = await prisma.evaluation.findUnique({ where: { id } });
+    if (!evaluation) {
+      return res.status(404).json({ error: 'Évaluation non trouvée' });
+    }
+
+    if (req.user.role === 'TEACHER' && evaluation.teacherId !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres évaluations' });
+    }
+
+    await prisma.evaluation.delete({ where: { id } });
+    res.json({ message: 'Évaluation supprimée avec succès' });
+  } catch (error) {
+    logger.error('Failed to delete evaluation', 'evaluation', error);
+    res.status(500).json({ error: 'Failed to delete evaluation' });
   }
 };

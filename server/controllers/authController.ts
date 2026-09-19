@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import prisma from '../utils/prisma';
 import { setAuthCookie, clearAuthCookie } from '../utils/jwt';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
@@ -7,6 +8,18 @@ import { calcRegistrationTotal, calcMonthlyTotal, METHOD_TO_GP, COUNTRY_TO_ISO2 
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { sendNotification, sendNotificationToRole } from './notificationController';
 import { invalidateUserCache } from '../middleware/authMiddleware';
+import logger from '../utils/logger';
+
+// ─── Password Reset Token Store (in-memory, TTL 1h) ─────────────────────────
+const passwordResetTokens = new Map<string, { userId: string; expiresAt: number }>();
+
+function cleanupExpiredTokens() {
+  const now = Date.now();
+  for (const [token, data] of passwordResetTokens) {
+    if (data.expiresAt < now) passwordResetTokens.delete(token);
+  }
+}
+setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

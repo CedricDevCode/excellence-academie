@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { getUsers, createUser, updateUser, deleteUser, updateMyProfile } from '../controllers/userController';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
+import prisma from '../utils/prisma';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,6 +37,17 @@ const router = Router();
 router.use(authenticateToken);
 
 router.put('/me', updateMyProfile);
+router.post('/me/image', upload.single('image'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Aucun fichier uploadé' });
+    const imageUrl = `/uploads/users/${req.file.filename}`;
+    await prisma.user.update({ where: { id: req.user.id }, data: { image: imageUrl } });
+    res.json({ url: imageUrl });
+  } catch (error) {
+    console.error('Error uploading profile image:', error);
+    res.status(500).json({ error: "Erreur lors de l'upload de l'image" });
+  }
+});
 router.get('/', requireRole(['ADMIN']), getUsers);
 router.post('/', requireRole(['ADMIN']), createUser);
 router.put('/:id', requireRole(['ADMIN']), updateUser);

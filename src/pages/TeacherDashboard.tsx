@@ -3,10 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Home, Users, BookOpen, Bell, LogOut, Menu, X, Calendar,
   ChevronRight, CheckCircle, Clock, FileText, GraduationCap,
-  AlertCircle, Loader2, Search, Monitor, MapPin, Upload, Download, User, Globe
+  AlertCircle, Loader2, Search, Monitor, MapPin, Upload, Download, User, Globe, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMe, logout as apiLogout, fetchUsers, fetchNotifications, markNotificationRead, fetchEvents, fetchEvaluations, createEvaluation, fetchSessions, completeSession, uploadSessionFile, getSessionFiles, getDownloadUrl, fetchBlogPosts, deleteBlogPost } from "../utils/api";
+import { getMe, logout as apiLogout, fetchUsers, fetchNotifications, markNotificationRead, fetchEvents, fetchEvaluations, createEvaluation, deleteEvaluation, fetchSessions, completeSession, uploadSessionFile, getSessionFiles, getDownloadUrl, fetchBlogPosts, deleteBlogPost } from "../utils/api";
 import { useToast } from "../components/Toast";
 import { Skeleton, Card, Badge, Button } from "../components/ui";
 
@@ -262,17 +262,34 @@ function PlanningView({ user }: { user: any }) {
 }
 
 function EvalsView({ user }: { user: any }) {
+  const { toast } = useToast();
   const [evals, setEvals] = useState<any[]>([]);
   const [evalsLoading, setEvalsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchEvaluations({ teacherId: user.id })
-        .then(setEvals)
-        .catch(() => {})
-        .finally(() => setEvalsLoading(false));
-    }
+  const loadEvals = useCallback(() => {
+    if (!user?.id) return;
+    setEvalsLoading(true);
+    fetchEvaluations({ teacherId: user.id })
+      .then(setEvals)
+      .catch(() => {})
+      .finally(() => setEvalsLoading(false));
   }, [user?.id]);
+
+  useEffect(() => { loadEvals(); }, [loadEvals]);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteEvaluation(id);
+      toast('success', 'Évaluation supprimée');
+      loadEvals();
+    } catch {
+      toast('error', 'Erreur lors de la suppression');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -293,7 +310,7 @@ function EvalsView({ user }: { user: any }) {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  {["Étudiant", "Évaluation", "Note", "Date"].map(h => (
+                  {["Étudiant", "Évaluation", "Note", "Date", "Actions"].map(h => (
                     <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                   ))}
                 </tr>
@@ -310,11 +327,113 @@ function EvalsView({ user }: { user: any }) {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-500 text-xs">{new Date(ev.createdAt).toLocaleDateString("fr-FR")}</td>
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={() => handleDelete(ev.id)}
+                        disabled={deletingId === ev.id}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors disabled:opacity-50"
+                        title="Supprimer"
+                      >
+                        {deletingId === ev.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeacherCoursesView({ user }: { user: any }) {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchSessions({ teacherId: user.id })
+        .then((data: any) => setSessions(Array.isArray(data) ? data : []))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+  }, [user?.id]);
+
+  const courseMap = new Map<string, { course: any; sessions: any[]; totalHours: number; completedCount: number }>();
+  for (const s of sessions) {
+    const key = s.course?.id || 'no-course';
+    if (!courseMap.has(key)) {
+      courseMap.set(key, { course: s.course, sessions: [], totalHours: 0, completedCount: 0 });
+    }
+    const entry = courseMap.get(key)!;
+    entry.sessions.push(s);
+    entry.totalHours += Number(s.hours) || 0;
+    if (s.status === 'COMPLETED' || s.status === 'VALIDATED' || s.status === 'PAID') {
+      entry.completedCount++;
+    }
+  }
+  const courses = Array.from(courseMap.values());
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-accent-700" /></div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
+        <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><BookOpen size={18} className="text-accent-700" /> Mes cours</h2>
+        <p className="text-gray-500 text-sm mt-1">Formations que vous enseignez, basées sur vos séances.</p>
+      </div>
+      {courses.length === 0 ? (
+        <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
+          <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-gray-400 text-sm">Aucun cours assigné. Vos cours apparaîtront ici après création de séances.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {courses.map((entry, i) => (
+            <motion.div
+              key={entry.course?.id || i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+            >
+              <Card className="p-5 hover:shadow-md transition-shadow h-full">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-11 h-11 rounded-xl bg-accent-50 flex items-center justify-center text-accent-600 shrink-0">
+                    <BookOpen size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-gray-900 text-sm truncate">{entry.course?.title || 'Cours sans titre'}</h3>
+                    {entry.course?.category && <p className="text-xs text-gray-500 truncate">{entry.course.category}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-gray-50 rounded-lg p-2.5">
+                    <div className="text-lg font-black text-gray-900">{entry.sessions.length}</div>
+                    <div className="text-[10px] text-gray-500 font-semibold uppercase">Séances</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-2.5">
+                    <div className="text-lg font-black text-accent-700">{entry.totalHours.toFixed(1)}h</div>
+                    <div className="text-[10px] text-gray-500 font-semibold uppercase">Total</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-2.5">
+                    <div className="text-lg font-black text-green-600">{entry.completedCount}</div>
+                    <div className="text-[10px] text-gray-500 font-semibold uppercase">Terminées</div>
+                  </div>
+                </div>
+                {entry.course?.description && (
+                  <p className="text-xs text-gray-500 mt-3 line-clamp-2 leading-relaxed">{entry.course.description}</p>
+                )}
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+                  <span>{entry.sessions.length > 0 ? `Dernière séance: ${new Date(entry.sessions[0].date).toLocaleDateString('fr-FR')}` : 'Aucune séance'}</span>
+                  <Badge variant={entry.completedCount > 0 ? 'success' : 'gray'} size="sm">
+                    {entry.completedCount}/{entry.sessions.length} terminées
+                  </Badge>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
         </div>
       )}
     </div>
@@ -513,18 +632,7 @@ export default function TeacherDashboard() {
         );
 
       case "courses":
-        return (
-          <div className="space-y-6">
-            <div className="bg-white rounded shadow-sm border border-gray-100 p-6">
-              <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><BookOpen size={18} className="text-accent-700" /> Mes cours</h2>
-              <p className="text-gray-500 text-sm mt-1">Gérez vos modules et sessions de cours.</p>
-            </div>
-            <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
-              <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-400 text-sm">La gestion des cours sera bientôt disponible.</p>
-            </div>
-          </div>
-        );
+        return <TeacherCoursesView user={user} />;
 
       case "planning":
         return <PlanningView user={user} />;

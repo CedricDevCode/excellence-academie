@@ -156,6 +156,11 @@ export default function StudentLogin() {
                 </button>
               </div>
               {errors.password && <p id="password-error" className="text-red-500 text-xs mt-1">{errors.password}</p>}
+              <div className="text-right mt-1">
+                <Link to="/forgot-password" className="text-xs text-primary-600 font-semibold hover:text-primary-800 hover:underline transition-colors">
+                  Mot de passe oublié ?
+                </Link>
+              </div>
             </div>
 
             <button type="submit" disabled={loading}

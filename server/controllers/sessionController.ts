@@ -1,8 +1,13 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { sendNotification } from './notificationController';
 import prisma from '../utils/prisma';
 import { GENIUSPAY_API_BASE, GENIUSPAY_ENVIRONMENT, geniusPayHeaders } from '../utils/geniuspay';
+
+const SESSION_FILES_DIR = path.join(process.cwd(), 'uploads', 'session-files');
+fs.mkdirSync(SESSION_FILES_DIR, { recursive: true });
 
 let tablesInitialized = false;
 
@@ -328,17 +333,20 @@ export const uploadSessionFile = async (req: Request, res: Response) => {
     }
 
     const fileId = crypto.randomUUID();
-    const base64 = file.buffer.toString('base64');
-    const mimeType = file.mimetype;
+    const ext = path.extname(file.originalname).toLowerCase();
+    const diskFilename = `${fileId}${ext}`;
+    const diskPath = path.join(SESSION_FILES_DIR, diskFilename);
 
-    await prisma.$executeRaw`INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "fileData", "uploadedAt")
-       VALUES (${fileId}, ${id}, ${file.originalname}, ${mimeType}, ${base64}, NOW())`;
+    fs.writeFileSync(diskPath, file.buffer);
+
+    await prisma.$executeRaw`INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "filePath", "uploadedAt")
+       VALUES (${fileId}, ${id}, ${file.originalname}, ${file.mimetype}, ${diskFilename}, NOW())`;
 
     res.status(201).json({
       id: fileId,
       sessionId: id,
       fileName: file.originalname,
-      fileType: mimeType,
+      fileType: file.mimetype,
     });
   } catch (error) {
     console.error('Upload session file error:', error);
@@ -372,11 +380,27 @@ export const downloadSessionFile = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Fichier introuvable' });
     }
     const file = rows[0];
-    const buffer = Buffer.from(file.fileData, 'base64');
-    const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 255);
-    res.setHeader('Content-Type', file.fileType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"`);
-    res.send(buffer);
+
+    if (file.filePath) {
+      const diskPath = path.join(SESSION_FILES_DIR, file.filePath);
+      if (fs.existsSync(diskPath)) {
+        const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 255);
+        res.setHeader('Content-Type', file.fileType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"`);
+        return res.sendFile(diskPath);
+      }
+    }
+
+    // Fallback: legacy base64 data in fileData column
+    if (file.fileData) {
+      const buffer = Buffer.from(file.fileData, 'base64');
+      const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 255);
+      res.setHeader('Content-Type', file.fileType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"`);
+      return res.send(buffer);
+    }
+
+    res.status(404).json({ error: 'Fichier non trouvé sur le disque' });
   } catch (error) {
     console.error('Download session file error:', error);
     res.status(500).json({ error: 'Failed to download file' });

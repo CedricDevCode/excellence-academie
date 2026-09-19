@@ -38,6 +38,8 @@ const PolitiqueConfidentialite = lazy(() => import("./pages/PolitiqueConfidentia
 const Accessibilite = lazy(() => import("./pages/Accessibilite"));
 const CataloguePage = lazy(() => import("./pages/CataloguePage"));
 const CourseDetail = lazy(() => import("./pages/CourseDetail"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 function PageLoader() {
   return (
@@ -61,6 +63,8 @@ function AppRoutes() {
     "/parent/dashboard",
     "/students/new",
     "/student/login",
+    "/forgot-password",
+    "/reset-password",
   ];
   const shouldHide = hideNavFooter.includes(location.pathname);
 
@@ -73,6 +77,8 @@ function AppRoutes() {
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
             <Route path="/student/login" element={<PageTransition><StudentLogin /></PageTransition>} />
+            <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
+            <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
             <Route path="/students/new" element={<PageTransition><StudentRegister /></PageTransition>} />
             <Route path="/admin/dashboard" element={<PageTransition><AdminDashboard /></PageTransition>} />
             <Route path="/student/dashboard" element={<PageTransition><StudentDashboard /></PageTransition>} />
