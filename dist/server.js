@@ -769,12 +769,36 @@ var getPayments = async (req, res) => {
     const payments = await prisma_default.payment.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, ville: true } },
         course: { select: { id: true, title: true } }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "asc" }
     });
-    res.json(payments);
+    const userIds = [...new Set(payments.map((p) => p.userId))];
+    const courseIds = [...new Set(payments.map((p) => p.courseId).filter(Boolean))];
+    const subs = await prisma_default.subscription.findMany({
+      where: { userId: { in: userIds }, courseId: { in: courseIds } },
+      select: { userId: true, courseId: true, formule: true, coursParticuliers: true }
+    });
+    const subMap = /* @__PURE__ */ new Map();
+    for (const s of subs) subMap.set(`${s.userId}-${s.courseId}`, s);
+    const firstPaymentPerPair = {};
+    for (const p of payments) {
+      const key = `${p.userId}-${p.courseId || "unknown"}`;
+      if (!firstPaymentPerPair[key]) {
+        firstPaymentPerPair[key] = p.id;
+      }
+    }
+    const enriched = payments.map((p) => {
+      const sub = subMap.get(`${p.userId}-${p.courseId || ""}`);
+      return {
+        ...p,
+        type: p.id === firstPaymentPerPair[`${p.userId}-${p.courseId || "unknown"}`] ? "INSCRIPTION" : "MENSUALITE",
+        formule: sub?.formule || null,
+        coursParticuliers: sub?.coursParticuliers || false
+      };
+    }).reverse();
+    res.json(enriched);
   } catch (error) {
     console.error("Error fetching payments:", error);
     res.status(500).json({ error: "Failed to fetch payments" });
@@ -1867,7 +1891,7 @@ import { Router as Router5 } from "express";
 // server/controllers/expenseController.ts
 var createExpense = async (req, res) => {
   try {
-    const { amount, description, category, ville, teacherId, paymentMethod } = req.body;
+    const { amount, description, category, ville, teacherId, paymentMethod, attachmentUrl } = req.body;
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({ error: "Le montant doit \xEAtre un nombre positif" });
@@ -1880,6 +1904,7 @@ var createExpense = async (req, res) => {
         ville: ville || null,
         teacherId: teacherId || null,
         paymentMethod,
+        attachmentUrl: attachmentUrl || null,
         status: "PAID"
       },
       include: {
@@ -1929,7 +1954,7 @@ var getExpenses = async (req, res) => {
 var updateExpense = async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount, description, category, ville, paymentMethod, status, teacherId } = req.body;
+    const { amount, description, category, ville, paymentMethod, status, teacherId, attachmentUrl } = req.body;
     const data = {};
     if (amount !== void 0) {
       const parsedAmount = parseFloat(amount);
@@ -1944,6 +1969,7 @@ var updateExpense = async (req, res) => {
     if (paymentMethod !== void 0) data.paymentMethod = paymentMethod;
     if (status !== void 0) data.status = status;
     if (teacherId !== void 0) data.teacherId = teacherId;
+    if (attachmentUrl !== void 0) data.attachmentUrl = attachmentUrl;
     const expense = await prisma_default.expense.update({
       where: { id },
       data,
@@ -2006,8 +2032,36 @@ var getExpenseSummary = async (req, res) => {
 };
 
 // server/routes/expenseRoutes.ts
+import multer2 from "multer";
+import path3 from "path";
+import { v4 as uuid } from "uuid";
 var router5 = Router5();
 router5.use(authenticateToken);
+var storage = multer2.diskStorage({
+  destination: (_req, _file, cb) => cb(null, path3.join(process.cwd(), "uploads")),
+  filename: (_req, file, cb) => {
+    const ext = path3.extname(file.originalname);
+    cb(null, `expense-${uuid()}${ext}`);
+  }
+});
+var upload2 = multer2({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  // 10 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx"];
+    const ext = path3.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error("Type de fichier non support\xE9"));
+  }
+});
+router5.post("/upload", requireRole(["ADMIN", "ACCOUNTANT"]), upload2.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "Aucun fichier fourni" });
+  }
+  const url = `/uploads/${req.file.filename}`;
+  res.status(201).json({ url, filename: req.file.originalname });
+});
 router5.post("/", requireRole(["ADMIN", "ACCOUNTANT"]), createExpense);
 router5.get("/", requireRole(["ADMIN", "ACCOUNTANT"]), getExpenses);
 router5.get("/summary", requireRole(["ADMIN", "ACCOUNTANT"]), getExpenseSummary);
@@ -2258,9 +2312,9 @@ var receiptRoutes_default = router7;
 
 // server/routes/testimonialRoutes.ts
 import { Router as Router8 } from "express";
-import multer2 from "multer";
+import multer3 from "multer";
 import rateLimit3 from "express-rate-limit";
-import path3 from "path";
+import path4 from "path";
 import fs3 from "fs";
 import crypto3 from "crypto";
 import { fileURLToPath as fileURLToPath3 } from "url";
@@ -2415,14 +2469,14 @@ var deleteTestimonial = async (req, res) => {
 };
 
 // server/routes/testimonialRoutes.ts
-var __dirname3 = path3.dirname(fileURLToPath3(import.meta.url));
-var uploadsDir = path3.join(__dirname3, "..", "uploads", "testimonials");
+var __dirname3 = path4.dirname(fileURLToPath3(import.meta.url));
+var uploadsDir = path4.join(__dirname3, "..", "uploads", "testimonials");
 fs3.mkdirSync(uploadsDir, { recursive: true });
-var upload2 = multer2({
-  storage: multer2.diskStorage({
+var upload3 = multer3({
+  storage: multer3.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
     filename: (_req, file, cb) => {
-      const ext = path3.extname(file.originalname);
+      const ext = path4.extname(file.originalname);
       cb(null, `${crypto3.randomUUID()}${ext}`);
     }
   }),
@@ -2438,7 +2492,7 @@ var testimonialUploadLimiter = rateLimit3({
 });
 router8.get("/", getTestimonials);
 router8.post("/", createTestimonial);
-router8.post("/upload", authenticateToken, testimonialUploadLimiter, upload2.array("images", 3), uploadTestimonialImage);
+router8.post("/upload", authenticateToken, testimonialUploadLimiter, upload3.array("images", 3), uploadTestimonialImage);
 router8.get("/admin/all", authenticateToken, requireRole(["ADMIN"]), getAllTestimonials);
 router8.post("/admin", authenticateToken, requireRole(["ADMIN"]), createTestimonialAdmin);
 router8.put("/:id", authenticateToken, requireRole(["ADMIN"]), updateTestimonial);
@@ -2868,7 +2922,7 @@ var cityRoutes_default = router12;
 
 // server/routes/sessionRoutes.ts
 import { Router as Router13 } from "express";
-import multer3 from "multer";
+import multer4 from "multer";
 import rateLimit4 from "express-rate-limit";
 
 // server/controllers/sessionController.ts
@@ -3509,7 +3563,7 @@ var getStudentSessions = async (req, res) => {
 
 // server/routes/sessionRoutes.ts
 var router13 = Router13();
-var upload3 = multer3({ storage: multer3.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+var upload4 = multer4({ storage: multer4.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 var sessionUploadLimiter = rateLimit4({
   windowMs: 60 * 60 * 1e3,
   max: 30,
@@ -3528,7 +3582,7 @@ router13.delete("/:id", requireRole(["ADMIN", "ACCOUNTANT"]), deleteSession);
 router13.get("/files/:fileId/download", requireRole(["STUDENT", "TEACHER", "ADMIN", "SECRETARY"]), downloadSessionFile);
 router13.put("/:id/complete", requireRole(["TEACHER"]), completeSession);
 router13.put("/:id/validate", requireRole(["ADMIN", "SECRETARY"]), validateSession);
-router13.post("/:id/files", requireRole(["TEACHER"]), sessionUploadLimiter, upload3.single("file"), uploadSessionFile);
+router13.post("/:id/files", requireRole(["TEACHER"]), sessionUploadLimiter, upload4.single("file"), uploadSessionFile);
 router13.get("/:id/files", requireRole(["STUDENT", "TEACHER", "ADMIN", "SECRETARY"]), getSessionFiles);
 var sessionRoutes_default = router13;
 
@@ -3684,15 +3738,15 @@ import { Router as Router15 } from "express";
 
 // server/utils/contractPdf.ts
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import path4 from "path";
+import path5 from "path";
 import fs4 from "fs";
 import { fileURLToPath as fileURLToPath4 } from "url";
-var __dirname4 = path4.dirname(fileURLToPath4(import.meta.url));
+var __dirname4 = path5.dirname(fileURLToPath4(import.meta.url));
 function base64ToBytes(base64) {
   return Buffer.from(base64, "base64");
 }
 async function generateSignedContractPdf(signatureDataUrl, studentName) {
-  const pdfPath = path4.resolve(__dirname4, "..", "..", "public", "doc", "contrat_exacademy.pdf");
+  const pdfPath = path5.resolve(__dirname4, "..", "..", "public", "doc", "contrat_exacademy.pdf");
   const pdfBytes = fs4.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const base64Data = signatureDataUrl.split(",")[1];
@@ -3839,9 +3893,9 @@ var contractRoutes_default = router15;
 
 // server/routes/shopRoutes.ts
 import { Router as Router16 } from "express";
-import multer4 from "multer";
+import multer5 from "multer";
 import rateLimit5 from "express-rate-limit";
-import path5 from "path";
+import path6 from "path";
 import fs5 from "fs";
 import crypto5 from "crypto";
 import { fileURLToPath as fileURLToPath5 } from "url";
@@ -4165,14 +4219,14 @@ var updateOrderStatus = async (req, res) => {
 };
 
 // server/routes/shopRoutes.ts
-var __dirname5 = path5.dirname(fileURLToPath5(import.meta.url));
-var uploadsDir2 = path5.join(__dirname5, "..", "uploads", "products");
+var __dirname5 = path6.dirname(fileURLToPath5(import.meta.url));
+var uploadsDir2 = path6.join(__dirname5, "..", "uploads", "products");
 fs5.mkdirSync(uploadsDir2, { recursive: true });
-var upload4 = multer4({
-  storage: multer4.diskStorage({
+var upload5 = multer5({
+  storage: multer5.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir2),
     filename: (_req, file, cb) => {
-      const ext = path5.extname(file.originalname).toLowerCase();
+      const ext = path6.extname(file.originalname).toLowerCase();
       cb(null, `${crypto5.randomUUID()}${ext}`);
     }
   }),
@@ -4202,7 +4256,7 @@ router16.get("/products/:id/reviews", getProductReviews);
 router16.post("/products/:id/reviews", authenticateToken, createReview);
 router16.get("/my-orders", authenticateToken, getStudentOrders);
 router16.get("/admin/products", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), getAllProducts);
-router16.post("/admin/products/upload", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), uploadLimiter, upload4.single("image"), uploadProductImage);
+router16.post("/admin/products/upload", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), uploadLimiter, upload5.single("image"), uploadProductImage);
 router16.post("/admin/products", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), createProduct);
 router16.put("/admin/products/:id", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), updateProduct);
 router16.delete("/admin/products/:id", authenticateToken, requireRole(["ADMIN", "SECRETARY"]), deleteProduct);
@@ -4370,8 +4424,8 @@ var bannerRoutes_default = router17;
 
 // server/routes/blogRoutes.ts
 import { Router as Router18 } from "express";
-import multer5 from "multer";
-import path6 from "path";
+import multer6 from "multer";
+import path7 from "path";
 import fs6 from "fs";
 import crypto6 from "crypto";
 import { fileURLToPath as fileURLToPath6 } from "url";
@@ -4700,14 +4754,14 @@ var evaluateSubmission = async (req, res) => {
 };
 
 // server/routes/blogRoutes.ts
-var __dirname6 = path6.dirname(fileURLToPath6(import.meta.url));
-var blogUploadsDir = path6.join(__dirname6, "..", "uploads", "blog");
+var __dirname6 = path7.dirname(fileURLToPath6(import.meta.url));
+var blogUploadsDir = path7.join(__dirname6, "..", "uploads", "blog");
 fs6.mkdirSync(blogUploadsDir, { recursive: true });
-var upload5 = multer5({
-  storage: multer5.diskStorage({
+var upload6 = multer6({
+  storage: multer6.diskStorage({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
     filename: (_req, file, cb) => {
-      const ext = path6.extname(file.originalname);
+      const ext = path7.extname(file.originalname);
       cb(null, `${crypto6.randomUUID()}${ext}`);
     }
   }),
@@ -4727,15 +4781,15 @@ router18.use(authenticateToken);
 router18.post("/", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), createBlogPost);
 router18.put("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), updateBlogPost);
 router18.delete("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteBlogPost);
-router18.post("/:id/attachments", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), upload5.single("file"), uploadPostAttachment);
+router18.post("/:id/attachments", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), upload6.single("file"), uploadPostAttachment);
 router18.get("/:postId/comments", getComments);
 router18.post("/:postId/comments", requireRole(["ADMIN", "TEACHER", "SECRETARY", "STUDENT"]), createComment);
 router18.delete("/comments/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteComment);
 router18.post("/:postId/exercises", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), createExercise);
 router18.put("/exercises/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), updateExercise);
 router18.delete("/exercises/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteExercise);
-router18.post("/exercises/:id/attachments", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), upload5.single("file"), uploadExerciseAttachment);
-router18.post("/exercises/:id/submit", requireRole(["STUDENT"]), upload5.single("file"), submitExercise);
+router18.post("/exercises/:id/attachments", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), upload6.single("file"), uploadExerciseAttachment);
+router18.post("/exercises/:id/submit", requireRole(["STUDENT"]), upload6.single("file"), submitExercise);
 router18.get("/exercises/:id/submissions", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), getSubmissions);
 router18.put("/submissions/:id/evaluate", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), evaluateSubmission);
 var blogRoutes_default = router18;
@@ -5225,10 +5279,10 @@ if (process.argv[1]?.includes("seed-courses")) {
 }
 
 // server/index.ts
-import path7 from "path";
+import path8 from "path";
 import fs7 from "fs";
 import { fileURLToPath as fileURLToPath7 } from "url";
-var __dirname7 = path7.dirname(fileURLToPath7(import.meta.url));
+var __dirname7 = path8.dirname(fileURLToPath7(import.meta.url));
 async function ensureCourseColumns() {
   const tableCheck = await prisma.$queryRaw`
     SELECT EXISTS (
@@ -5451,19 +5505,19 @@ app.get("/api/health", async (req, res) => {
   }
 });
 var projectRoot = process.cwd();
-var rootUploads = path7.resolve(projectRoot, "uploads");
-var serverUploads = path7.resolve(projectRoot, "server", "uploads");
+var rootUploads = path8.resolve(projectRoot, "uploads");
+var serverUploads = path8.resolve(projectRoot, "server", "uploads");
 for (const sub of ["products", "testimonials", "blog", "users", "sessions", "categories"]) {
-  fs7.mkdirSync(path7.join(rootUploads, sub), { recursive: true });
+  fs7.mkdirSync(path8.join(rootUploads, sub), { recursive: true });
 }
 var candidateDistPaths = [
-  path7.resolve(projectRoot, "dist"),
-  path7.resolve(__dirname7, "..", "dist"),
-  path7.resolve(__dirname7, "dist")
+  path8.resolve(projectRoot, "dist"),
+  path8.resolve(__dirname7, "..", "dist"),
+  path8.resolve(__dirname7, "dist")
 ];
 var distPath = candidateDistPaths.find((p) => fs7.existsSync(p)) || candidateDistPaths[0];
 app.use(express.static(distPath));
-var publicDocPath = path7.resolve(projectRoot, "public", "doc");
+var publicDocPath = path8.resolve(projectRoot, "public", "doc");
 if (fs7.existsSync(publicDocPath)) {
   app.use("/doc", express.static(publicDocPath));
 }
@@ -5473,11 +5527,11 @@ if (fs7.existsSync(rootUploads)) {
 if (fs7.existsSync(serverUploads)) {
   app.use("/uploads", express.static(serverUploads));
 }
-app.use("/uploads", express.static(path7.join(__dirname7, "uploads")));
+app.use("/uploads", express.static(path8.join(__dirname7, "uploads")));
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (req.path.startsWith("/api/")) return next();
-  const indexPath = path7.join(distPath, "index.html");
+  const indexPath = path8.join(distPath, "index.html");
   if (fs7.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
@@ -5565,6 +5619,79 @@ async function initDatabaseDefaults() {
         await prisma.shopBanner.create({ data: { ...b, featured: true, isActive: true } });
       }
       console.log("\u2705 Banni\xE8res \xAB \xC0 la une \xBB par d\xE9faut cr\xE9\xE9es en base");
+    }
+    const cityCount = await prisma.city.count();
+    if (cityCount === 0) {
+      console.log("\u{1F504} Initialisation des villes par d\xE9faut...");
+      const CI_DEFAULT = "Cote d'Ivoire";
+      const defaultCities = [
+        // CI
+        { name: "Abidjan", country: CI_DEFAULT },
+        { name: "Bouake", country: CI_DEFAULT },
+        { name: "Yamoussoukro", country: CI_DEFAULT },
+        { name: "Daloa", country: CI_DEFAULT },
+        { name: "Korhogo", country: CI_DEFAULT },
+        { name: "Divo", country: CI_DEFAULT },
+        { name: "Man", country: CI_DEFAULT },
+        { name: "San Pedro", country: CI_DEFAULT },
+        { name: "Gagnoa", country: CI_DEFAULT },
+        { name: "Abengourou", country: CI_DEFAULT },
+        { name: "Dimbokro", country: CI_DEFAULT },
+        { name: "Bouna", country: CI_DEFAULT },
+        { name: "Bingerville", country: CI_DEFAULT },
+        { name: "Grand-Bassam", country: CI_DEFAULT },
+        { name: "Cocody", country: CI_DEFAULT },
+        { name: "Marcory", country: CI_DEFAULT },
+        { name: "Plateau", country: CI_DEFAULT },
+        { name: "Treichville", country: CI_DEFAULT },
+        { name: "Abobo", country: CI_DEFAULT },
+        { name: "Koumassi", country: CI_DEFAULT },
+        { name: "Port-Bouet", country: CI_DEFAULT },
+        { name: "Anyama", country: CI_DEFAULT },
+        { name: "Adjam\xE9", country: CI_DEFAULT },
+        { name: "Bondoukou", country: CI_DEFAULT },
+        { name: "Boundiali", country: CI_DEFAULT },
+        { name: "Ferke", country: CI_DEFAULT },
+        { name: "Guiglo", country: CI_DEFAULT },
+        { name: "Issia", country: CI_DEFAULT },
+        { name: "Jacqueville", country: CI_DEFAULT },
+        { name: "Katiola", country: CI_DEFAULT },
+        { name: "Lakota", country: CI_DEFAULT },
+        { name: "Odienne", country: CI_DEFAULT },
+        { name: "Oum\xE9", country: CI_DEFAULT },
+        { name: "S\xE9gu\xE9la", country: CI_DEFAULT },
+        { name: "Sinfra", country: CI_DEFAULT },
+        { name: "Touba", country: CI_DEFAULT },
+        { name: "Vavoua", country: CI_DEFAULT },
+        { name: "Zuenoula", country: CI_DEFAULT },
+        // Afrique
+        { name: "Dakar", country: "Senegal" },
+        { name: "Bamako", country: "Mali" },
+        { name: "Ouagadougou", country: "Burkina Faso" },
+        { name: "Cotonou", country: "Benin" },
+        { name: "Lom\xE9", country: "Togo" },
+        { name: "Accra", country: "Ghana" },
+        { name: "Lagos", country: "Nigeria" },
+        { name: "Yaound\xE9", country: "Cameroun" },
+        { name: "Libreville", country: "Gabon" },
+        // Europe
+        { name: "Paris", country: "France" },
+        { name: "Lyon", country: "France" },
+        { name: "Marseille", country: "France" },
+        { name: "Bruxelles", country: "Belgique" },
+        { name: "Gen\xE8ve", country: "Suisse" },
+        { name: "Berlin", country: "Allemagne" },
+        { name: "Rome", country: "Italie" },
+        { name: "Madrid", country: "Espagne" },
+        { name: "Lisbonne", country: "Portugal" },
+        { name: "Londres", country: "Royaume-Uni" },
+        { name: "Amsterdam", country: "Pays-Bas" },
+        { name: "Luxembourg", country: "Luxembourg" }
+      ];
+      for (const c of defaultCities) {
+        await prisma.city.upsert({ where: { name: c.name }, update: {}, create: c });
+      }
+      console.log(`\u2705 ${defaultCities.length} villes par d\xE9faut cr\xE9\xE9es`);
     }
     const adminExists = await prisma.user.findUnique({
       where: { email: "admin@excellence.ci" }

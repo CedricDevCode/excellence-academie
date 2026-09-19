@@ -16,6 +16,8 @@ import {
   MapPin,
   Trash2,
   CheckCircle,
+  FileText,
+  Upload,
 } from "lucide-react";
 import {
   BarChart,
@@ -36,6 +38,7 @@ import {
   deleteExpense,
   fetchCityBreakdown,
   fetchCities,
+  uploadExpenseAttachment,
 } from "../../utils/api";
 import { useToast } from "../Toast";
 import LoadingSpinner from "./LoadingSpinner";
@@ -57,6 +60,19 @@ function ComptaView() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Scolarite filters
+  const [scolariteTypeFilter, setScolariteTypeFilter] = useState('');
+  const [scolariteCityFilter, setScolariteCityFilter] = useState('');
+  const [scolariteFormuleFilter, setScolariteFormuleFilter] = useState('');
+
+  // Depenses filters
+  const [depenseCityFilter, setDepenseCityFilter] = useState('');
+
+  // Expense form: attachment
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
   const { toast, confirm } = useToast();
 
   const loadData = async () => {
@@ -94,6 +110,13 @@ function ComptaView() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      let uploadedUrl = attachmentUrl;
+      if (attachmentFile) {
+        setUploadingFile(true);
+        const result = await uploadExpenseAttachment(attachmentFile);
+        uploadedUrl = result.url;
+        setUploadingFile(false);
+      }
       await createExpense({
         amount: form.amount,
         description: form.description,
@@ -101,16 +124,20 @@ function ComptaView() {
         ville: form.ville || undefined,
         paymentMethod: form.paymentMethod,
         teacherId: form.teacherId || undefined,
+        attachmentUrl: uploadedUrl || undefined,
       });
       setForm({ amount: '', description: '', category: '', ville: '', paymentMethod: 'Espèces', teacherId: '' });
+      setAttachmentFile(null);
+      setAttachmentUrl('');
       setShowForm(false);
       const expensesData = await fetchExpenses();
       setExpenses(expensesData);
-      toast('success', 'Dépense enregistrée');
+      toast('success', 'Depense enregistree');
     } catch (err) {
       toast('error', "Erreur lors de l'enregistrement");
     } finally {
       setSubmitting(false);
+      setUploadingFile(false);
     }
   };
 
@@ -170,6 +197,46 @@ function ComptaView() {
       return true;
     });
   }, [paidShopOrders, startDate, endDate]);
+
+  // Scolarite: enriched with type/formule, apply all filters
+  const filteredScolaritePayments = useMemo(() => {
+    return dateFilteredPaidPayments.filter((p: any) => {
+      if (scolariteTypeFilter && p.type !== scolariteTypeFilter) return false;
+      if (scolariteCityFilter && (p.user?.ville || '') !== scolariteCityFilter) return false;
+      if (scolariteFormuleFilter) {
+        if (scolariteFormuleFilter === 'particulier' && !p.coursParticuliers) return false;
+        if (scolariteFormuleFilter === 'presentiel' && (p.coursParticuliers || p.formule !== 'presentiel')) return false;
+        if (scolariteFormuleFilter === 'en_ligne' && (p.coursParticuliers || p.formule !== 'en_ligne')) return false;
+        if (scolariteFormuleFilter === 'les_deux' && (p.coursParticuliers || p.formule !== 'les_deux')) return false;
+      }
+      return true;
+    });
+  }, [dateFilteredPaidPayments, scolariteTypeFilter, scolariteCityFilter, scolariteFormuleFilter]);
+
+  const scolariteInscriptions = useMemo(() => filteredScolaritePayments.filter((p: any) => p.type === 'INSCRIPTION'), [filteredScolaritePayments]);
+  const scolariteMensualites = useMemo(() => filteredScolaritePayments.filter((p: any) => p.type === 'MENSUALITE'), [filteredScolaritePayments]);
+
+  // Depenses: apply city filter
+  const filteredExpenses = useMemo(() => {
+    return dateFilteredExpenses.filter((e: any) => {
+      if (depenseCityFilter && (e.ville || '') !== depenseCityFilter) return false;
+      return true;
+    });
+  }, [dateFilteredExpenses, depenseCityFilter]);
+
+  // Unique cities from payments (for filter dropdown)
+  const paymentCities = useMemo(() => {
+    const set = new Set<string>();
+    dateFilteredPaidPayments.forEach((p: any) => { if (p.user?.ville) set.add(p.user.ville); });
+    return Array.from(set).sort();
+  }, [dateFilteredPaidPayments]);
+
+  // Unique cities from expenses (for filter dropdown)
+  const expenseCities = useMemo(() => {
+    const set = new Set<string>();
+    dateFilteredExpenses.forEach((e: any) => { if (e.ville) set.add(e.ville); });
+    return Array.from(set).sort();
+  }, [dateFilteredExpenses]);
 
   const monthlyData = useMemo(() => {
     const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
@@ -263,24 +330,32 @@ function ComptaView() {
       {comptaTab === 'scolarite' && (
         <div className="space-y-6">
           {/* KPIs */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="relative overflow-hidden bg-linear-to-br from-primary-500 to-primary-700 rounded p-5 text-white shadow-lg">
               <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full" />
               <div className="absolute -right-1 top-8 w-12 h-12 bg-white/10 rounded-full" />
               <div className="flex items-center gap-2 mb-3 relative z-10">
                 <TrendingUp size={18} />
-                <span className="text-primary-100 text-sm font-medium">Inscriptions & Mensualités</span>
+                <span className="text-primary-100 text-sm font-medium">Total Revenus</span>
               </div>
               <div className="text-3xl font-black relative z-10">{formatPrice(totalRevenus)}</div>
-              <div className="text-primary-200 text-sm mt-1 relative z-10">FCFA &bull; {paidPayments.length} paiements validés</div>
+              <div className="text-primary-200 text-sm mt-1 relative z-10">FCFA &bull; {paidPayments.length} paiements</div>
             </div>
             <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 mb-3 text-gray-400">
-                <CreditCard size={18} />
-                <span className="text-sm font-medium">Transactions</span>
+              <div className="flex items-center gap-2 mb-3 text-blue-500">
+                <GraduationCap size={18} />
+                <span className="text-sm font-medium">Inscriptions</span>
               </div>
-              <div className="text-3xl font-black text-gray-900">{paidPayments.length}</div>
-              <div className="text-gray-400 text-sm mt-1">Paiements réussis</div>
+              <div className="text-3xl font-black text-blue-600">{formatPrice(scolariteInscriptions.reduce((a: number, p: any) => a + Number(p.amount), 0))}</div>
+              <div className="text-gray-400 text-sm mt-1">{scolariteInscriptions.length} inscriptions</div>
+            </div>
+            <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-2 mb-3 text-green-500">
+                <CreditCard size={18} />
+                <span className="text-sm font-medium">Mensualités</span>
+              </div>
+              <div className="text-3xl font-black text-green-600">{formatPrice(scolariteMensualites.reduce((a: number, p: any) => a + Number(p.amount), 0))}</div>
+              <div className="text-gray-400 text-sm mt-1">{scolariteMensualites.length} versements</div>
             </div>
             <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-3 text-gray-400">
@@ -288,19 +363,46 @@ function ComptaView() {
                 <span className="text-sm font-medium">Moyenne / paiement</span>
               </div>
               <div className="text-3xl font-black text-gray-900">
-                {paidPayments.length > 0 ? formatPrice(Math.round(totalRevenus / paidPayments.length)) : '0'}
+                {filteredScolaritePayments.length > 0 ? formatPrice(Math.round(filteredScolaritePayments.reduce((a: number, p: any) => a + Number(p.amount), 0) / filteredScolaritePayments.length)) : '0'}
               </div>
               <div className="text-gray-400 text-sm mt-1">FCFA moyen</div>
             </div>
           </div>
 
-          {/* Date filter */}
-          <div className="bg-white rounded shadow-sm border border-gray-100 p-4 flex flex-wrap items-center gap-4">
+          {/* Filters */}
+          <div className="bg-white rounded shadow-sm border border-gray-100 p-4 space-y-3">
             <div className="flex items-center gap-2 text-gray-600">
               <Filter size={15} />
-              <span className="text-sm font-semibold">Filtrer la période</span>
+              <span className="text-sm font-semibold">Filtres</span>
             </div>
-            <DateFilterBar />
+            <div className="flex flex-wrap items-center gap-3">
+              <DateFilterBar />
+              <select value={scolariteTypeFilter} onChange={e => setScolariteTypeFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none bg-white">
+                <option value="">Tous les types</option>
+                <option value="INSCRIPTION">Inscriptions</option>
+                <option value="MENSUALITE">Mensualités</option>
+              </select>
+              <select value={scolariteCityFilter} onChange={e => setScolariteCityFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none bg-white">
+                <option value="">Toutes les villes</option>
+                {paymentCities.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={scolariteFormuleFilter} onChange={e => setScolariteFormuleFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none bg-white">
+                <option value="">Toutes les formules</option>
+                <option value="presentiel">Présentiel</option>
+                <option value="en_ligne">En ligne</option>
+                <option value="les_deux">Présentiel + En ligne</option>
+                <option value="particulier">Cours particuliers</option>
+              </select>
+              {(scolariteTypeFilter || scolariteCityFilter || scolariteFormuleFilter) && (
+                <button onClick={() => { setScolariteTypeFilter(''); setScolariteCityFilter(''); setScolariteFormuleFilter(''); }}
+                  className="text-xs text-red-600 hover:text-red-700 font-bold underline">
+                  Effacer filtres
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Transactions list */}
@@ -308,25 +410,38 @@ function ComptaView() {
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <TrendingUp size={16} className="text-primary-500" /> Paiements de scolarité
-                <span className="bg-primary-50 text-primary-700 text-xs font-bold px-2 py-0.5 rounded-full">{dateFilteredPaidPayments.length}</span>
+                <span className="bg-primary-50 text-primary-700 text-xs font-bold px-2 py-0.5 rounded-full">{filteredScolaritePayments.length}</span>
               </h3>
               <span className="text-sm font-black text-primary-600">{formatPrice(totalRevenus)} FCFA</span>
             </div>
-            {dateFilteredPaidPayments.length === 0 ? (
+            {filteredScolaritePayments.length === 0 ? (
               <div className="py-12 text-center">
                 <TrendingUp size={40} className="text-gray-200 mx-auto mb-3" />
                 <p className="text-gray-400 text-sm">Aucun paiement de scolarité</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {dateFilteredPaidPayments.slice(0, 10).map((p: any) => (
+                {filteredScolaritePayments.slice(0, 15).map((p: any) => (
                   <div key={p.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-primary-50/30 transition-colors">
-                    <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 shrink-0">
-                      <CheckCircle size={16} />
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${p.type === 'INSCRIPTION' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                      {p.type === 'INSCRIPTION' ? <GraduationCap size={16} /> : <CreditCard size={16} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 text-sm truncate">{p.user?.name || 'Client inconnu'}</div>
-                      <div className="text-gray-400 text-xs">{new Date(p.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900 text-sm truncate">{p.user?.name || 'Client inconnu'}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${p.type === 'INSCRIPTION' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                          {p.type === 'INSCRIPTION' ? 'Inscription' : 'Mensualité'}
+                        </span>
+                        {p.formule && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            {p.formule === 'en_ligne' ? 'En ligne' : p.formule === 'les_deux' ? 'Hybride' : p.coursParticuliers ? 'Particulier' : 'Présentiel'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-gray-400 text-xs flex items-center gap-2">
+                        <span>{new Date(p.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        {p.user?.ville && <span className="flex items-center gap-0.5"><MapPin size={10} />{p.user.ville}</span>}
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="font-black text-primary-600 text-sm">+{formatPrice(p.amount)} FCFA</div>
@@ -334,9 +449,9 @@ function ComptaView() {
                     </div>
                   </div>
                 ))}
-                {dateFilteredPaidPayments.length > 10 && (
+                {filteredScolaritePayments.length > 15 && (
                   <div className="px-5 py-3 bg-gray-50 text-center text-sm text-gray-400">
-                    +{dateFilteredPaidPayments.length - 10} autres paiements
+                    +{filteredScolaritePayments.length - 15} autres paiements
                   </div>
                 )}
               </div>
@@ -472,9 +587,17 @@ function ComptaView() {
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2 text-gray-600">
                 <Filter size={15} />
-                <span className="text-sm font-semibold">Filtrer la période</span>
+                <span className="text-sm font-semibold">Filtrer</span>
               </div>
               <DateFilterBar />
+              <select value={depenseCityFilter} onChange={e => setDepenseCityFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none bg-white">
+                <option value="">Toutes les villes</option>
+                {expenseCities.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {depenseCityFilter && (
+                <button onClick={() => setDepenseCityFilter('')} className="text-xs text-red-600 hover:text-red-700 font-bold underline">Effacer</button>
+              )}
             </div>
             <button onClick={() => setShowForm(true)}
               className="flex items-center gap-2 bg-linear-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded text-sm font-bold shadow-sm hover:shadow-md transition-all hover:scale-105">
@@ -487,18 +610,18 @@ function ComptaView() {
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <TrendingDown size={16} className="text-red-500" /> Liste des dépenses
-                <span className="bg-red-50 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">{dateFilteredExpenses.length}</span>
+                <span className="bg-red-50 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">{filteredExpenses.length}</span>
               </h3>
               <span className="text-sm font-black text-red-600">-{formatPrice(totalDepenses)} FCFA</span>
             </div>
-            {dateFilteredExpenses.length === 0 ? (
+            {filteredExpenses.length === 0 ? (
               <div className="py-12 text-center">
                 <TrendingDown size={40} className="text-gray-200 mx-auto mb-3" />
                 <p className="text-gray-400 text-sm">Aucune dépense sur cette période</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {dateFilteredExpenses.map((d: any) => (
+                {filteredExpenses.map((d: any) => (
                   <div key={d.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-red-50/20 transition-colors group">
                     <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0 text-xs font-black">
                       {d.description?.slice(0, 2).toUpperCase() || 'DP'}
@@ -507,8 +630,14 @@ function ComptaView() {
                       <div className="font-semibold text-gray-900 text-sm truncate">{d.description}</div>
                       <div className="text-gray-400 text-xs flex flex-wrap gap-1.5 mt-0.5">
                         <span>{new Date(d.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                        {d.ville && <span className="bg-surface-50 px-1.5 py-0.5 rounded text-gray-500">{d.ville}</span>}
+                        {d.ville && <span className="bg-surface-50 px-1.5 py-0.5 rounded text-gray-500 flex items-center gap-0.5"><MapPin size={10} />{d.ville}</span>}
                         {d.category && <span className="bg-surface-50 px-1.5 py-0.5 rounded text-gray-500">{EXPENSE_CATEGORIES.find(c => c.value === d.category)?.label || d.category}</span>}
+                        {d.attachmentUrl && (
+                          <a href={d.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                            className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded flex items-center gap-0.5 hover:bg-blue-100 transition-colors">
+                            <FileText size={10} /> Justificatif
+                          </a>
+                        )}
                       </div>
                     </div>
                     <div className="text-right shrink-0 flex items-center gap-3">
@@ -765,6 +894,25 @@ function ComptaView() {
                       </select>
                     </div>
                   )}
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Pièce jointe justificative (optionnel)</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1 flex items-center gap-2 px-4 py-3 border border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-red-400 hover:bg-red-50/30 transition-colors cursor-pointer">
+                        <Upload size={16} />
+                        <span>{attachmentFile ? attachmentFile.name : 'Choisir un fichier (PDF, image...)'}
+                        </span>
+                        <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) { setAttachmentFile(f); setAttachmentUrl(''); } }} />
+                      </label>
+                      {(attachmentFile || attachmentUrl) && (
+                        <button type="button" onClick={() => { setAttachmentFile(null); setAttachmentUrl(''); }}
+                          className="text-gray-400 hover:text-red-500 transition-colors"><X size={16} /></button>
+                      )}
+                    </div>
+                    {attachmentFile && !attachmentUrl && (
+                      <p className="text-xs text-gray-400 mt-1">Fichier sélectionné — sera uploadé à l'enregistrement</p>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="p-6 pt-4 border-t border-gray-100 shrink-0 flex gap-3 bg-gray-50 rounded-b-3xl">

@@ -88,6 +88,7 @@ model Payment {
   id                 String   @id @default(uuid())
   amount             Float
   status             String   @default("PENDING")
+  type               String?
   geniusPayReference String?
   receiptNumber      String?  @unique
   user               User     @relation(fields: [userId], references: [id])
@@ -101,6 +102,7 @@ model Payment {
   @@index([userId])
   @@index([courseId])
   @@index([status])
+  @@index([type])
   @@index([createdAt])
 }
 
@@ -160,6 +162,7 @@ model Expense {
   ville          String?
   status         String   @default("PENDING")
   paymentMethod  String?
+  attachmentUrl  String?
   teacher        User?    @relation("TeacherExpenses", fields: [teacherId], references: [id])
   teacherId      String?
   createdAt      DateTime @default(now())

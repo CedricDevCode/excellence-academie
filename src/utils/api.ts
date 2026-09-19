@@ -236,7 +236,7 @@ export const fetchExpenses = async () => {
   return res.json();
 };
 
-export const createExpense = async (data: { amount: string; description: string; category?: string; ville?: string; teacherId?: string; paymentMethod: string }) => {
+export const createExpense = async (data: { amount: string; description: string; category?: string; ville?: string; teacherId?: string; paymentMethod: string; attachmentUrl?: string }) => {
   const res = await authFetch(`${API_BASE_URL}/expenses`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -245,12 +245,25 @@ export const createExpense = async (data: { amount: string; description: string;
   return res.json();
 };
 
-export const updateExpense = async (id: string, data: { amount?: string; description?: string; category?: string; ville?: string; paymentMethod?: string; status?: string; teacherId?: string }) => {
+export const updateExpense = async (id: string, data: { amount?: string; description?: string; category?: string; ville?: string; paymentMethod?: string; status?: string; teacherId?: string; attachmentUrl?: string }) => {
   const res = await authFetch(`${API_BASE_URL}/expenses/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to update expense');
+  return res.json();
+};
+
+export const uploadExpenseAttachment = async (file: File): Promise<{ url: string; filename: string }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API_BASE_URL}/expenses/upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) throw new Error("Erreur lors de l'upload du fichier");
   return res.json();
 };
 

@@ -455,6 +455,52 @@ async function initDatabaseDefaults() {
       console.log('✅ Bannières « À la une » par défaut créées en base');
     }
 
+    // Seed des villes (Cote d'Ivoire + Afrique + Europe)
+    const cityCount = await prisma.city.count();
+    if (cityCount === 0) {
+      console.log('🔄 Initialisation des villes par défaut...');
+      const CI_DEFAULT = "Cote d'Ivoire";
+      const defaultCities = [
+        // CI
+        { name: 'Abidjan', country: CI_DEFAULT }, { name: 'Bouake', country: CI_DEFAULT },
+        { name: 'Yamoussoukro', country: CI_DEFAULT }, { name: 'Daloa', country: CI_DEFAULT },
+        { name: 'Korhogo', country: CI_DEFAULT }, { name: 'Divo', country: CI_DEFAULT },
+        { name: 'Man', country: CI_DEFAULT }, { name: 'San Pedro', country: CI_DEFAULT },
+        { name: 'Gagnoa', country: CI_DEFAULT }, { name: 'Abengourou', country: CI_DEFAULT },
+        { name: 'Dimbokro', country: CI_DEFAULT }, { name: 'Bouna', country: CI_DEFAULT },
+        { name: 'Bingerville', country: CI_DEFAULT }, { name: 'Grand-Bassam', country: CI_DEFAULT },
+        { name: 'Cocody', country: CI_DEFAULT }, { name: 'Marcory', country: CI_DEFAULT },
+        { name: 'Plateau', country: CI_DEFAULT }, { name: 'Treichville', country: CI_DEFAULT },
+        { name: 'Abobo', country: CI_DEFAULT }, { name: 'Koumassi', country: CI_DEFAULT },
+        { name: 'Port-Bouet', country: CI_DEFAULT }, { name: 'Anyama', country: CI_DEFAULT },
+        { name: 'Adjamé', country: CI_DEFAULT }, { name: 'Bondoukou', country: CI_DEFAULT },
+        { name: 'Boundiali', country: CI_DEFAULT }, { name: 'Ferke', country: CI_DEFAULT },
+        { name: 'Guiglo', country: CI_DEFAULT }, { name: 'Issia', country: CI_DEFAULT },
+        { name: 'Jacqueville', country: CI_DEFAULT }, { name: 'Katiola', country: CI_DEFAULT },
+        { name: 'Lakota', country: CI_DEFAULT }, { name: 'Odienne', country: CI_DEFAULT },
+        { name: 'Oumé', country: CI_DEFAULT }, { name: 'Séguéla', country: CI_DEFAULT },
+        { name: 'Sinfra', country: CI_DEFAULT }, { name: 'Touba', country: CI_DEFAULT },
+        { name: 'Vavoua', country: CI_DEFAULT }, { name: 'Zuenoula', country: CI_DEFAULT },
+        // Afrique
+        { name: 'Dakar', country: 'Senegal' }, { name: 'Bamako', country: 'Mali' },
+        { name: 'Ouagadougou', country: 'Burkina Faso' }, { name: 'Cotonou', country: 'Benin' },
+        { name: 'Lomé', country: 'Togo' }, { name: 'Accra', country: 'Ghana' },
+        { name: 'Lagos', country: 'Nigeria' }, { name: 'Yaoundé', country: 'Cameroun' },
+        { name: 'Libreville', country: 'Gabon' },
+        // Europe
+        { name: 'Paris', country: 'France' }, { name: 'Lyon', country: 'France' },
+        { name: 'Marseille', country: 'France' }, { name: 'Bruxelles', country: 'Belgique' },
+        { name: 'Genève', country: 'Suisse' }, { name: 'Berlin', country: 'Allemagne' },
+        { name: 'Rome', country: 'Italie' }, { name: 'Madrid', country: 'Espagne' },
+        { name: 'Lisbonne', country: 'Portugal' }, { name: 'Londres', country: 'Royaume-Uni' },
+        { name: 'Amsterdam', country: 'Pays-Bas' }, { name: 'Luxembourg', country: 'Luxembourg' },
+      ];
+      for (const c of defaultCities) {
+        await prisma.city.upsert({ where: { name: c.name }, update: {}, create: c });
+      }
+      console.log(`✅ ${defaultCities.length} villes par défaut créées`);
+    }
+
     const adminExists = await prisma.user.findUnique({
       where: { email: 'admin@excellence.ci' },
     });

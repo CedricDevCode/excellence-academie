@@ -1,7 +1,5 @@
-import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
+import prisma from './utils/prisma';
 
 async function main() {
   const password = await bcrypt.hash('password123', 10);
@@ -23,31 +21,66 @@ async function main() {
 
   console.log('Seed completed: users created.');
 
+  const CI = "Cote d'Ivoire";
+
   const cities = [
+    // Cote d'Ivoire — grandes villes + communes d'Abidjan
+    { name: 'Abidjan', country: CI },
+    { name: 'Bouake', country: CI },
+    { name: 'Yamoussoukro', country: CI },
+    { name: 'Daloa', country: CI },
+    { name: 'Korhogo', country: CI },
+    { name: 'Divo', country: CI },
+    { name: 'Man', country: CI },
+    { name: 'San Pedro', country: CI },
+    { name: 'Gagnoa', country: CI },
+    { name: 'Abengourou', country: CI },
+    { name: 'Dimbokro', country: CI },
+    { name: 'Bouna', country: CI },
+    { name: 'Bingerville', country: CI },
+    { name: 'Grand-Bassam', country: CI },
+    { name: 'Cocody', country: CI },
+    { name: 'Marcory', country: CI },
+    { name: 'Plateau', country: CI },
+    { name: 'Treichville', country: CI },
+    { name: 'Abobo', country: CI },
+    { name: 'Koumassi', country: CI },
+    { name: 'Port-Bouet', country: CI },
+    { name: 'Anyama', country: CI },
+    { name: 'Adjamé', country: CI },
+    { name: 'Attiekgongon', country: CI },
+    { name: 'Beoumi', country: CI },
+    { name: 'Bondoukou', country: CI },
+    { name: 'Boundiali', country: CI },
+    { name: 'Ferke', country: CI },
+    { name: 'Guiglo', country: CI },
+    { name: 'Issia', country: CI },
+    { name: 'Jacqueville', country: CI },
+    { name: 'Katiola', country: CI },
+    { name: 'Lakota', country: CI },
+    { name: 'Odienne', country: CI },
+    { name: 'Oume', country: CI },
+    { name: 'Seguela', country: CI },
+    { name: 'Sinfra', country: CI },
+    { name: 'Touba', country: CI },
+    { name: 'Vavoua', country: CI },
+    { name: 'Zuenoula', country: CI },
     // Afrique
-    { name: 'Abidjan', country: "Côte d'Ivoire" },
-    { name: 'Bouaké', country: "Côte d'Ivoire" },
-    { name: 'Yamoussoukro', country: "Côte d'Ivoire" },
-    { name: 'Daloa', country: "Côte d'Ivoire" },
-    { name: 'Korhogo', country: "Côte d'Ivoire" },
-    { name: 'Divo', country: "Côte d'Ivoire" },
-    { name: 'Man', country: "Côte d'Ivoire" },
-    { name: 'San Pedro', country: "Côte d'Ivoire" },
-    { name: 'Dakar', country: 'Sénégal' },
+    { name: 'Dakar', country: 'Senegal' },
     { name: 'Bamako', country: 'Mali' },
     { name: 'Ouagadougou', country: 'Burkina Faso' },
-    { name: 'Cotonou', country: 'Bénin' },
-    { name: 'Lomé', country: 'Togo' },
+    { name: 'Cotonou', country: 'Benin' },
+    { name: 'Lome', country: 'Togo' },
     { name: 'Accra', country: 'Ghana' },
     { name: 'Lagos', country: 'Nigeria' },
-    { name: 'Yaoundé', country: 'Cameroun' },
+    { name: 'Yaounde', country: 'Cameroun' },
     { name: 'Libreville', country: 'Gabon' },
     // Europe
     { name: 'Paris', country: 'France' },
     { name: 'Lyon', country: 'France' },
     { name: 'Marseille', country: 'France' },
     { name: 'Bruxelles', country: 'Belgique' },
-    { name: 'Genève', country: 'Suisse' },
+    { name: 'Geneve', country: 'Suisse' },
     { name: 'Berlin', country: 'Allemagne' },
     { name: 'Rome', country: 'Italie' },
     { name: 'Madrid', country: 'Espagne' },

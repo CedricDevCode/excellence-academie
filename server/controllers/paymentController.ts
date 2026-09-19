@@ -55,12 +55,42 @@ export const getPayments = async (req: Request, res: Response) => {
     const payments = await prisma.payment.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, ville: true } },
         course: { select: { id: true, title: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'asc' }
     });
-    res.json(payments);
+
+    // Enrich with formule from subscriptions
+    const userIds = [...new Set(payments.map(p => p.userId))];
+    const courseIds = [...new Set(payments.map(p => p.courseId).filter(Boolean))];
+    const subs = await prisma.subscription.findMany({
+      where: { userId: { in: userIds }, courseId: { in: courseIds as string[] } },
+      select: { userId: true, courseId: true, formule: true, coursParticuliers: true }
+    });
+    const subMap = new Map<string, { formule: string | null; coursParticuliers: boolean | null }>();
+    for (const s of subs) subMap.set(`${s.userId}-${s.courseId}`, s);
+
+    // Compute type: first payment per (user, course) = INSCRIPTION, rest = MENSUALITE
+    const firstPaymentPerPair: Record<string, string> = {};
+    for (const p of payments) {
+      const key = `${p.userId}-${p.courseId || 'unknown'}`;
+      if (!firstPaymentPerPair[key]) {
+        firstPaymentPerPair[key] = p.id;
+      }
+    }
+
+    const enriched = payments.map(p => {
+      const sub = subMap.get(`${p.userId}-${p.courseId || ''}`);
+      return {
+        ...p,
+        type: p.id === firstPaymentPerPair[`${p.userId}-${p.courseId || 'unknown'}`] ? 'INSCRIPTION' : 'MENSUALITE',
+        formule: sub?.formule || null,
+        coursParticuliers: sub?.coursParticuliers || false,
+      };
+    }).reverse(); // reverse back to desc
+
+    res.json(enriched);
   } catch (error) {
     console.error('Error fetching payments:', error);
     res.status(500).json({ error: 'Failed to fetch payments' });

@@ -4,7 +4,7 @@ import prisma from '../utils/prisma';
 
 export const createExpense = async (req: Request, res: Response) => {
   try {
-    const { amount, description, category, ville, teacherId, paymentMethod } = req.body;
+    const { amount, description, category, ville, teacherId, paymentMethod, attachmentUrl } = req.body;
 
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -19,6 +19,7 @@ export const createExpense = async (req: Request, res: Response) => {
         ville: ville || null,
         teacherId: teacherId || null,
         paymentMethod,
+        attachmentUrl: attachmentUrl || null,
         status: 'PAID'
       },
       include: {
@@ -75,7 +76,7 @@ export const getExpenses = async (req: Request, res: Response) => {
 export const updateExpense = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { amount, description, category, ville, paymentMethod, status, teacherId } = req.body;
+    const { amount, description, category, ville, paymentMethod, status, teacherId, attachmentUrl } = req.body;
 
     const data: any = {};
     if (amount !== undefined) {
@@ -91,6 +92,7 @@ export const updateExpense = async (req: Request, res: Response) => {
     if (paymentMethod !== undefined) data.paymentMethod = paymentMethod;
     if (status !== undefined) data.status = status;
     if (teacherId !== undefined) data.teacherId = teacherId;
+    if (attachmentUrl !== undefined) data.attachmentUrl = attachmentUrl;
 
     const expense = await prisma.expense.update({
       where: { id },
