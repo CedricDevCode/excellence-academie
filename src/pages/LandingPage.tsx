@@ -365,7 +365,7 @@ function Actualite({ config }: { config?: SectionConfig }) {
             onMouseLeave={() => setIsPaused(false)}
           >
             <div className="overflow-hidden rounded-2xl shadow-2xl border border-gray-200/60">
-              <div className="relative min-h-[400px] sm:min-h-[480px] md:min-h-[520px] max-h-[600px]">
+              <div className="relative h-[400px] sm:h-[480px] md:h-[520px]">
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
@@ -382,7 +382,7 @@ function Actualite({ config }: { config?: SectionConfig }) {
                         <img
                           src={src}
                           alt={slide.title || `Actualite ${i + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover absolute inset-0"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                         {(slide.title || slide.subtitle) && (
