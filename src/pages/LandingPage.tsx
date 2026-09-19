@@ -360,7 +360,7 @@ function Actualite({ config }: { config?: SectionConfig }) {
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
             variants={scaleIn}
-            className="relative mx-auto"
+            className="relative max-w-5xl mx-auto"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
