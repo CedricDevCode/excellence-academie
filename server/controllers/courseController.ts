@@ -29,17 +29,80 @@ async function retryWithNeonWakeup<T>(fn: () => Promise<T>, retries = 2, delayMs
   throw new Error('Unreachable');
 }
 
+/** Récupère les colonnes existantes de la table Course */
+async function getExistingCourseColumns(): Promise<Set<string>> {
+  const cols: any[] = await prisma.$queryRaw`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'Course' AND table_schema = 'public'
+  `;
+  return new Set(cols.map((c: any) => c.column_name));
+}
+
+/** Ajoute une colonne manquante à la table Course */
+async function addCourseColumn(name: string, definition: string): Promise<boolean> {
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "Course" ADD COLUMN "${name}" ${definition}`);
+    console.log(`  ➕ [Lazy] Colonne Course."${name}" ajoutée`);
+    return true;
+  } catch (err: any) {
+    if (err?.code !== '42710') {
+      console.warn(`⚠️ [Lazy] Ajout colonne ${name}:`, err?.message || err);
+    }
+    return false;
+  }
+}
+
+const COURSE_COLUMN_DEFS: Record<string, string> = {
+  category: `TEXT DEFAULT 'Général'`,
+  registrationFee: `DOUBLE PRECISION DEFAULT 45000`,
+  registrationFeeInterieur: `DOUBLE PRECISION DEFAULT 35000`,
+  registrationFeeDiaspora: `DOUBLE PRECISION DEFAULT 100000`,
+  monthlyFee: `DOUBLE PRECISION DEFAULT 30000`,
+  monthlyFeeInterieur: `DOUBLE PRECISION DEFAULT 25000`,
+  monthlyFeeOnline: `DOUBLE PRECISION DEFAULT 25000`,
+  monthlyFeeBoth: `DOUBLE PRECISION DEFAULT 35000`,
+  monthlyFeeDiaspora: `DOUBLE PRECISION DEFAULT 35000`,
+  hasPresentiel: `BOOLEAN NOT NULL DEFAULT true`,
+  hasOnline: `BOOLEAN NOT NULL DEFAULT true`,
+};
+
+const ALL_COURSE_COLUMNS = [
+  "id", "title", "category", "description", "price",
+  "registrationFee", "registrationFeeInterieur", "registrationFeeDiaspora",
+  "monthlyFee", "monthlyFeeInterieur", "monthlyFeeOnline", "monthlyFeeBoth", "monthlyFeeDiaspora",
+  "hasPresentiel", "hasOnline", "createdAt", "updatedAt",
+];
+
+const CORE_COLUMNS = ["id", "title", "description", "price", "createdAt", "updatedAt"];
+
 export const getAllCourses = async (req: Request, res: Response) => {
   try {
     const { category } = req.query;
     const cat = category && typeof category === 'string' && category.trim() !== '' ? category.trim() : null;
 
+    // 1. Découvrir quelles colonnes existent réellement
+    const existingCols = await getExistingCourseColumns();
+
+    // 2. Si des colonnes pricing manquent, les ajouter maintenant (lazy migration)
+    const missingCols = Object.keys(COURSE_COLUMN_DEFS).filter(c => !existingCols.has(c));
+    if (missingCols.length > 0) {
+      console.log(`🔄 [getAllCourses] ${missingCols.length} colonne(s) manquante(s), ajout en cours...`);
+      for (const col of missingCols) {
+        await addCourseColumn(col, COURSE_COLUMN_DEFS[col]);
+      }
+      // Mettre à jour le set local
+      for (const col of missingCols) existingCols.add(col);
+    }
+
+    // 3. Construire la requête SELECT dynamiquement avec uniquement les colonnes existantes
+    const selectCols = ALL_COURSE_COLUMNS
+      .filter(c => existingCols.has(c))
+      .map(c => `"${c}"`)
+      .join(', ');
+
     const courses = await retryWithNeonWakeup(() =>
-      prisma.$queryRaw<{ id: string; title: string; category: string | null; description: string | null; price: number; "registrationFee": number | null; "registrationFeeInterieur": number | null; "registrationFeeDiaspora": number | null; "monthlyFee": number | null; "monthlyFeeInterieur": number | null; "monthlyFeeOnline": number | null; "monthlyFeeBoth": number | null; "monthlyFeeDiaspora": number | null; "hasPresentiel": boolean; "hasOnline": boolean; "createdAt": Date; "updatedAt": Date }[]>`
-        SELECT "id", "title", "category", "description", "price",
-               "registrationFee", "registrationFeeInterieur", "registrationFeeDiaspora",
-               "monthlyFee", "monthlyFeeInterieur", "monthlyFeeOnline", "monthlyFeeBoth", "monthlyFeeDiaspora",
-               "hasPresentiel", "hasOnline", "createdAt", "updatedAt"
+      prisma.$queryRaw<any[]>`
+        SELECT ${Prisma.raw(selectCols)}
         FROM "Course"
         ${cat ? Prisma.sql`WHERE "category" = ${cat}` : Prisma.empty}
         ORDER BY "category" ASC, "title" ASC

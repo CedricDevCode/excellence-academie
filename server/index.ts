@@ -367,7 +367,12 @@ async function initDatabaseDefaults() {
     await ensureCategoryTable();
 
     // Ajouter les colonnes manquantes à la table Course (migration manquante)
-    await ensureCourseColumns();
+    try {
+      await ensureCourseColumns();
+    } catch (e: any) {
+      console.error('⚠️ [CourseColumns] Échec de la migration initiale:', e?.message || e);
+      console.log('ℹ️ [CourseColumns] Le lazy migration dans getAllCourses ajoutera les colonnes manquantes au premier appel');
+    }
 
     // Créer la table PendingRegistration si elle n'existe pas
     await prisma.$executeRawUnsafe(`

@@ -2469,16 +2469,74 @@ async function retryWithNeonWakeup2(fn, retries = 2, delayMs = 2e3) {
   }
   throw new Error("Unreachable");
 }
+async function getExistingCourseColumns() {
+  const cols = await prisma_default.$queryRaw`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'Course' AND table_schema = 'public'
+  `;
+  return new Set(cols.map((c) => c.column_name));
+}
+async function addCourseColumn(name, definition) {
+  try {
+    await prisma_default.$executeRawUnsafe(`ALTER TABLE "Course" ADD COLUMN "${name}" ${definition}`);
+    console.log(`  \u2795 [Lazy] Colonne Course."${name}" ajout\xE9e`);
+    return true;
+  } catch (err) {
+    if (err?.code !== "42710") {
+      console.warn(`\u26A0\uFE0F [Lazy] Ajout colonne ${name}:`, err?.message || err);
+    }
+    return false;
+  }
+}
+var COURSE_COLUMN_DEFS = {
+  category: `TEXT DEFAULT 'G\xE9n\xE9ral'`,
+  registrationFee: `DOUBLE PRECISION DEFAULT 45000`,
+  registrationFeeInterieur: `DOUBLE PRECISION DEFAULT 35000`,
+  registrationFeeDiaspora: `DOUBLE PRECISION DEFAULT 100000`,
+  monthlyFee: `DOUBLE PRECISION DEFAULT 30000`,
+  monthlyFeeInterieur: `DOUBLE PRECISION DEFAULT 25000`,
+  monthlyFeeOnline: `DOUBLE PRECISION DEFAULT 25000`,
+  monthlyFeeBoth: `DOUBLE PRECISION DEFAULT 35000`,
+  monthlyFeeDiaspora: `DOUBLE PRECISION DEFAULT 35000`,
+  hasPresentiel: `BOOLEAN NOT NULL DEFAULT true`,
+  hasOnline: `BOOLEAN NOT NULL DEFAULT true`
+};
+var ALL_COURSE_COLUMNS = [
+  "id",
+  "title",
+  "category",
+  "description",
+  "price",
+  "registrationFee",
+  "registrationFeeInterieur",
+  "registrationFeeDiaspora",
+  "monthlyFee",
+  "monthlyFeeInterieur",
+  "monthlyFeeOnline",
+  "monthlyFeeBoth",
+  "monthlyFeeDiaspora",
+  "hasPresentiel",
+  "hasOnline",
+  "createdAt",
+  "updatedAt"
+];
 var getAllCourses = async (req, res) => {
   try {
     const { category } = req.query;
     const cat = category && typeof category === "string" && category.trim() !== "" ? category.trim() : null;
+    const existingCols = await getExistingCourseColumns();
+    const missingCols = Object.keys(COURSE_COLUMN_DEFS).filter((c) => !existingCols.has(c));
+    if (missingCols.length > 0) {
+      console.log(`\u{1F504} [getAllCourses] ${missingCols.length} colonne(s) manquante(s), ajout en cours...`);
+      for (const col of missingCols) {
+        await addCourseColumn(col, COURSE_COLUMN_DEFS[col]);
+      }
+      for (const col of missingCols) existingCols.add(col);
+    }
+    const selectCols = ALL_COURSE_COLUMNS.filter((c) => existingCols.has(c)).map((c) => `"${c}"`).join(", ");
     const courses = await retryWithNeonWakeup2(
       () => prisma_default.$queryRaw`
-        SELECT "id", "title", "category", "description", "price",
-               "registrationFee", "registrationFeeInterieur", "registrationFeeDiaspora",
-               "monthlyFee", "monthlyFeeInterieur", "monthlyFeeOnline", "monthlyFeeBoth", "monthlyFeeDiaspora",
-               "hasPresentiel", "hasOnline", "createdAt", "updatedAt"
+        SELECT ${Prisma.raw(selectCols)}
         FROM "Course"
         ${cat ? Prisma.sql`WHERE "category" = ${cat}` : Prisma.empty}
         ORDER BY "category" ASC, "title" ASC
@@ -5478,7 +5536,12 @@ async function initDatabaseDefaults() {
     console.log("\u2705 Connexion Prisma active.");
     await ensureSessionTables();
     await ensureCategoryTable();
-    await ensureCourseColumns();
+    try {
+      await ensureCourseColumns();
+    } catch (e) {
+      console.error("\u26A0\uFE0F [CourseColumns] \xC9chec de la migration initiale:", e?.message || e);
+      console.log("\u2139\uFE0F [CourseColumns] Le lazy migration dans getAllCourses ajoutera les colonnes manquantes au premier appel");
+    }
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "PendingRegistration" (
         "id" TEXT NOT NULL,
