@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
+import DOMPurify from 'isomorphic-dompurify';
 
 const asString = (value: string | string[] | undefined): string | undefined => {
   if (Array.isArray(value)) return value[0];
@@ -88,6 +89,8 @@ export const createBlogPost = async (req: Request, res: Response) => {
     const { title, content, excerpt, coverImage, published, courseId, tags } = req.body;
     if (!title || !content) return res.status(400).json({ message: "Titre et contenu obligatoires" });
 
+    const sanitizedContent = DOMPurify.sanitize(content);
+
     let slug = slugify(title);
     const existing = await prisma.blogPost.findUnique({ where: { slug } });
     if (existing) slug = `${slug}-${Date.now()}`;
@@ -96,7 +99,7 @@ export const createBlogPost = async (req: Request, res: Response) => {
       data: {
         slug,
         title,
-        content,
+        content: sanitizedContent,
         excerpt,
         coverImage,
         published: published ?? true,
@@ -134,7 +137,7 @@ export const updateBlogPost = async (req: Request, res: Response) => {
       const slugExists = await prisma.blogPost.findUnique({ where: { slug: data.slug } });
       if (slugExists && slugExists.id !== id) data.slug = `${data.slug}-${Date.now()}`;
     }
-    if (content !== undefined) data.content = content;
+    if (content !== undefined) data.content = DOMPurify.sanitize(content);
     if (excerpt !== undefined) data.excerpt = excerpt;
     if (coverImage !== undefined) data.coverImage = coverImage;
     if (published !== undefined) data.published = published;
@@ -214,7 +217,7 @@ export const createComment = async (req: Request, res: Response) => {
     if (!content) return res.status(400).json({ message: "Contenu obligatoire" });
 
     const comment = await prisma.blogComment.create({
-      data: { content, authorId: req.user!.id, postId: req.params.postId },
+      data: { content: DOMPurify.sanitize(content), authorId: req.user!.id, postId: req.params.postId },
       include: { author: { select: { id: true, name: true, image: true } } },
     });
     res.status(201).json(comment);

@@ -4482,6 +4482,7 @@ import crypto7 from "crypto";
 import { fileURLToPath as fileURLToPath6 } from "url";
 
 // server/controllers/blogController.ts
+import DOMPurify from "isomorphic-dompurify";
 var asString2 = (value) => {
   if (Array.isArray(value)) return value[0];
   return value;
@@ -4558,6 +4559,7 @@ var createBlogPost = async (req, res) => {
   try {
     const { title, content, excerpt, coverImage, published, courseId, tags } = req.body;
     if (!title || !content) return res.status(400).json({ message: "Titre et contenu obligatoires" });
+    const sanitizedContent = DOMPurify.sanitize(content);
     let slug = slugify(title);
     const existing = await prisma_default.blogPost.findUnique({ where: { slug } });
     if (existing) slug = `${slug}-${Date.now()}`;
@@ -4565,7 +4567,7 @@ var createBlogPost = async (req, res) => {
       data: {
         slug,
         title,
-        content,
+        content: sanitizedContent,
         excerpt,
         coverImage,
         published: published ?? true,
@@ -4601,7 +4603,7 @@ var updateBlogPost = async (req, res) => {
       const slugExists = await prisma_default.blogPost.findUnique({ where: { slug: data.slug } });
       if (slugExists && slugExists.id !== id) data.slug = `${data.slug}-${Date.now()}`;
     }
-    if (content !== void 0) data.content = content;
+    if (content !== void 0) data.content = DOMPurify.sanitize(content);
     if (excerpt !== void 0) data.excerpt = excerpt;
     if (coverImage !== void 0) data.coverImage = coverImage;
     if (published !== void 0) data.published = published;
@@ -4670,7 +4672,7 @@ var createComment = async (req, res) => {
     const { content } = req.body;
     if (!content) return res.status(400).json({ message: "Contenu obligatoire" });
     const comment = await prisma_default.blogComment.create({
-      data: { content, authorId: req.user.id, postId: req.params.postId },
+      data: { content: DOMPurify.sanitize(content), authorId: req.user.id, postId: req.params.postId },
       include: { author: { select: { id: true, name: true, image: true } } }
     });
     res.status(201).json(comment);
