@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import prisma from './utils/prisma';
 
 async function main() {
-  const password = await bcrypt.hash('password123', 10);
+  const password = await bcrypt.hash(process.env.ADMIN_INITIAL_PASSWORD || 'ChangeMe123!', 12);
 
   const users = [
     { email: 'admin@excellence.ci', name: 'Admin User', role: 'ADMIN' as any, password },

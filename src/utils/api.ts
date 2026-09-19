@@ -277,10 +277,9 @@ export const updateExpense = async (id: string, data: { amount?: string; descrip
 export const uploadExpenseAttachment = async (file: File): Promise<{ url: string; filename: string }> => {
   const formData = new FormData();
   formData.append('file', file);
-  const token = localStorage.getItem('token');
   const res = await fetch(`${API_BASE_URL}/expenses/upload`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
     body: formData,
   });
   if (!res.ok) throw new Error("Erreur lors de l'upload du fichier");
@@ -485,10 +484,9 @@ export const fetchCourses = async () => {
 };
 
 export const fetchCourseById = async (id: string) => {
-  const res = await authFetch(`${API_BASE_URL}/courses`);
-  if (!res.ok) throw new Error('Failed to fetch courses');
-  const courses = await res.json();
-  return courses.find((c: any) => c.id === id) || null;
+  const res = await authFetch(`${API_BASE_URL}/courses/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch course');
+  return res.json();
 };
 
 export const fetchPublicBanners = async () => {

@@ -56,6 +56,27 @@ export const getAllCourses = async (req: Request, res: Response) => {
   }
 };
 
+export const getCourseById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const course = await retryWithNeonWakeup(() =>
+      prisma.course.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: { subscriptions: true, payments: true },
+          },
+        },
+      })
+    );
+    if (!course) return res.status(404).json({ message: 'Formation non trouvée' });
+    res.json(course);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Erreur lors de la récupération de la formation' });
+  }
+};
+
 export const createCourse = async (req: Request, res: Response) => {
   try {
     const {

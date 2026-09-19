@@ -13,9 +13,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import StudentRegistrationForm from "../StudentRegistrationForm";
 import { calcRegistrationPrice } from "../../constants/student";
 
-function generateTempPassword() {
-  return 'P@ssw0rd';
-}
+import { generateTempPassword } from "./helpers";
 
 function StudentsView() {
   const [users, setUsers] = useState<any[]>([]);

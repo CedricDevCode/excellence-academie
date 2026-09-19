@@ -18,7 +18,7 @@ router.post('/subscribe', authenticateToken, async (req: any, res) => {
       endpoint: subscription.endpoint,
       p256dh: subscription.keys.p256dh,
       auth: subscription.keys.auth,
-    }, userAgent || navigator?.userAgent);
+    }, userAgent || req.headers['user-agent']);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

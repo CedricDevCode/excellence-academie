@@ -2577,6 +2577,26 @@ var getAllCourses = async (req, res) => {
     res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration des formations" });
   }
 };
+var getCourseById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const course = await retryWithNeonWakeup2(
+      () => prisma_default.course.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: { subscriptions: true, payments: true }
+          }
+        }
+      })
+    );
+    if (!course) return res.status(404).json({ message: "Formation non trouv\xE9e" });
+    res.json(course);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration de la formation" });
+  }
+};
 var createCourse = async (req, res) => {
   try {
     const {
@@ -2708,6 +2728,7 @@ var deleteCourse = async (req, res) => {
 // server/routes/courseRoutes.ts
 var router9 = Router9();
 router9.get("/", getAllCourses);
+router9.get("/:id", getCourseById);
 router9.use(authenticateToken);
 router9.post("/", requireRole(["ADMIN"]), createCourse);
 router9.put("/:id", requireRole(["ADMIN"]), updateCourse);
@@ -5127,7 +5148,7 @@ router21.post("/subscribe", authenticateToken, async (req, res) => {
       endpoint: subscription.endpoint,
       p256dh: subscription.keys.p256dh,
       auth: subscription.keys.auth
-    }, userAgent || navigator?.userAgent);
+    }, userAgent || req.headers["user-agent"]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
