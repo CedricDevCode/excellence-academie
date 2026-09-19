@@ -1867,9 +1867,13 @@ import { Router as Router5 } from "express";
 var createExpense = async (req, res) => {
   try {
     const { amount, description, category, ville, teacherId, paymentMethod } = req.body;
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: "Le montant doit \xEAtre un nombre positif" });
+    }
     const expense = await prisma_default.expense.create({
       data: {
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         description,
         category: category || null,
         ville: ville || null,
@@ -1926,7 +1930,13 @@ var updateExpense = async (req, res) => {
     const { id } = req.params;
     const { amount, description, category, ville, paymentMethod, status, teacherId } = req.body;
     const data = {};
-    if (amount !== void 0) data.amount = parseFloat(amount);
+    if (amount !== void 0) {
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ error: "Le montant doit \xEAtre un nombre positif" });
+      }
+      data.amount = parsedAmount;
+    }
     if (description !== void 0) data.description = description;
     if (category !== void 0) data.category = category;
     if (ville !== void 0) data.ville = ville;
@@ -2501,6 +2511,8 @@ var createCourse = async (req, res) => {
       registrationFeeDiaspora,
       monthlyFee,
       monthlyFeeInterieur,
+      monthlyFeeOnline,
+      monthlyFeeBoth,
       monthlyFeeDiaspora,
       hasPresentiel,
       hasOnline
@@ -2513,6 +2525,8 @@ var createCourse = async (req, res) => {
     const regFeeDias = registrationFeeDiaspora !== void 0 ? Number(registrationFeeDiaspora) : 1e5;
     const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : 3e4;
     const mFeeInt = monthlyFeeInterieur !== void 0 ? Number(monthlyFeeInterieur) : 25e3;
+    const mFeeOnline = monthlyFeeOnline !== void 0 ? Number(monthlyFeeOnline) : 25e3;
+    const mFeeBoth = monthlyFeeBoth !== void 0 ? Number(monthlyFeeBoth) : 35e3;
     const mFeeDias = monthlyFeeDiaspora !== void 0 ? Number(monthlyFeeDiaspora) : 35e3;
     const course = await retryWithNeonWakeup2(
       () => prisma_default.course.create({
@@ -2525,6 +2539,8 @@ var createCourse = async (req, res) => {
           registrationFeeDiaspora: regFeeDias,
           monthlyFee: mFee,
           monthlyFeeInterieur: mFeeInt,
+          monthlyFeeOnline: mFeeOnline,
+          monthlyFeeBoth: mFeeBoth,
           monthlyFeeDiaspora: mFeeDias,
           hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : true,
           hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : true,
@@ -2555,6 +2571,8 @@ var updateCourse = async (req, res) => {
       registrationFeeDiaspora,
       monthlyFee,
       monthlyFeeInterieur,
+      monthlyFeeOnline,
+      monthlyFeeBoth,
       monthlyFeeDiaspora,
       hasPresentiel,
       hasOnline
@@ -2564,6 +2582,8 @@ var updateCourse = async (req, res) => {
     const regFeeDias = registrationFeeDiaspora !== void 0 ? Number(registrationFeeDiaspora) : void 0;
     const mFee = monthlyFee !== void 0 ? Number(monthlyFee) : void 0;
     const mFeeInt = monthlyFeeInterieur !== void 0 ? Number(monthlyFeeInterieur) : void 0;
+    const mFeeOnline = monthlyFeeOnline !== void 0 ? Number(monthlyFeeOnline) : void 0;
+    const mFeeBoth = monthlyFeeBoth !== void 0 ? Number(monthlyFeeBoth) : void 0;
     const mFeeDias = monthlyFeeDiaspora !== void 0 ? Number(monthlyFeeDiaspora) : void 0;
     const course = await retryWithNeonWakeup2(
       () => prisma_default.course.update({
@@ -2577,6 +2597,8 @@ var updateCourse = async (req, res) => {
           registrationFeeDiaspora: regFeeDias !== void 0 ? regFeeDias : void 0,
           monthlyFee: mFee !== void 0 ? mFee : void 0,
           monthlyFeeInterieur: mFeeInt !== void 0 ? mFeeInt : void 0,
+          monthlyFeeOnline: mFeeOnline !== void 0 ? mFeeOnline : void 0,
+          monthlyFeeBoth: mFeeBoth !== void 0 ? mFeeBoth : void 0,
           monthlyFeeDiaspora: mFeeDias !== void 0 ? mFeeDias : void 0,
           hasPresentiel: hasPresentiel !== void 0 ? Boolean(hasPresentiel) : void 0,
           hasOnline: hasOnline !== void 0 ? Boolean(hasOnline) : void 0,
@@ -3228,8 +3250,9 @@ var downloadSessionFile = async (req, res) => {
     }
     const file = rows[0];
     const buffer = Buffer.from(file.fileData, "base64");
+    const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255);
     res.setHeader("Content-Type", file.fileType || "application/octet-stream");
-    res.setHeader("Content-Disposition", `attachment; filename="${file.fileName}"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"`);
     res.send(buffer);
   } catch (error) {
     console.error("Download session file error:", error);
@@ -5194,6 +5217,54 @@ import path7 from "path";
 import fs7 from "fs";
 import { fileURLToPath as fileURLToPath7 } from "url";
 var __dirname7 = path7.dirname(fileURLToPath7(import.meta.url));
+async function ensureCourseColumns() {
+  const tableCheck = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_name = 'Course' AND table_schema = 'public'
+    ) AS exists
+  `;
+  if (!tableCheck[0]?.exists) {
+    console.log("\u26A0\uFE0F Table Course introuvable, skip colonnes pricing");
+    return;
+  }
+  const existingCols = await prisma.$queryRaw`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'Course' AND table_schema = 'public'
+  `;
+  const existingNames = new Set(existingCols.map((c) => c.column_name));
+  const columns = [
+    { name: "category", definition: `TEXT DEFAULT 'G\xE9n\xE9ral'` },
+    { name: "registrationFee", definition: `DOUBLE PRECISION DEFAULT 45000` },
+    { name: "registrationFeeInterieur", definition: `DOUBLE PRECISION DEFAULT 35000` },
+    { name: "registrationFeeDiaspora", definition: `DOUBLE PRECISION DEFAULT 100000` },
+    { name: "monthlyFee", definition: `DOUBLE PRECISION DEFAULT 30000` },
+    { name: "monthlyFeeInterieur", definition: `DOUBLE PRECISION DEFAULT 25000` },
+    { name: "monthlyFeeOnline", definition: `DOUBLE PRECISION DEFAULT 25000` },
+    { name: "monthlyFeeBoth", definition: `DOUBLE PRECISION DEFAULT 35000` },
+    { name: "monthlyFeeDiaspora", definition: `DOUBLE PRECISION DEFAULT 35000` },
+    { name: "hasPresentiel", definition: `BOOLEAN NOT NULL DEFAULT true` },
+    { name: "hasOnline", definition: `BOOLEAN NOT NULL DEFAULT true` }
+  ];
+  let added = 0;
+  for (const col of columns) {
+    if (existingNames.has(col.name)) continue;
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Course" ADD COLUMN "${col.name}" ${col.definition}`);
+      added++;
+      console.log(`  \u2795 Colonne Course."${col.name}" ajout\xE9e`);
+    } catch (err) {
+      if (err?.code !== "42710") {
+        console.warn(`\u26A0\uFE0F [CourseColumns] Colonne ${col.name} :`, err?.message || err);
+      }
+    }
+  }
+  if (added > 0) {
+    console.log(`\u2705 ${added} colonne(s) pricing ajout\xE9e(s) \xE0 la table Course`);
+  } else {
+    console.log("\u2705 Toutes les colonnes pricing de la table Course existent d\xE9j\xE0");
+  }
+}
 var app = express();
 var port = process.env.PORT || 3001;
 var isProduction3 = process.env.NODE_ENV === "production";
@@ -5407,6 +5478,7 @@ async function initDatabaseDefaults() {
     console.log("\u2705 Connexion Prisma active.");
     await ensureSessionTables();
     await ensureCategoryTable();
+    await ensureCourseColumns();
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "PendingRegistration" (
         "id" TEXT NOT NULL,
@@ -5450,7 +5522,7 @@ async function initDatabaseDefaults() {
       CREATE TABLE IF NOT EXISTS "AppSettings" (
         "id" TEXT NOT NULL,
         "key" TEXT NOT NULL DEFAULT 'global',
-        "additionalCourseAmount" DOUBLE PRECISION NOT NULL DEFAULT 15000,
+        "additionalCourseAmount" DOUBLE PRECISION NOT NULL DEFAULT 10000,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "AppSettings_pkey" PRIMARY KEY ("id")
       )
@@ -5459,7 +5531,7 @@ async function initDatabaseDefaults() {
     await prisma.appSettings.upsert({
       where: { key: "global" },
       update: {},
-      create: { key: "global", additionalCourseAmount: 15e3 }
+      create: { key: "global", additionalCourseAmount: 1e4 }
     });
     console.log("\u2705 Table AppSettings v\xE9rifi\xE9e/cr\xE9\xE9e");
     const featuredWithImage = await prisma.shopBanner.count({

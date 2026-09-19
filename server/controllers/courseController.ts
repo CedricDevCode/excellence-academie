@@ -67,7 +67,7 @@ export const createCourse = async (req: Request, res: Response) => {
     const {
       title, description, price, category,
       registrationFee, registrationFeeInterieur, registrationFeeDiaspora,
-      monthlyFee, monthlyFeeInterieur, monthlyFeeDiaspora,
+      monthlyFee, monthlyFeeInterieur, monthlyFeeOnline, monthlyFeeBoth, monthlyFeeDiaspora,
       hasPresentiel, hasOnline,
     } = req.body;
 
@@ -80,6 +80,8 @@ export const createCourse = async (req: Request, res: Response) => {
     const regFeeDias = registrationFeeDiaspora !== undefined ? Number(registrationFeeDiaspora) : 100000;
     const mFee = monthlyFee !== undefined ? Number(monthlyFee) : 30000;
     const mFeeInt = monthlyFeeInterieur !== undefined ? Number(monthlyFeeInterieur) : 25000;
+    const mFeeOnline = monthlyFeeOnline !== undefined ? Number(monthlyFeeOnline) : 25000;
+    const mFeeBoth = monthlyFeeBoth !== undefined ? Number(monthlyFeeBoth) : 35000;
     const mFeeDias = monthlyFeeDiaspora !== undefined ? Number(monthlyFeeDiaspora) : 35000;
 
     const course = await retryWithNeonWakeup(() =>
@@ -93,6 +95,8 @@ export const createCourse = async (req: Request, res: Response) => {
           registrationFeeDiaspora: regFeeDias,
           monthlyFee: mFee,
           monthlyFeeInterieur: mFeeInt,
+          monthlyFeeOnline: mFeeOnline,
+          monthlyFeeBoth: mFeeBoth,
           monthlyFeeDiaspora: mFeeDias,
           hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : true,
           hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : true,
@@ -118,7 +122,7 @@ export const updateCourse = async (req: Request, res: Response) => {
     const {
       title, description, price, category,
       registrationFee, registrationFeeInterieur, registrationFeeDiaspora,
-      monthlyFee, monthlyFeeInterieur, monthlyFeeDiaspora,
+      monthlyFee, monthlyFeeInterieur, monthlyFeeOnline, monthlyFeeBoth, monthlyFeeDiaspora,
       hasPresentiel, hasOnline,
     } = req.body;
 
@@ -127,6 +131,8 @@ export const updateCourse = async (req: Request, res: Response) => {
     const regFeeDias = registrationFeeDiaspora !== undefined ? Number(registrationFeeDiaspora) : undefined;
     const mFee = monthlyFee !== undefined ? Number(monthlyFee) : undefined;
     const mFeeInt = monthlyFeeInterieur !== undefined ? Number(monthlyFeeInterieur) : undefined;
+    const mFeeOnline = monthlyFeeOnline !== undefined ? Number(monthlyFeeOnline) : undefined;
+    const mFeeBoth = monthlyFeeBoth !== undefined ? Number(monthlyFeeBoth) : undefined;
     const mFeeDias = monthlyFeeDiaspora !== undefined ? Number(monthlyFeeDiaspora) : undefined;
 
     const course = await retryWithNeonWakeup(() =>
@@ -141,6 +147,8 @@ export const updateCourse = async (req: Request, res: Response) => {
           registrationFeeDiaspora: regFeeDias !== undefined ? regFeeDias : undefined,
           monthlyFee: mFee !== undefined ? mFee : undefined,
           monthlyFeeInterieur: mFeeInt !== undefined ? mFeeInt : undefined,
+          monthlyFeeOnline: mFeeOnline !== undefined ? mFeeOnline : undefined,
+          monthlyFeeBoth: mFeeBoth !== undefined ? mFeeBoth : undefined,
           monthlyFeeDiaspora: mFeeDias !== undefined ? mFeeDias : undefined,
           hasPresentiel: hasPresentiel !== undefined ? Boolean(hasPresentiel) : undefined,
           hasOnline: hasOnline !== undefined ? Boolean(hasOnline) : undefined,

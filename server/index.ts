@@ -39,6 +39,62 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/** Ajoute les colonnes pricing manquantes à la table Course si elles n'existent pas (migration manquante) */
+async function ensureCourseColumns() {
+  // Vérifier si la table Course existe
+  const tableCheck: any[] = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_name = 'Course' AND table_schema = 'public'
+    ) AS exists
+  `;
+  if (!tableCheck[0]?.exists) {
+    console.log('⚠️ Table Course introuvable, skip colonnes pricing');
+    return;
+  }
+
+  // Récupérer les colonnes existantes de la table Course
+  const existingCols: any[] = await prisma.$queryRaw`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'Course' AND table_schema = 'public'
+  `;
+  const existingNames = new Set(existingCols.map((c: any) => c.column_name));
+
+  const columns: { name: string; definition: string }[] = [
+    { name: 'category', definition: `TEXT DEFAULT 'Général'` },
+    { name: 'registrationFee', definition: `DOUBLE PRECISION DEFAULT 45000` },
+    { name: 'registrationFeeInterieur', definition: `DOUBLE PRECISION DEFAULT 35000` },
+    { name: 'registrationFeeDiaspora', definition: `DOUBLE PRECISION DEFAULT 100000` },
+    { name: 'monthlyFee', definition: `DOUBLE PRECISION DEFAULT 30000` },
+    { name: 'monthlyFeeInterieur', definition: `DOUBLE PRECISION DEFAULT 25000` },
+    { name: 'monthlyFeeOnline', definition: `DOUBLE PRECISION DEFAULT 25000` },
+    { name: 'monthlyFeeBoth', definition: `DOUBLE PRECISION DEFAULT 35000` },
+    { name: 'monthlyFeeDiaspora', definition: `DOUBLE PRECISION DEFAULT 35000` },
+    { name: 'hasPresentiel', definition: `BOOLEAN NOT NULL DEFAULT true` },
+    { name: 'hasOnline', definition: `BOOLEAN NOT NULL DEFAULT true` },
+  ];
+
+  let added = 0;
+  for (const col of columns) {
+    if (existingNames.has(col.name)) continue;
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Course" ADD COLUMN "${col.name}" ${col.definition}`);
+      added++;
+      console.log(`  ➕ Colonne Course."${col.name}" ajoutée`);
+    } catch (err: any) {
+      // Erreur 42710 = duplicate column (concurrente) — ignorer
+      if (err?.code !== '42710') {
+        console.warn(`⚠️ [CourseColumns] Colonne ${col.name} :`, err?.message || err);
+      }
+    }
+  }
+  if (added > 0) {
+    console.log(`✅ ${added} colonne(s) pricing ajoutée(s) à la table Course`);
+  } else {
+    console.log('✅ Toutes les colonnes pricing de la table Course existent déjà');
+  }
+}
+
 const app = express();
 const port = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -310,6 +366,9 @@ async function initDatabaseDefaults() {
     // Initialiser la table Category si elle n'existe pas
     await ensureCategoryTable();
 
+    // Ajouter les colonnes manquantes à la table Course (migration manquante)
+    await ensureCourseColumns();
+
     // Créer la table PendingRegistration si elle n'existe pas
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "PendingRegistration" (
@@ -358,7 +417,7 @@ async function initDatabaseDefaults() {
       CREATE TABLE IF NOT EXISTS "AppSettings" (
         "id" TEXT NOT NULL,
         "key" TEXT NOT NULL DEFAULT 'global',
-        "additionalCourseAmount" DOUBLE PRECISION NOT NULL DEFAULT 15000,
+        "additionalCourseAmount" DOUBLE PRECISION NOT NULL DEFAULT 10000,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "AppSettings_pkey" PRIMARY KEY ("id")
       )
@@ -367,7 +426,7 @@ async function initDatabaseDefaults() {
     await prisma.appSettings.upsert({
       where: { key: 'global' },
       update: {},
-      create: { key: 'global', additionalCourseAmount: 15000 },
+      create: { key: 'global', additionalCourseAmount: 10000 },
     });
     console.log('✅ Table AppSettings vérifiée/créée');
 

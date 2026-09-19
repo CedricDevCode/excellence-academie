@@ -6,9 +6,14 @@ export const createExpense = async (req: Request, res: Response) => {
   try {
     const { amount, description, category, ville, teacherId, paymentMethod } = req.body;
 
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Le montant doit être un nombre positif' });
+    }
+
     const expense = await prisma.expense.create({
       data: {
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         description,
         category: category || null,
         ville: ville || null,
@@ -73,7 +78,13 @@ export const updateExpense = async (req: Request, res: Response) => {
     const { amount, description, category, ville, paymentMethod, status, teacherId } = req.body;
 
     const data: any = {};
-    if (amount !== undefined) data.amount = parseFloat(amount);
+    if (amount !== undefined) {
+      const parsedAmount = parseFloat(amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        return res.status(400).json({ error: 'Le montant doit être un nombre positif' });
+      }
+      data.amount = parsedAmount;
+    }
     if (description !== undefined) data.description = description;
     if (category !== undefined) data.category = category;
     if (ville !== undefined) data.ville = ville;

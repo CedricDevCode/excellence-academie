@@ -373,8 +373,9 @@ export const downloadSessionFile = async (req: Request, res: Response) => {
     }
     const file = rows[0];
     const buffer = Buffer.from(file.fileData, 'base64');
+    const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 255);
     res.setHeader('Content-Type', file.fileType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"`);
     res.send(buffer);
   } catch (error) {
     console.error('Download session file error:', error);

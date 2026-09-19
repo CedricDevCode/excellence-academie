@@ -23,7 +23,13 @@ export interface Course {
   description?: string;
   price: number;
   registrationFee?: number;
+  registrationFeeInterieur?: number;
+  registrationFeeDiaspora?: number;
   monthlyFee?: number;
+  monthlyFeeInterieur?: number;
+  monthlyFeeOnline?: number;
+  monthlyFeeBoth?: number;
+  monthlyFeeDiaspora?: number;
   hasPresentiel?: boolean;
   hasOnline?: boolean;
 }
@@ -481,6 +487,8 @@ export interface CourseInputData {
   registrationFeeDiaspora?: number;
   monthlyFee?: number;
   monthlyFeeInterieur?: number;
+  monthlyFeeOnline?: number;
+  monthlyFeeBoth?: number;
   monthlyFeeDiaspora?: number;
   hasPresentiel?: boolean;
   hasOnline?: boolean;

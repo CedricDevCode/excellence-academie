@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "start": "node dist/server.js",
     "start:dev": "tsx server/index.ts",
-    "postinstall": "prisma generate && (prisma migrate deploy || true)"
+    "deploy": "prisma generate && prisma migrate deploy && npm run build",
+    "postinstall": "prisma generate && echo '▶️  Applying database migrations...' && (npx prisma migrate deploy && echo '✅ Migrations applied successfully' || echo '⚠️  Migration deploy failed — runtime fallback will add missing columns at startup')"
   },
   "engines": {
     "node": ">=22.12.0"
