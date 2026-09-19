@@ -2064,14 +2064,14 @@ var getExpenseSummary = async (req, res) => {
 // server/routes/expenseRoutes.ts
 import multer2 from "multer";
 import path3 from "path";
-import { v4 as uuid } from "uuid";
+import crypto3 from "crypto";
 var router5 = Router5();
 router5.use(authenticateToken);
 var storage = multer2.diskStorage({
   destination: (_req, _file, cb) => cb(null, path3.join(process.cwd(), "uploads")),
   filename: (_req, file, cb) => {
     const ext = path3.extname(file.originalname);
-    cb(null, `expense-${uuid()}${ext}`);
+    cb(null, `expense-${crypto3.randomUUID()}${ext}`);
   }
 });
 var upload2 = multer2({
@@ -2346,7 +2346,7 @@ import multer3 from "multer";
 import rateLimit3 from "express-rate-limit";
 import path4 from "path";
 import fs3 from "fs";
-import crypto3 from "crypto";
+import crypto4 from "crypto";
 import { fileURLToPath as fileURLToPath3 } from "url";
 
 // server/controllers/testimonialController.ts
@@ -2507,7 +2507,7 @@ var upload3 = multer3({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
     filename: (_req, file, cb) => {
       const ext = path4.extname(file.originalname);
-      cb(null, `${crypto3.randomUUID()}${ext}`);
+      cb(null, `${crypto4.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 5 * 1024 * 1024 }
@@ -2956,7 +2956,7 @@ import multer4 from "multer";
 import rateLimit4 from "express-rate-limit";
 
 // server/controllers/sessionController.ts
-import crypto4 from "crypto";
+import crypto5 from "crypto";
 var tablesInitialized = false;
 async function ensureSessionTables() {
   if (tablesInitialized) return;
@@ -3030,7 +3030,7 @@ var createSession = async (req, res) => {
       return res.status(400).json({ error: "L'heure de fin doit \xEAtre apr\xE8s l'heure de d\xE9but" });
     }
     const { weekStart, weekEnd, weekLabel } = getWeekInfo(date);
-    const id = crypto4.randomUUID();
+    const id = crypto5.randomUUID();
     const now = /* @__PURE__ */ new Date();
     const courseIdVal = courseId || null;
     const typeVal = type || "PRESENTIEL";
@@ -3286,7 +3286,7 @@ var uploadSessionFile = async (req, res) => {
     if (!rows.length) {
       return res.status(404).json({ error: "S\xE9ance introuvable" });
     }
-    const fileId = crypto4.randomUUID();
+    const fileId = crypto5.randomUUID();
     const base64 = file.buffer.toString("base64");
     const mimeType = file.mimetype;
     await prisma_default.$executeRaw`INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "fileData", "uploadedAt")
@@ -3438,7 +3438,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
         currency: "XOF",
         description,
         metadata: { teacher_id: teacher.id, type: "salary" },
-        idempotency_key: crypto4.randomUUID()
+        idempotency_key: crypto5.randomUUID()
       }),
       signal: AbortSignal.timeout(15e3)
     });
@@ -3451,7 +3451,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
     if (env === "sandbox") {
       return {
         success: true,
-        reference: `SANDBOX-${crypto4.randomUUID().slice(0, 8)}`,
+        reference: `SANDBOX-${crypto5.randomUUID().slice(0, 8)}`,
         error: `\u26A0\uFE0F Mode sandbox : paiement simul\xE9. ${apiMsg}`
       };
     }
@@ -3461,7 +3461,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
     if (env === "sandbox") {
       return {
         success: true,
-        reference: `SANDBOX-${crypto4.randomUUID().slice(0, 8)}`,
+        reference: `SANDBOX-${crypto5.randomUUID().slice(0, 8)}`,
         error: "\u26A0\uFE0F Mode sandbox : paiement simul\xE9 (API non disponible)"
       };
     }
@@ -3927,7 +3927,7 @@ import multer5 from "multer";
 import rateLimit5 from "express-rate-limit";
 import path6 from "path";
 import fs5 from "fs";
-import crypto5 from "crypto";
+import crypto6 from "crypto";
 import { fileURLToPath as fileURLToPath5 } from "url";
 
 // server/controllers/shopController.ts
@@ -4257,7 +4257,7 @@ var upload5 = multer5({
     destination: (_req, _file, cb) => cb(null, uploadsDir2),
     filename: (_req, file, cb) => {
       const ext = path6.extname(file.originalname).toLowerCase();
-      cb(null, `${crypto5.randomUUID()}${ext}`);
+      cb(null, `${crypto6.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -4457,7 +4457,7 @@ import { Router as Router18 } from "express";
 import multer6 from "multer";
 import path7 from "path";
 import fs6 from "fs";
-import crypto6 from "crypto";
+import crypto7 from "crypto";
 import { fileURLToPath as fileURLToPath6 } from "url";
 
 // server/controllers/blogController.ts
@@ -4792,7 +4792,7 @@ var upload6 = multer6({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
     filename: (_req, file, cb) => {
       const ext = path7.extname(file.originalname);
-      cb(null, `${crypto6.randomUUID()}${ext}`);
+      cb(null, `${crypto7.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 10 * 1024 * 1024 },

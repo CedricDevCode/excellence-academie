@@ -3,7 +3,7 @@ import { createExpense, getExpenses, updateExpense, deleteExpense, getExpenseSum
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 import multer from 'multer';
 import path from 'path';
-import { v4 as uuid } from 'uuid';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -13,7 +13,7 @@ const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, path.join(process.cwd(), 'uploads')),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname);
-    cb(null, `expense-${uuid()}${ext}`);
+    cb(null, `expense-${crypto.randomUUID()}${ext}`);
   },
 });
 
