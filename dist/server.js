@@ -2448,7 +2448,6 @@ var testimonialRoutes_default = router8;
 import { Router as Router9 } from "express";
 
 // server/controllers/courseController.ts
-import { Prisma } from "@prisma/client";
 var asString = (value) => {
   if (Array.isArray(value)) return value[0];
   return value;
@@ -2469,89 +2468,25 @@ async function retryWithNeonWakeup2(fn, retries = 2, delayMs = 2e3) {
   }
   throw new Error("Unreachable");
 }
-async function getExistingCourseColumns() {
-  const cols = await prisma_default.$queryRaw`
-    SELECT column_name FROM information_schema.columns
-    WHERE table_name = 'Course' AND table_schema = 'public'
-  `;
-  return new Set(cols.map((c) => c.column_name));
-}
-async function addCourseColumn(name, definition) {
-  try {
-    await prisma_default.$executeRawUnsafe(`ALTER TABLE "Course" ADD COLUMN "${name}" ${definition}`);
-    console.log(`  \u2795 [Lazy] Colonne Course."${name}" ajout\xE9e`);
-    return true;
-  } catch (err) {
-    if (err?.code !== "42710") {
-      console.warn(`\u26A0\uFE0F [Lazy] Ajout colonne ${name}:`, err?.message || err);
-    }
-    return false;
-  }
-}
-var COURSE_COLUMN_DEFS = {
-  category: `TEXT DEFAULT 'G\xE9n\xE9ral'`,
-  registrationFee: `DOUBLE PRECISION DEFAULT 45000`,
-  registrationFeeInterieur: `DOUBLE PRECISION DEFAULT 35000`,
-  registrationFeeDiaspora: `DOUBLE PRECISION DEFAULT 100000`,
-  monthlyFee: `DOUBLE PRECISION DEFAULT 30000`,
-  monthlyFeeInterieur: `DOUBLE PRECISION DEFAULT 25000`,
-  monthlyFeeOnline: `DOUBLE PRECISION DEFAULT 25000`,
-  monthlyFeeBoth: `DOUBLE PRECISION DEFAULT 35000`,
-  monthlyFeeDiaspora: `DOUBLE PRECISION DEFAULT 35000`,
-  hasPresentiel: `BOOLEAN NOT NULL DEFAULT true`,
-  hasOnline: `BOOLEAN NOT NULL DEFAULT true`
-};
-var ALL_COURSE_COLUMNS = [
-  "id",
-  "title",
-  "category",
-  "description",
-  "price",
-  "registrationFee",
-  "registrationFeeInterieur",
-  "registrationFeeDiaspora",
-  "monthlyFee",
-  "monthlyFeeInterieur",
-  "monthlyFeeOnline",
-  "monthlyFeeBoth",
-  "monthlyFeeDiaspora",
-  "hasPresentiel",
-  "hasOnline",
-  "createdAt",
-  "updatedAt"
-];
 var getAllCourses = async (req, res) => {
   try {
     const { category } = req.query;
-    const cat = category && typeof category === "string" && category.trim() !== "" ? category.trim() : null;
-    const existingCols = await getExistingCourseColumns();
-    const missingCols = Object.keys(COURSE_COLUMN_DEFS).filter((c) => !existingCols.has(c));
-    if (missingCols.length > 0) {
-      console.log(`\u{1F504} [getAllCourses] ${missingCols.length} colonne(s) manquante(s), ajout en cours...`);
-      for (const col of missingCols) {
-        await addCourseColumn(col, COURSE_COLUMN_DEFS[col]);
-      }
-      for (const col of missingCols) existingCols.add(col);
+    const where = {};
+    if (category && typeof category === "string" && category.trim() !== "") {
+      where.category = category.trim();
     }
-    const selectCols = ALL_COURSE_COLUMNS.filter((c) => existingCols.has(c)).map((c) => `"${c}"`).join(", ");
     const courses = await retryWithNeonWakeup2(
-      () => prisma_default.$queryRaw`
-        SELECT ${Prisma.raw(selectCols)}
-        FROM "Course"
-        ${cat ? Prisma.sql`WHERE "category" = ${cat}` : Prisma.empty}
-        ORDER BY "category" ASC, "title" ASC
-      `
-    );
-    const coursesWithCounts = await Promise.all(
-      courses.map(async (course) => {
-        const [subscriptionCount, paymentCount] = await Promise.all([
-          prisma_default.subscription.count({ where: { courseId: course.id } }),
-          prisma_default.payment.count({ where: { courseId: course.id } })
-        ]);
-        return { ...course, _count: { subscriptions: subscriptionCount, payments: paymentCount } };
+      () => prisma_default.course.findMany({
+        where,
+        orderBy: [{ category: "asc" }, { title: "asc" }],
+        include: {
+          _count: {
+            select: { subscriptions: true, payments: true }
+          }
+        }
       })
     );
-    res.json(coursesWithCounts);
+    res.json(courses);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration des formations" });
