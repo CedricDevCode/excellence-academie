@@ -360,12 +360,12 @@ function Actualite({ config }: { config?: SectionConfig }) {
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
             variants={scaleIn}
-            className="relative max-w-5xl mx-auto"
+            className="relative max-w-4xl mx-auto"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
-            <div className="overflow-hidden rounded-2xl shadow-2xl border border-gray-200/60">
-              <div className="relative h-[400px] sm:h-[480px] md:h-[520px]">
+            <Card padding="none" className="overflow-hidden">
+              <div className="relative h-[380px] sm:h-[460px] md:h-[500px]">
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
@@ -381,14 +381,14 @@ function Actualite({ config }: { config?: SectionConfig }) {
                       >
                         <img
                           src={src}
-                          alt={slide.title || `Actualite ${i + 1}`}
-                          className="w-full h-full object-cover absolute inset-0"
+                          alt={slide.title || `Actualité ${i + 1}`}
+                          className="w-full h-full object-cover"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                         {(slide.title || slide.subtitle) && (
-                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 sm:p-10 md:p-12 text-white">
-                            {slide.title && <h3 className="font-extrabold text-xl sm:text-2xl md:text-3xl leading-tight drop-shadow-lg max-w-3xl">{slide.title}</h3>}
-                            {slide.subtitle && <p className="text-gray-200 text-sm sm:text-base md:text-lg mt-2 max-w-2xl drop-shadow">{slide.subtitle}</p>}
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-6 sm:p-8 text-white">
+                            {slide.title && <h3 className="font-extrabold text-lg sm:text-xl leading-snug">{slide.title}</h3>}
+                            {slide.subtitle && <p className="text-gray-200 text-sm sm:text-base mt-1">{slide.subtitle}</p>}
                           </div>
                         )}
                       </motion.div>
@@ -399,31 +399,31 @@ function Actualite({ config }: { config?: SectionConfig }) {
                 {slides.length > 1 && (
                   <>
                     <button onClick={() => setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1))}
-                      className="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-xl transition-all hover:scale-110 z-10">
-                      <ChevronLeft size={24} />
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-lg transition-all hover:scale-105 z-10">
+                      <ChevronLeft size={20} />
                     </button>
                     <button onClick={() => setCurrentIndex((prev) => (prev + 1) % slides.length)}
-                      className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-xl transition-all hover:scale-110 z-10">
-                      <ChevronRight size={24} />
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-lg transition-all hover:scale-105 z-10">
+                      <ChevronRight size={20} />
                     </button>
                   </>
                 )}
               </div>
 
               {slides.length > 1 && (
-                <div className="flex justify-center gap-2.5 py-5 bg-white">
-                  {slides.map((s: any, i: number) => (
+                <div className="flex justify-center gap-2 py-4">
+                  {slides.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrentIndex(i)}
-                      className={`transition-all duration-300 rounded-full ${currentIndex === i ? "w-10 h-3 bg-accent-500" : "w-3 h-3 bg-gray-300 hover:bg-gray-400"
+                      className={`transition-all duration-300 rounded-full ${currentIndex === i ? "w-8 h-2.5 bg-accent-500" : "w-2.5 h-2.5 bg-gray-300 hover:bg-gray-400"
                         }`}
                       aria-label={`Slide ${i + 1}`}
                     />
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
           </motion.div>
         </div>
       </Container>
