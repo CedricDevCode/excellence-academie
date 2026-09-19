@@ -23,6 +23,7 @@ function StudentsView() {
   const [search, setSearch] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedMode, setSelectedMode] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -121,6 +122,9 @@ function StudentsView() {
         if (selectedMode === 'les_deux' && modeInfo.type !== 'les_deux') return false;
       }
 
+      // 4. Filtre par Ville
+      if (selectedCity && (u.ville || '') !== selectedCity) return false;
+
       // 4. Filtre par Date d'inscription
       if (u.createdAt) {
         const regDate = new Date(u.createdAt);
@@ -153,18 +157,26 @@ function StudentsView() {
 
       return true;
     });
-  }, [users, search, selectedCourse, selectedMode, dateFilter, startDate, endDate]);
+  }, [users, search, selectedCourse, selectedMode, selectedCity, dateFilter, startDate, endDate]);
 
-  const hasActiveFilters = Boolean(search || selectedCourse || selectedMode || dateFilter || startDate || endDate);
+  const hasActiveFilters = Boolean(search || selectedCourse || selectedMode || selectedCity || dateFilter || startDate || endDate);
 
   const resetFilters = () => {
     setSearch("");
     setSelectedCourse("");
     setSelectedMode("");
+    setSelectedCity("");
     setDateFilter("");
     setStartDate("");
     setEndDate("");
   };
+
+  // Unique cities from students
+  const studentCities = useMemo(() => {
+    const set = new Set<string>();
+    users.forEach(u => { if (u.ville) set.add(u.ville); });
+    return Array.from(set).sort();
+  }, [users]);
 
   const toggleSelectAll = () => {
     if (selectedIds.length === filtered.length) setSelectedIds([]);
@@ -345,7 +357,7 @@ function StudentsView() {
           <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
             {/* Barre de Filtres Automatique */}
             <div className="p-4 border-b border-gray-100 bg-gray-50/70 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 {/* 1. Recherche textuelle */}
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -353,7 +365,7 @@ function StudentsView() {
                     type="text"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Nom, email, téléphone..."
+                    placeholder="Nom, email, telephone..."
                     className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all shadow-xs"
                   />
                   {search && (
@@ -386,15 +398,29 @@ function StudentsView() {
                     onChange={e => setSelectedMode(e.target.value)}
                     className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
-                    <option value="">🎯 Tous les types de formation</option>
-                    <option value="presentiel">🏫 Présentiel</option>
-                    <option value="en_ligne">💻 En ligne (À distance)</option>
-                    <option value="les_deux">🔄 Présentiel + En ligne (Hybride)</option>
-                    <option value="particulier">⭐ Cours particuliers</option>
+                    <option value="">🎯 Tous les types</option>
+                    <option value="presentiel">🏫 Presentiel</option>
+                    <option value="en_ligne">💻 En ligne</option>
+                    <option value="les_deux">🔄 Hybride</option>
+                    <option value="particulier">⭐ Particulier</option>
                   </select>
                 </div>
 
-                {/* 4. Filtre Date d'inscription */}
+                {/* 4. Filtre par Ville */}
+                <div className="relative">
+                  <select
+                    value={selectedCity}
+                    onChange={e => setSelectedCity(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                  >
+                    <option value="">📍 Toutes les villes</option>
+                    {studentCities.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 5. Filtre Date d'inscription */}
                 <div className="relative">
                   <select
                     value={dateFilter}
@@ -405,7 +431,7 @@ function StudentsView() {
                     <option value="today">Inscrits aujourd'hui</option>
                     <option value="this_week">Inscrits cette semaine (7j)</option>
                     <option value="this_month">Inscrits ce mois-ci</option>
-                    <option value="custom">Période personnalisée...</option>
+                    <option value="custom">Periode personnalisee...</option>
                   </select>
                 </div>
               </div>
@@ -620,42 +646,92 @@ function StudentsView() {
         </div>
       )}
 
-      {/* Student Payments Modal */}
+      {/* Student Payments Modal — Premium Training Platform Style */}
       {showPaymentsModal && paymentsStudent && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
-          <div className="bg-white rounded w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-              <div>
-                <h3 className="font-black text-gray-900 text-lg">Paiements — {paymentsStudent.name || 'Étudiant'}</h3>
-                <p className="text-gray-500 text-xs mt-0.5">{paymentsStudent.email}</p>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay"
+          onClick={e => { if (e.target === e.currentTarget) { setShowPaymentsModal(false); setPaymentsStudent(null); } }}>
+          <div className="bg-white rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Header with student info */}
+            <div className="bg-linear-to-r from-[#c97e00] to-[#6b4500] px-6 py-5 text-white shrink-0">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-xl font-black shrink-0">
+                    {paymentsStudent.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg">{paymentsStudent.name || 'Etudiant'}</h3>
+                    <p className="text-white/70 text-sm">{paymentsStudent.email}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-white/60">
+                      {paymentsStudent.matricule && <span>Matr: {paymentsStudent.matricule}</span>}
+                      {paymentsStudent.ville && <span className="flex items-center gap-1"><MapPin size={10} />{paymentsStudent.ville}</span>}
+                      {paymentsStudent.createdAt && <span>Inscrit le {new Date(paymentsStudent.createdAt).toLocaleDateString('fr-FR')}</span>}
+                    </div>
+                  </div>
+                </div>
+                <button onClick={() => { setShowPaymentsModal(false); setPaymentsStudent(null); }}
+                  className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors shrink-0">
+                  <X size={18} />
+                </button>
               </div>
-              <button onClick={() => { setShowPaymentsModal(false); setPaymentsStudent(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+              {/* Summary KPIs */}
+              {!paymentsLoading && (
+                <div className="grid grid-cols-3 gap-3 mt-5">
+                  <div className="bg-white/10 rounded-lg px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-white/50 font-semibold">Total paye</p>
+                    <p className="text-lg font-black">
+                      {studentPayments.filter(p => p.status === 'SUCCESS').reduce((s, p) => s + Number(p.amount), 0).toLocaleString('fr-FR')} <span className="text-xs font-normal text-white/60">FCFA</span>
+                    </p>
+                  </div>
+                  <div className="bg-white/10 rounded-lg px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-white/50 font-semibold">En attente</p>
+                    <p className="text-lg font-black">
+                      {studentPayments.filter(p => p.status !== 'SUCCESS').reduce((s, p) => s + Number(p.amount), 0).toLocaleString('fr-FR')} <span className="text-xs font-normal text-white/60">FCFA</span>
+                    </p>
+                  </div>
+                  <div className="bg-white/10 rounded-lg px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wider text-white/50 font-semibold">Prochain versement</p>
+                    <p className="text-lg font-black">
+                      {(() => {
+                        const activeSub = studentSubscriptions.find((s: any) => s.status === 'ACTIVE');
+                        if (!activeSub) return '—';
+                        const next = new Date(activeSub.nextPayment);
+                        const now = new Date();
+                        const days = Math.ceil((next.getTime() - now.getTime()) / 86400000);
+                        if (days <= 0) return <span className="text-red-300">En retard</span>;
+                        return <>{days}j</>;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
+
             <div className="flex-1 overflow-y-auto">
               {paymentsLoading ? (
                 <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-[#c97e00]" /></div>
               ) : (
                 <>
                   {/* Tabs */}
-                  <div className="flex border-b border-gray-100 bg-gray-50/70 px-6">
+                  <div className="flex border-b border-gray-100 bg-gray-50/50 px-6">
                     {(['paid', 'unpaid', 'upcoming'] as const).map(tab => {
-                      const labels = { paid: 'Payés', unpaid: 'Impayés', upcoming: 'À venir' };
+                      const labels = { paid: 'Paiements reussis', unpaid: 'Impayes', upcoming: 'A venir' };
+                      const colors = { paid: 'text-green-600 bg-green-50', unpaid: 'text-red-600 bg-red-50', upcoming: 'text-blue-600 bg-blue-50' };
                       const count = tab === 'paid'
                         ? studentPayments.filter(p => p.status === 'SUCCESS').length
                         : tab === 'unpaid'
                           ? studentPayments.filter(p => p.status !== 'SUCCESS').length
                           : studentSubscriptions.length;
                       return (
-                        <button
-                          key={tab}
-                          onClick={() => setPaymentsTab(tab)}
-                          className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                        <button key={tab} onClick={() => setPaymentsTab(tab)}
+                          className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
                             paymentsTab === tab
                               ? 'border-[#c97e00] text-[#c97e00]'
                               : 'border-transparent text-gray-500 hover:text-gray-700'
-                          }`}
-                        >
-                          {labels[tab]} <span className="ml-1 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">{count}</span>
+                          }`}>
+                          {labels[tab]}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${paymentsTab === tab ? colors[tab] : 'bg-gray-200 text-gray-500'}`}>
+                            {count}
+                          </span>
                         </button>
                       );
                     })}
@@ -665,26 +741,44 @@ function StudentsView() {
                     {/* PAID tab */}
                     {paymentsTab === 'paid' && (() => {
                       const paid = studentPayments.filter(p => p.status === 'SUCCESS');
-                      if (paid.length === 0) return <p className="text-sm text-gray-400 text-center py-8">Aucun paiement réussi.</p>;
+                      if (paid.length === 0) return (
+                        <div className="text-center py-12">
+                          <CheckCircle size={40} className="text-gray-200 mx-auto mb-3" />
+                          <p className="text-gray-400 text-sm">Aucun paiement reussi</p>
+                        </div>
+                      );
                       return (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {paid.map(p => (
-                            <div key={p.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-100 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <CheckCircle size={18} className="text-green-600 shrink-0" />
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-900">{Number(p.amount).toLocaleString('fr-FR')} FCFA</p>
-                                  <p className="text-xs text-gray-500">{p.course?.title || '—'}</p>
+                            <div key={p.id} className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-green-50/30 hover:border-green-200 transition-all group">
+                              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                                <CheckCircle size={18} className="text-green-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-gray-900 text-sm">{Number(p.amount).toLocaleString('fr-FR')} FCFA</span>
+                                  {p.type === 'INSCRIPTION' ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Inscription</span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Mensualite</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                                  <span>{p.course?.title || '—'}</span>
+                                  <span>·</span>
+                                  <span>{new Date(p.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <p className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</p>
-                                {p.receiptNumber && <p className="text-[10px] text-gray-400 font-mono">Reçu: {p.receiptNumber}</p>}
+                              <div className="text-right shrink-0">
+                                {p.receiptNumber && (
+                                  <span className="text-[10px] text-gray-400 font-mono">Recu: {p.receiptNumber}</span>
+                                )}
                               </div>
                             </div>
                           ))}
-                          <div className="pt-2 border-t border-gray-100 text-right">
-                            <span className="text-sm font-bold text-green-700">Total payé : {paid.reduce((s, p) => s + Number(p.amount), 0).toLocaleString('fr-FR')} FCFA</span>
+                          <div className="pt-3 mt-2 border-t border-gray-100 flex items-center justify-between">
+                            <span className="text-xs text-gray-500">{paid.length} paiement(s)</span>
+                            <span className="text-sm font-black text-green-700">Total: {paid.reduce((s, p) => s + Number(p.amount), 0).toLocaleString('fr-FR')} FCFA</span>
                           </div>
                         </div>
                       );
@@ -693,23 +787,31 @@ function StudentsView() {
                     {/* UNPAID tab */}
                     {paymentsTab === 'unpaid' && (() => {
                       const unpaid = studentPayments.filter(p => p.status !== 'SUCCESS');
-                      if (unpaid.length === 0) return <p className="text-sm text-gray-400 text-center py-8">Aucun paiement en attente.</p>;
+                      if (unpaid.length === 0) return (
+                        <div className="text-center py-12">
+                          <CheckCircle size={40} className="text-gray-200 mx-auto mb-3" />
+                          <p className="text-gray-400 text-sm">Aucun impaye</p>
+                        </div>
+                      );
                       return (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {unpaid.map(p => (
-                            <div key={p.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <X size={18} className="text-red-600 shrink-0" />
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-900">{Number(p.amount).toLocaleString('fr-FR')} FCFA</p>
-                                  <p className="text-xs text-gray-500">{p.course?.title || '—'}</p>
-                                </div>
+                            <div key={p.id} className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-red-50/30 hover:border-red-200 transition-all">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${p.status === 'FAILED' ? 'bg-red-100' : 'bg-yellow-100'}`}>
+                                <X size={18} className={p.status === 'FAILED' ? 'text-red-600' : 'text-yellow-600'} />
                               </div>
-                              <div className="text-right">
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.status === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                  {p.status === 'FAILED' ? 'Échoué' : 'En attente'}
-                                </span>
-                                <p className="text-xs text-gray-500 mt-1">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-gray-900 text-sm">{Number(p.amount).toLocaleString('fr-FR')} FCFA</span>
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${p.status === 'FAILED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {p.status === 'FAILED' ? 'Echoue' : 'En attente'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                                  <span>{p.course?.title || '—'}</span>
+                                  <span>·</span>
+                                  <span>{new Date(p.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -717,29 +819,42 @@ function StudentsView() {
                       );
                     })()}
 
-                    {/* UPCOMING tab (from subscriptions) */}
+                    {/* UPCOMING tab */}
                     {paymentsTab === 'upcoming' && (() => {
-                      if (studentSubscriptions.length === 0) return <p className="text-sm text-gray-400 text-center py-8">Aucun abonnement actif.</p>;
+                      if (studentSubscriptions.length === 0) return (
+                        <div className="text-center py-12">
+                          <Clock size={40} className="text-gray-200 mx-auto mb-3" />
+                          <p className="text-gray-400 text-sm">Aucun abonnement actif</p>
+                        </div>
+                      );
                       const now = new Date();
                       return (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {studentSubscriptions.map(sub => {
                             const nextDate = new Date(sub.nextPayment);
                             const isOverdue = nextDate <= now;
+                            const daysUntil = Math.ceil((nextDate.getTime() - now.getTime()) / 86400000);
                             return (
-                              <div key={sub.id} className={`flex items-center justify-between p-3 border rounded-lg ${isOverdue ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-100'}`}>
-                                <div className="flex items-center gap-3">
+                              <div key={sub.id} className={`flex items-center gap-4 p-3 rounded-xl border transition-all ${isOverdue ? 'bg-orange-50 border-orange-200' : 'bg-blue-50/50 border-blue-100 hover:border-blue-200'}`}>
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isOverdue ? 'bg-orange-100' : 'bg-blue-100'}`}>
                                   <Clock size={18} className={isOverdue ? 'text-orange-600' : 'text-blue-600'} />
-                                  <div>
-                                    <p className="text-sm font-semibold text-gray-900">{Number(sub.amount).toLocaleString('fr-FR')} FCFA / mois</p>
-                                    <p className="text-xs text-gray-500">{sub.course?.title || '—'}</p>
-                                  </div>
                                 </div>
-                                <div className="text-right">
-                                  <p className={`text-xs font-semibold ${isOverdue ? 'text-orange-700' : 'text-blue-700'}`}>
-                                    {isOverdue ? 'En retard' : 'Prochain paiement'}
-                                  </p>
-                                  <p className="text-xs text-gray-500">{nextDate.toLocaleDateString('fr-FR')}</p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-gray-900 text-sm">{Number(sub.amount).toLocaleString('fr-FR')} FCFA / mois</span>
+                                    {isOverdue ? (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700">En retard</span>
+                                    ) : (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">A venir</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                                    <span>{sub.course?.title || '—'}</span>
+                                    <span>·</span>
+                                    <span>{isOverdue ? `${Math.abs(daysUntil)} jour(s) de retard` : `Dans ${daysUntil} jour(s)`}</span>
+                                    <span>·</span>
+                                    <span>{nextDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -751,8 +866,11 @@ function StudentsView() {
                 </>
               )}
             </div>
-            <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0 flex justify-end">
-              <button onClick={() => { setShowPaymentsModal(false); setPaymentsStudent(null); }} className="px-4 py-2 text-gray-600 font-semibold text-sm hover:text-gray-800">Fermer</button>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 shrink-0 flex justify-end rounded-b-2xl">
+              <button onClick={() => { setShowPaymentsModal(false); setPaymentsStudent(null); }}
+                className="px-5 py-2.5 text-gray-600 font-semibold text-sm hover:text-gray-800 rounded-lg hover:bg-gray-200 transition-colors">
+                Fermer
+              </button>
             </div>
           </div>
         </div>

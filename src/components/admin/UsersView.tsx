@@ -21,6 +21,7 @@ export default function UsersView() {
   const [userForm, setUserForm] = useState({ prenom: '', nom: '', email: '', password: '', role: 'TEACHER', telephone: '', ville: '', hourlyRate: '' });
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [studentSearch, setStudentSearch] = useState('');
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast, confirm } = useToast();
@@ -103,6 +104,7 @@ export default function UsersView() {
     setEditingUserId(null);
     setMessage(null);
     setSelectedStudentIds([]);
+    setStudentSearch('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -401,16 +403,40 @@ export default function UsersView() {
                     {allStudents.length === 0 ? (
                       <p className="text-xs text-gray-400">Chargement des etudiants...</p>
                     ) : (
-                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded p-2 space-y-1">
-                        {allStudents.map(s => (
-                          <label key={s.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors ${selectedStudentIds.includes(s.id) ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-50 text-gray-700'}`}>
-                            <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={() => toggleStudent(s.id)}
-                              className="w-4 h-4 rounded accent-[#c97e00]" />
-                            <span className="font-medium">{s.name || s.email}</span>
-                            {s.matricule && <span className="text-[10px] text-gray-400 font-mono">({s.matricule})</span>}
-                          </label>
-                        ))}
-                      </div>
+                      <>
+                        <div className="relative mb-2">
+                          <input type="text" value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
+                            placeholder="Rechercher par nom, email, matricule..."
+                            className="w-full px-3 py-2 pl-8 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                          <Users size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                          {studentSearch && (
+                            <button type="button" onClick={() => setStudentSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                              <XCircle size={14} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-48 overflow-y-auto border border-gray-200 rounded p-2 space-y-1">
+                          {allStudents.filter(s => {
+                            if (!studentSearch) return true;
+                            const q = studentSearch.toLowerCase();
+                            return (s.name || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q) || (s.matricule || '').toLowerCase().includes(q);
+                          }).map(s => (
+                            <label key={s.id} className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors ${selectedStudentIds.includes(s.id) ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-50 text-gray-700'}`}>
+                              <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={() => toggleStudent(s.id)}
+                                className="w-4 h-4 rounded accent-[#c97e00]" />
+                              <span className="font-medium">{s.name || s.email}</span>
+                              {s.matricule && <span className="text-[10px] text-gray-400 font-mono">({s.matricule})</span>}
+                            </label>
+                          ))}
+                          {allStudents.filter(s => {
+                            if (!studentSearch) return true;
+                            const q = studentSearch.toLowerCase();
+                            return (s.name || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q) || (s.matricule || '').toLowerCase().includes(q);
+                          }).length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-3">Aucun etudiant trouve</p>
+                          )}
+                        </div>
+                      </>
                     )}
                     {selectedStudentIds.length > 0 && (
                       <p className="text-xs text-primary-600 mt-1 font-semibold">{selectedStudentIds.length} etudiant(s) selectionne(s)</p>
