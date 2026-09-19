@@ -609,6 +609,22 @@ export const getMe = async (req: Request, res: Response) => {
         pays: true,
         isActive: true,
         matricule: true,
+        ...(req.user.role === 'PARENT' ? {
+          parentLinks: {
+            select: {
+              student: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  matricule: true,
+                  ville: true,
+                  image: true,
+                },
+              },
+            },
+          },
+        } : {}),
       },
     });
     res.json(user);

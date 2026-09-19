@@ -1855,7 +1855,23 @@ var getMe = async (req, res) => {
         ville: true,
         pays: true,
         isActive: true,
-        matricule: true
+        matricule: true,
+        ...req.user.role === "PARENT" ? {
+          parentLinks: {
+            select: {
+              student: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  matricule: true,
+                  ville: true,
+                  image: true
+                }
+              }
+            }
+          }
+        } : {}
       }
     });
     res.json(user);

@@ -19,6 +19,7 @@ const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const AccountantDashboard = lazy(() => import("./pages/AccountantDashboard"));
 const SecretaryDashboard = lazy(() => import("./pages/SecretaryDashboard"));
+const ParentDashboard = lazy(() => import("./pages/ParentDashboard"));
 const CGU = lazy(() => import("./pages/CGU"));
 const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
 const Shop = lazy(() => import("./pages/Shop"));
@@ -57,6 +58,7 @@ function AppRoutes() {
     "/teacher/dashboard",
     "/accountant/dashboard",
     "/secretary/dashboard",
+    "/parent/dashboard",
     "/students/new",
     "/student/login",
   ];
@@ -77,6 +79,7 @@ function AppRoutes() {
             <Route path="/teacher/dashboard" element={<PageTransition><TeacherDashboard /></PageTransition>} />
             <Route path="/accountant/dashboard" element={<PageTransition><AccountantDashboard /></PageTransition>} />
             <Route path="/secretary/dashboard" element={<PageTransition><SecretaryDashboard /></PageTransition>} />
+            <Route path="/parent/dashboard" element={<PageTransition><ParentDashboard /></PageTransition>} />
             <Route path="/payment/success" element={<PageTransition><PaymentCallback /></PageTransition>} />
             <Route path="/payment/error" element={<PageTransition><PaymentCallback /></PageTransition>} />
             <Route path="/shop" element={<PageTransition><Shop /></PageTransition>} />

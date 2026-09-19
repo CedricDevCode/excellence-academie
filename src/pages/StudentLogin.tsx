@@ -48,9 +48,9 @@ export default function StudentLogin() {
       if (response.ok) {
         localStorage.setItem('user', JSON.stringify(data.user));
         const role = data.user.role;
-        const adminRoles: Record<string, string[]> = { student: ['STUDENT'], teacher: ['TEACHER'], accountant: ['ACCOUNTANT'], admin: ['ADMIN', 'SECRETARY'] };
+        const adminRoles: Record<string, string[]> = { student: ['STUDENT'], teacher: ['TEACHER'], accountant: ['ACCOUNTANT'], parent: ['PARENT'], admin: ['ADMIN', 'SECRETARY'] };
         if (!adminRoles[form.role]?.includes(role)) {
-          const labels: Record<string, string> = { student: 'étudiant', teacher: 'enseignant', accountant: 'comptable', admin: 'administrateur' };
+          const labels: Record<string, string> = { student: 'étudiant', teacher: 'enseignant', accountant: 'comptable', parent: 'parent', admin: 'administrateur' };
           setServerError(`Ce compte n'est pas un ${labels[form.role] || form.role}. Veuillez sélectionner le bon profil.`);
           return;
         }
@@ -61,6 +61,7 @@ export default function StudentLogin() {
         else if (role === "STUDENT") navigate("/student/dashboard");
         else if (role === "TEACHER") navigate("/teacher/dashboard");
         else if (role === "ACCOUNTANT") navigate("/accountant/dashboard");
+        else if (role === "PARENT") navigate("/parent/dashboard");
       } else {
         const errorMsg = data.details
           ? `${data.error} (${data.details})`
@@ -119,6 +120,7 @@ export default function StudentLogin() {
                   { val: "student", label: "Étudiant", icon: <GraduationCap size={14} /> },
                   { val: "teacher", label: "Enseignant", icon: <User size={14} /> },
                   { val: "accountant", label: "Comptable", icon: <Lock size={14} /> },
+                  { val: "parent", label: "Parent", icon: <User size={14} /> },
                   { val: "admin", label: "Administrateur", icon: <ShieldCheck size={14} /> },
                 ].map(r => (
                   <button key={r.val} type="button"
