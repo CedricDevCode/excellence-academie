@@ -365,7 +365,7 @@ function Actualite({ config }: { config?: SectionConfig }) {
             onMouseLeave={() => setIsPaused(false)}
           >
             <div className="overflow-hidden rounded-2xl shadow-2xl border border-gray-200/60">
-              <div className="relative w-full" style={{ minHeight: '420px', maxHeight: '580px' }}>
+              <div className="relative min-h-[400px] sm:min-h-[480px] md:min-h-[520px] max-h-[600px]">
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
