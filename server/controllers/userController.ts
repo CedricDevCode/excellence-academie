@@ -15,6 +15,7 @@ const USER_SAFE_SELECT = {
   isActive: true,
   matricule: true,
   hourlyRate: true,
+  lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -64,6 +65,16 @@ export const getUsers = async (req: Request, res: Response) => {
               course: { select: { id: true, title: true } },
             },
           },
+          parentLinks: {
+            select: {
+              student: { select: { id: true, name: true, email: true, matricule: true } },
+            },
+          },
+          studentLinks: {
+            select: {
+              parent: { select: { id: true, name: true, email: true } },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -92,20 +103,20 @@ export const getUsers = async (req: Request, res: Response) => {
  */
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, prenom, nom, role, telephone, ville, hourlyRate } = req.body;
+    const { email, password, name, prenom, nom, role, telephone, ville, hourlyRate, studentIds } = req.body;
 
     if (!email || !password || !role) {
-      return res.status(400).json({ error: 'Email, mot de passe et rôle sont requis' });
+      return res.status(400).json({ error: 'Email, mot de passe et role sont requis' });
     }
 
     if (typeof password !== 'string' || password.length < 8) {
-      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caracteres' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
     const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
-      return res.status(400).json({ error: 'Cet email est déjà utilisé' });
+      return res.status(400).json({ error: 'Cet email est deja utilise' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -124,10 +135,18 @@ export const createUser = async (req: Request, res: Response) => {
       select: USER_SAFE_SELECT,
     });
 
+    // Link parent to students if role is PARENT and studentIds provided
+    if (role === 'PARENT' && Array.isArray(studentIds) && studentIds.length > 0) {
+      await prisma.parentStudent.createMany({
+        data: studentIds.map((sid: string) => ({ parentId: user.id, studentId: sid })),
+        skipDuplicates: true,
+      });
+    }
+
     res.status(201).json(user);
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Erreur lors de la création de l\'utilisateur' });
+    res.status(500).json({ error: 'Erreur lors de la creation de l\'utilisateur' });
   }
 };
 
@@ -137,7 +156,7 @@ export const createUser = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate } = req.body;
+    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate, studentIds } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID utilisateur requis' });
@@ -162,7 +181,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
     if (password) {
       if (typeof password !== 'string' || password.length < 8) {
-        return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+        return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caracteres' });
       }
       updateData.password = await bcrypt.hash(password, 12);
     }
@@ -173,10 +192,21 @@ export const updateUser = async (req: Request, res: Response) => {
       select: USER_SAFE_SELECT,
     });
 
+    // Update parent-student links if studentIds provided
+    if (Array.isArray(studentIds)) {
+      await prisma.parentStudent.deleteMany({ where: { parentId: id } });
+      if (studentIds.length > 0) {
+        await prisma.parentStudent.createMany({
+          data: studentIds.map((sid: string) => ({ parentId: id, studentId: sid })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
     res.json(user);
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'utilisateur' });
+    res.status(500).json({ error: 'Erreur lors de la mise a jour de l\'utilisateur' });
   }
 };
 

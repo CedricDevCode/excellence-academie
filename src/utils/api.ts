@@ -70,6 +70,7 @@ export interface CreateUserData {
   ville?: string;
   role?: string;
   hourlyRate?: number;
+  studentIds?: string[];
 }
 
 export interface UpdateUserData {
@@ -137,6 +138,25 @@ export const fetchUsers = async (): Promise<User[]> => {
   if (!res.ok) throw new Error('Failed to fetch users');
   const data = await res.json();
   return Array.isArray(data) ? data : data.users || [];
+};
+
+export const fetchStudents = async (): Promise<User[]> => {
+  const res = await authFetch(`${API_BASE_URL}/users?role=STUDENT&limit=500`);
+  if (!res.ok) throw new Error('Failed to fetch students');
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.users || [];
+};
+
+export const fetchOnlineUsers = async (): Promise<string[]> => {
+  const res = await authFetch(`${API_BASE_URL}/presence/online`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.online || [];
+};
+
+export const sendHeartbeat = async (): Promise<void> => {
+  const res = await authFetch(`${API_BASE_URL}/presence/heartbeat`, { method: 'POST', body: '{}' });
+  if (!res.ok) { /* non-blocking */ }
 };
 
 export const createUser = async (data: CreateUserData) => {

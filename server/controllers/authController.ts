@@ -563,6 +563,11 @@ export const login = async (req: Request, res: Response) => {
 
     setAuthCookie(res, user.id, user.role);
 
+    // Track last login time
+    try {
+      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    } catch { /* non-blocking */ }
+
     console.log(`[AUTH] Connexion réussie : ${maskEmail(cleanEmail)} (${user.role})`);
     res.json({
       message: 'Connexion réussie',

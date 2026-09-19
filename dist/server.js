@@ -71,6 +71,7 @@ var USER_SAFE_SELECT = {
   isActive: true,
   matricule: true,
   hourlyRate: true,
+  lastLoginAt: true,
   createdAt: true,
   updatedAt: true
 };
@@ -112,6 +113,16 @@ var getUsers = async (req, res) => {
               createdAt: true,
               course: { select: { id: true, title: true } }
             }
+          },
+          parentLinks: {
+            select: {
+              student: { select: { id: true, name: true, email: true, matricule: true } }
+            }
+          },
+          studentLinks: {
+            select: {
+              parent: { select: { id: true, name: true, email: true } }
+            }
           }
         },
         orderBy: { createdAt: "desc" },
@@ -136,17 +147,17 @@ var getUsers = async (req, res) => {
 };
 var createUser = async (req, res) => {
   try {
-    const { email, password, name, prenom, nom, role, telephone, ville, hourlyRate } = req.body;
+    const { email, password, name, prenom, nom, role, telephone, ville, hourlyRate, studentIds } = req.body;
     if (!email || !password || !role) {
-      return res.status(400).json({ error: "Email, mot de passe et r\xF4le sont requis" });
+      return res.status(400).json({ error: "Email, mot de passe et role sont requis" });
     }
     if (typeof password !== "string" || password.length < 8) {
-      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres" });
     }
     const cleanEmail = email.trim().toLowerCase();
     const existingUser = await prisma_default.user.findUnique({ where: { email: cleanEmail } });
     if (existingUser) {
-      return res.status(400).json({ error: "Cet email est d\xE9j\xE0 utilis\xE9" });
+      return res.status(400).json({ error: "Cet email est deja utilise" });
     }
     const hashedPassword = await bcrypt.hash(password, 12);
     const fullName = name || [prenom, nom].filter(Boolean).join(" ").trim() || cleanEmail;
@@ -162,16 +173,22 @@ var createUser = async (req, res) => {
       },
       select: USER_SAFE_SELECT
     });
+    if (role === "PARENT" && Array.isArray(studentIds) && studentIds.length > 0) {
+      await prisma_default.parentStudent.createMany({
+        data: studentIds.map((sid) => ({ parentId: user.id, studentId: sid })),
+        skipDuplicates: true
+      });
+    }
     res.status(201).json(user);
   } catch (error) {
     console.error("Error creating user:", error);
-    res.status(500).json({ error: "Erreur lors de la cr\xE9ation de l'utilisateur" });
+    res.status(500).json({ error: "Erreur lors de la creation de l'utilisateur" });
   }
 };
 var updateUser = async (req, res) => {
   try {
     const id = req.params.id;
-    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate } = req.body;
+    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate, studentIds } = req.body;
     if (!id) {
       return res.status(400).json({ error: "ID utilisateur requis" });
     }
@@ -191,7 +208,7 @@ var updateUser = async (req, res) => {
     }
     if (password) {
       if (typeof password !== "string" || password.length < 8) {
-        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+        return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres" });
       }
       updateData.password = await bcrypt.hash(password, 12);
     }
@@ -200,10 +217,19 @@ var updateUser = async (req, res) => {
       data: updateData,
       select: USER_SAFE_SELECT
     });
+    if (Array.isArray(studentIds)) {
+      await prisma_default.parentStudent.deleteMany({ where: { parentId: id } });
+      if (studentIds.length > 0) {
+        await prisma_default.parentStudent.createMany({
+          data: studentIds.map((sid) => ({ parentId: id, studentId: sid })),
+          skipDuplicates: true
+        });
+      }
+    }
     res.json(user);
   } catch (error) {
     console.error("Error updating user:", error);
-    res.status(500).json({ error: "Erreur lors de la mise \xE0 jour de l'utilisateur" });
+    res.status(500).json({ error: "Erreur lors de la mise a jour de l'utilisateur" });
   }
 };
 var updateMyProfile = async (req, res) => {
@@ -1791,6 +1817,10 @@ var login = async (req, res) => {
       return res.status(403).json({ error: "Compte d\xE9sactiv\xE9. Contactez l'administration." });
     }
     setAuthCookie(res, user.id, user.role);
+    try {
+      await prisma_default.user.update({ where: { id: user.id }, data: { lastLoginAt: /* @__PURE__ */ new Date() } });
+    } catch {
+    }
     console.log(`[AUTH] Connexion r\xE9ussie : ${maskEmail(cleanEmail)} (${user.role})`);
     res.json({
       message: "Connexion r\xE9ussie",
@@ -5471,6 +5501,25 @@ app.use("/api/banners", bannerRoutes_default);
 app.use("/api/blog", blogRoutes_default);
 app.use("/api/siteconfig", siteConfigRoutes_default);
 app.use("/api/app-settings", appSettingsRoutes_default);
+var onlineUsers = /* @__PURE__ */ new Map();
+var PRESENCE_TIMEOUT_MS = 6e4;
+app.post("/api/presence/heartbeat", (req, res) => {
+  const userId = req.body?.userId || req.user?.id;
+  if (userId) onlineUsers.set(userId, Date.now());
+  res.json({ ok: true });
+});
+app.get("/api/presence/online", (req, res) => {
+  const now = Date.now();
+  for (const [uid, ts] of onlineUsers) {
+    if (now - ts > PRESENCE_TIMEOUT_MS) onlineUsers.delete(uid);
+  }
+  res.json({ online: Array.from(onlineUsers.keys()) });
+});
+app.get("/api/presence/status/:userId", (req, res) => {
+  const ts = onlineUsers.get(req.params.userId);
+  const isOnline = ts ? Date.now() - ts < PRESENCE_TIMEOUT_MS : false;
+  res.json({ online: isOnline });
+});
 app.get("/api/health", async (req, res) => {
   const healthSecret = process.env.HEALTH_SECRET;
   if (isProduction3 && healthSecret) {

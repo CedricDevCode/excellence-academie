@@ -30,6 +30,7 @@ model User {
   role          Role           @default(STUDENT)
   isActive      Boolean        @default(true)
   matricule     String?        @unique
+  lastLoginAt   DateTime?
   payments      Payment[]
   notifications Notification[]
   expenses      Expense[]      @relation("TeacherExpenses")
@@ -45,8 +46,23 @@ model User {
   blogPosts     BlogPost[]
   blogComments  BlogComment[]
   blogSubmissions BlogSubmission[]
+  parentLinks   ParentStudent[] @relation("ParentOf")
+  studentLinks  ParentStudent[] @relation("StudentOf")
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+}
+
+model ParentStudent {
+  id        String   @id @default(uuid())
+  parent    User     @relation("ParentOf", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId  String
+  student   User     @relation("StudentOf", fields: [studentId], references: [id], onDelete: Cascade)
+  studentId String
+  createdAt DateTime @default(now())
+
+  @@unique([parentId, studentId])
+  @@index([parentId])
+  @@index([studentId])
 }
 
 model Category {

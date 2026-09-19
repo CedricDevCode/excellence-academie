@@ -270,6 +270,34 @@ app.use('/api/blog', blogRoutes);
 app.use('/api/siteconfig', siteConfigRoutes);
 app.use('/api/app-settings', appSettingsRoutes);
 
+// ─── Presence Tracking (online users) ────────────────────────────────────────
+const onlineUsers = new Map<string, number>(); // userId -> lastHeartbeat timestamp
+const PRESENCE_TIMEOUT_MS = 60_000; // 60s without heartbeat = offline
+
+// Heartbeat endpoint: clients POST /api/presence/heartbeat every 30s
+app.post('/api/presence/heartbeat', (req, res) => {
+  const userId = req.body?.userId || req.user?.id;
+  if (userId) onlineUsers.set(userId, Date.now());
+  res.json({ ok: true });
+});
+
+// GET /api/presence/online — returns list of online user IDs
+app.get('/api/presence/online', (req, res) => {
+  const now = Date.now();
+  // Clean stale entries
+  for (const [uid, ts] of onlineUsers) {
+    if (now - ts > PRESENCE_TIMEOUT_MS) onlineUsers.delete(uid);
+  }
+  res.json({ online: Array.from(onlineUsers.keys()) });
+});
+
+// GET /api/presence/status/:userId — check single user
+app.get('/api/presence/status/:userId', (req, res) => {
+  const ts = onlineUsers.get(req.params.userId);
+  const isOnline = ts ? (Date.now() - ts) < PRESENCE_TIMEOUT_MS : false;
+  res.json({ online: isOnline });
+});
+
 // ─── Health Check ─────────────────────────────────────────────────────────────
 // Protégé par un header secret optionnel en production
 app.get('/api/health', async (req, res) => {
