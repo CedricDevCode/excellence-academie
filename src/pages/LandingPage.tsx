@@ -12,6 +12,7 @@ import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPub
 import { Link } from 'react-router-dom';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import { Badge, Button, Card, SectionTitle, Container, Rating } from '../components/ui';
+import SEOHead from '../components/SEOHead';
 import {
   DEFAULT_SITE_CONFIG,
   mergeSiteConfig,
@@ -1155,6 +1156,12 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen font-sans text-gray-800 bg-white selection:bg-accent-500 selection:text-white">
+      <SEOHead
+        title="Accueil"
+        description="Excellence Académie – Leader de la formation aux concours en Côte d'Ivoire. ENA, Magistrature, Greffe, Agent pénitentiaire, CAPA. 500+ étudiants formés, 51% de réussite."
+        url="/"
+        keywords="formation concours, ENA Côte d'Ivoire, magistrature, greffe, notaire, avocature, CAPA, agent pénitentiaire, Excellence Académie, Abidjan, concours administratif"
+      />
       <Hero config={homeConfig.hero} currentUser={currentUser} />
       <StatsRibbon config={homeConfig.stats} />
       <Actualite config={homeConfig.actualite} />

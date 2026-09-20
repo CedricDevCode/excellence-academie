@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, GraduationCap, ArrowLeft, Lock, User, AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import SEOHead from '../components/SEOHead';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
@@ -77,6 +78,11 @@ export default function StudentLogin() {
 
   return (
     <div className="min-h-screen bg-surface-900 flex items-center justify-center p-4 relative overflow-hidden">
+      <SEOHead
+        title="Connexion Étudiant"
+        description="Connectez-vous à votre espace étudiant Excellence Académie. Accédez à vos cours, évaluations et suivis de formation."
+        url="/login"
+      />
       {/* Brand glows */}
       <div className="absolute -top-32 -left-24 w-[420px] h-[420px] bg-primary-500/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-24 w-[420px] h-[420px] bg-accent-500/15 rounded-full blur-3xl pointer-events-none" />

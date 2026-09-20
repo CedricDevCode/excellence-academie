@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+import SEOHead from '../components/SEOHead';
 import {
   Gavel,
   Building2,
@@ -370,6 +371,11 @@ export default function CataloguePage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEOHead
+        title="Catalogue des Formations"
+        description="Découvrez toutes nos formations aux concours : ENA, Magistrature, Greffe, Notaire, Avocature, Agent pénitentiaire, Police, CAFOP. Inscrivez-vous maintenant."
+        url="/catalogue"
+      />
       {/* ─── Hero ─── */}
       <section className="relative bg-gradient-hero py-16 sm:py-24 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

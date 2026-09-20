@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton, Card, Badge, Button, Container } from '@/components/ui';
 import api from '../utils/api';
+import SEOHead from '../components/SEOHead';
 import { addProductToCart, getCartCount, readCart, writeCart } from '../utils/cart';
 import { openCartDrawer } from '../components/CartDrawer';
 
@@ -178,6 +179,11 @@ export default function Shop() {
 
   return (
     <div className="min-h-screen bg-surface-50 pb-12">
+      <SEOHead
+        title="Boutique ExAcademie"
+        description="Livres, brochures et supports de cours pour vos concours. Magistrature, ENA, Greffe, Avocature, Notaire. Livraison à Abidjan et en Côte d'Ivoire."
+        url="/shop"
+      />
       <style>{`
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
