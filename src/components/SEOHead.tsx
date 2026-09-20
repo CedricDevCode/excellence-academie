@@ -22,6 +22,7 @@ export default function SEOHead({
 }: SEOProps) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} – Formation aux Concours en Côte d'Ivoire`;
   const fullUrl = `${BASE_URL}${url}`;
+  const fullImage = image.startsWith('http') ? image : `${BASE_URL}${image}`;
 
   return (
     <Helmet>
@@ -35,13 +36,15 @@ export default function SEOHead({
       <meta property="og:type" content={type} />
       <meta property="og:url" content={fullUrl} />
       <meta property="og:site_name" content={SITE_NAME} />
-      <meta property="og:image" content={`${BASE_URL}${image}`} />
+      <meta property="og:image" content={fullImage} />
+      <meta property="og:image:width" content="512" />
+      <meta property="og:image:height" content="512" />
       <meta property="og:locale" content="fr_CI" />
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={`${BASE_URL}${image}`} />
+      <meta name="twitter:image" content={fullImage} />
     </Helmet>
   );
 }
