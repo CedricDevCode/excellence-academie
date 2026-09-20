@@ -360,12 +360,12 @@ function Actualite({ config }: { config?: SectionConfig }) {
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
             variants={scaleIn}
-            className="relative max-w-md mx-auto"
+            className="relative max-w-lg mx-auto"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
             <Card padding="none" className="overflow-hidden">
-              <div className="relative aspect-[3/4] h-[480px] sm:h-[560px] md:h-[640px]">
+              <div className="relative aspect-[3/4] h-[520px] sm:h-[600px] md:h-[700px]">
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
