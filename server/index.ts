@@ -356,7 +356,15 @@ const candidateDistPaths = [
 ];
 const distPath = candidateDistPaths.find(p => fs.existsSync(p)) || candidateDistPaths[0];
 
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    if (filePath.endsWith('.css')) res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    if (filePath.endsWith('.json')) res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    if (filePath.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
+    if (filePath.endsWith('.svg')) res.setHeader('Content-Type', 'image/svg+xml');
+  }
+}));
 // Servir aussi le dossier public/doc (contrat PDF)
 const publicDocPath = path.resolve(projectRoot, 'public', 'doc');
 if (fs.existsSync(publicDocPath)) {
@@ -374,6 +382,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api/')) return next();
+  if (req.path.match(/\.(js|css|json|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|ico|wasm)$/)) return next();
   const indexPath = path.join(distPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);

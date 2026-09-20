@@ -25,7 +25,7 @@ import helmet from "helmet";
 import compression from "compression";
 import rateLimit6 from "express-rate-limit";
 import cookieParser from "cookie-parser";
-import bcrypt3 from "bcrypt";
+import bcrypt4 from "bcrypt";
 
 // server/utils/prisma.ts
 import { PrismaClient } from "@prisma/client";
@@ -393,6 +393,17 @@ var upload = multer({
 var router = Router();
 router.use(authenticateToken);
 router.put("/me", updateMyProfile);
+router.post("/me/image", upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier upload\xE9" });
+    const imageUrl = `/uploads/users/${req.file.filename}`;
+    await prisma_default.user.update({ where: { id: req.user.id }, data: { image: imageUrl } });
+    res.json({ url: imageUrl });
+  } catch (error) {
+    console.error("Error uploading profile image:", error);
+    res.status(500).json({ error: "Erreur lors de l'upload de l'image" });
+  }
+});
 router.get("/", requireRole(["ADMIN"]), getUsers);
 router.post("/", requireRole(["ADMIN"]), createUser);
 router.put("/:id", requireRole(["ADMIN"]), updateUser);
@@ -1379,6 +1390,14 @@ function clearAuthCookie(res) {
 }
 
 // server/controllers/authController.ts
+var passwordResetTokens = /* @__PURE__ */ new Map();
+function cleanupExpiredTokens() {
+  const now = Date.now();
+  for (const [token, data] of passwordResetTokens) {
+    if (data.expiresAt < now) passwordResetTokens.delete(token);
+  }
+}
+setInterval(cleanupExpiredTokens, 60 * 60 * 1e3);
 function maskEmail(email) {
   const [local, domain] = email.split("@");
   if (!domain) return "***";
@@ -1880,6 +1899,216 @@ var getMe = async (req, res) => {
   }
 };
 
+// server/controllers/passwordResetController.ts
+import bcrypt3 from "bcrypt";
+import crypto3 from "crypto";
+
+// server/utils/logger.ts
+var LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+var MIN_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL] || LOG_LEVELS.info;
+function formatEntry(entry) {
+  const prefix = `[${entry.timestamp}] [${entry.level.toUpperCase()}]${entry.context ? ` [${entry.context}]` : ""}`;
+  const msg = `${prefix} ${entry.message}`;
+  if (entry.data !== void 0) {
+    return `${msg} ${JSON.stringify(entry.data)}`;
+  }
+  return msg;
+}
+function log(level, message, context, data) {
+  if (LOG_LEVELS[level] < MIN_LEVEL) return;
+  const entry = {
+    level,
+    message,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    context,
+    data
+  };
+  const formatted = formatEntry(entry);
+  switch (level) {
+    case "error":
+      console.error(formatted);
+      break;
+    case "warn":
+      console.warn(formatted);
+      break;
+    case "debug":
+      console.debug(formatted);
+      break;
+    default:
+      console.log(formatted);
+  }
+}
+var logger = {
+  debug: (message, context, data) => log("debug", message, context, data),
+  info: (message, context, data) => log("info", message, context, data),
+  warn: (message, context, data) => log("warn", message, context, data),
+  error: (message, context, data) => log("error", message, context, data)
+};
+var logger_default = logger;
+
+// server/controllers/passwordResetController.ts
+var passwordResetTokens2 = /* @__PURE__ */ new Map();
+function cleanupExpiredTokens2() {
+  const now = Date.now();
+  for (const [token, data] of passwordResetTokens2) {
+    if (data.expiresAt < now) passwordResetTokens2.delete(token);
+  }
+}
+setInterval(cleanupExpiredTokens2, 60 * 60 * 1e3);
+async function retryWithNeonWakeup2(fn, retries = 2, delayMs = 2e3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if ((msg.includes("Can't reach database") || msg.includes("P1001") || msg.includes("timeout") || msg.includes("ETIMEDOUT")) && attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  return fn();
+}
+var forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email requis" });
+    const user = await retryWithNeonWakeup2(
+      () => prisma_default.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+    );
+    if (!user) {
+      return res.json({ message: "Si cet email est inscrit, vous recevrez un lien de r\xE9initialisation." });
+    }
+    const token = crypto3.randomBytes(32).toString("hex");
+    const expiresAt = Date.now() + 60 * 60 * 1e3;
+    passwordResetTokens2.set(token, { userId: user.id, expiresAt });
+    const frontendUrl2 = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendUrl2}/reset-password?token=${token}`;
+    try {
+      const nodemailer2 = await import("nodemailer");
+      const transporter2 = nodemailer2.default.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: true,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      });
+      await transporter2.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: user.email,
+        subject: "Excellence Acad\xE9mie \u2014 R\xE9initialisation de mot de passe",
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <h2 style="color:#c97e00;">R\xE9initialisation de mot de passe</h2>
+          <p>Bonjour ${user.name || ""},</p>
+          <p>Vous avez demand\xE9 la r\xE9initialisation de votre mot de passe.</p>
+          <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:#c97e00;color:white;text-decoration:none;border-radius:8px;font-weight:bold;margin:16px 0;">
+            R\xE9initialiser mon mot de passe
+          </a>
+          <p style="color:#666;font-size:13px;">Ce lien expire dans 1 heure.</p>
+        </div>`
+      });
+    } catch (emailError) {
+      logger_default.error("Email send failed", "password-reset", emailError);
+      if (process.env.NODE_ENV !== "production") {
+        return res.json({ message: "Si cet email est inscrit, vous recevrez un lien.", _devResetUrl: resetUrl });
+      }
+    }
+    res.json({ message: "Si cet email est inscrit, vous recevrez un lien de r\xE9initialisation." });
+  } catch (error) {
+    logger_default.error("Forgot password error", "password-reset", error);
+    res.status(500).json({ error: "Erreur lors de la demande de r\xE9initialisation" });
+  }
+};
+var resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) return res.status(400).json({ error: "Token et nouveau mot de passe requis" });
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+    }
+    const resetData = passwordResetTokens2.get(token);
+    if (!resetData || resetData.expiresAt < Date.now()) {
+      return res.status(400).json({ error: "Token invalide ou expir\xE9." });
+    }
+    const hashedPassword = await bcrypt3.hash(newPassword, 12);
+    await retryWithNeonWakeup2(
+      () => prisma_default.user.update({ where: { id: resetData.userId }, data: { password: hashedPassword } })
+    );
+    passwordResetTokens2.delete(token);
+    invalidateUserCache(resetData.userId);
+    res.json({ message: "Mot de passe r\xE9initialis\xE9 avec succ\xE8s." });
+  } catch (error) {
+    logger_default.error("Reset password error", "password-reset", error);
+    res.status(500).json({ error: "Erreur lors de la r\xE9initialisation" });
+  }
+};
+
+// server/middleware/validate.ts
+import { z } from "zod";
+var loginSchema = z.object({
+  email: z.string().email("Email invalide").max(255),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caract\xE8res").max(128)
+});
+var registerSchema = z.object({
+  email: z.string().email("Email invalide").max(255),
+  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caract\xE8res").max(128),
+  name: z.string().max(100).optional(),
+  nom: z.string().max(100).optional(),
+  prenom: z.string().max(100).optional(),
+  telephone: z.string().max(20).optional(),
+  pays: z.string().max(100).optional(),
+  ville: z.string().max(100).optional()
+});
+var forgotPasswordSchema = z.object({
+  email: z.string().email("Email invalide").max(255)
+});
+var resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token requis").max(128),
+  newPassword: z.string().min(8, "Le mot de passe doit contenir au moins 8 caract\xE8res").max(128)
+});
+var createEvaluationSchema = z.object({
+  title: z.string().min(1, "Le titre est requis").max(200),
+  score: z.number().min(0).max(100).nullable().optional(),
+  maxScore: z.number().min(0).max(100).nullable().optional(),
+  comments: z.string().max(2e3).optional(),
+  studentId: z.string().uuid("ID \xE9tudiant invalide"),
+  courseId: z.string().uuid().nullable().optional()
+});
+var updateEvaluationSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  score: z.number().min(0).max(100).nullable().optional(),
+  maxScore: z.number().min(0).max(100).nullable().optional(),
+  comments: z.string().max(2e3).optional()
+});
+var createSessionSchema = z.object({
+  teacherId: z.string().uuid("ID enseignant invalide"),
+  courseId: z.string().uuid().nullable().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Format heure invalide (HH:MM)"),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Format heure invalide (HH:MM)"),
+  type: z.enum(["PRESENTIEL", "ONLINE"], { errorMap: () => ({ message: "Type doit \xEAtre PRESENTIEL ou ONLINE" }) }),
+  location: z.string().max(500).optional(),
+  description: z.string().max(500).optional(),
+  notifyStudents: z.boolean().optional()
+});
+function validateBody(schema) {
+  return (req, res, next) => {
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      const errors = result.error.errors.map((e) => ({
+        field: e.path.join("."),
+        message: e.message
+      }));
+      return res.status(400).json({
+        error: "Donn\xE9es invalides",
+        details: errors
+      });
+    }
+    req.body = result.data;
+    next();
+  };
+}
+
 // server/routes/authRoutes.ts
 var router3 = Router3();
 var loginLimiter = rateLimit2({
@@ -1911,10 +2140,12 @@ var paymentInitLimiter = rateLimit2({
     error: "Trop de tentatives de paiement. Veuillez r\xE9essayer dans une heure."
   }
 });
-router3.post("/login", loginLimiter, login);
+router3.post("/login", loginLimiter, validateBody(loginSchema), login);
 router3.post("/logout", logout);
-router3.post("/register", registerLimiter, register);
-router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, registerAndPay);
+router3.post("/register", registerLimiter, validateBody(registerSchema), register);
+router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
+router3.post("/forgot-password", loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
+router3.post("/reset-password", validateBody(resetPasswordSchema), resetPassword);
 router3.get("/me", authenticateToken, getMe);
 router3.post("/confirm-payment", authenticateToken, confirmPayment);
 router3.post("/add-course", authenticateToken, paymentInitLimiter, addCourseForExistingStudent);
@@ -2080,14 +2311,14 @@ var getExpenseSummary = async (req, res) => {
 // server/routes/expenseRoutes.ts
 import multer2 from "multer";
 import path3 from "path";
-import crypto3 from "crypto";
+import crypto4 from "crypto";
 var router5 = Router5();
 router5.use(authenticateToken);
 var storage = multer2.diskStorage({
   destination: (_req, _file, cb) => cb(null, path3.join(process.cwd(), "uploads")),
   filename: (_req, file, cb) => {
     const ext = path3.extname(file.originalname);
-    cb(null, `expense-${crypto3.randomUUID()}${ext}`);
+    cb(null, `expense-${crypto4.randomUUID()}${ext}`);
   }
 });
 var upload2 = multer2({
@@ -2362,7 +2593,7 @@ import multer3 from "multer";
 import rateLimit3 from "express-rate-limit";
 import path4 from "path";
 import fs3 from "fs";
-import crypto4 from "crypto";
+import crypto5 from "crypto";
 import { fileURLToPath as fileURLToPath3 } from "url";
 
 // server/controllers/testimonialController.ts
@@ -2523,7 +2754,7 @@ var upload3 = multer3({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
     filename: (_req, file, cb) => {
       const ext = path4.extname(file.originalname);
-      cb(null, `${crypto4.randomUUID()}${ext}`);
+      cb(null, `${crypto5.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 5 * 1024 * 1024 }
@@ -2553,7 +2784,7 @@ var asString = (value) => {
   if (Array.isArray(value)) return value[0];
   return value;
 };
-async function retryWithNeonWakeup2(fn, retries = 2, delayMs = 2e3) {
+async function retryWithNeonWakeup3(fn, retries = 2, delayMs = 2e3) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn();
@@ -2576,7 +2807,7 @@ var getAllCourses = async (req, res) => {
     if (category && typeof category === "string" && category.trim() !== "") {
       where.category = category.trim();
     }
-    const courses = await retryWithNeonWakeup2(
+    const courses = await retryWithNeonWakeup3(
       () => prisma_default.course.findMany({
         where,
         orderBy: [{ category: "asc" }, { title: "asc" }],
@@ -2596,7 +2827,7 @@ var getAllCourses = async (req, res) => {
 var getCourseById = async (req, res) => {
   try {
     const { id } = req.params;
-    const course = await retryWithNeonWakeup2(
+    const course = await retryWithNeonWakeup3(
       () => prisma_default.course.findUnique({
         where: { id },
         include: {
@@ -2642,7 +2873,7 @@ var createCourse = async (req, res) => {
     const mFeeOnline = monthlyFeeOnline !== void 0 ? Number(monthlyFeeOnline) : 25e3;
     const mFeeBoth = monthlyFeeBoth !== void 0 ? Number(monthlyFeeBoth) : 35e3;
     const mFeeDias = monthlyFeeDiaspora !== void 0 ? Number(monthlyFeeDiaspora) : 35e3;
-    const course = await retryWithNeonWakeup2(
+    const course = await retryWithNeonWakeup3(
       () => prisma_default.course.create({
         data: {
           title: title.trim(),
@@ -2699,7 +2930,7 @@ var updateCourse = async (req, res) => {
     const mFeeOnline = monthlyFeeOnline !== void 0 ? Number(monthlyFeeOnline) : void 0;
     const mFeeBoth = monthlyFeeBoth !== void 0 ? Number(monthlyFeeBoth) : void 0;
     const mFeeDias = monthlyFeeDiaspora !== void 0 ? Number(monthlyFeeDiaspora) : void 0;
-    const course = await retryWithNeonWakeup2(
+    const course = await retryWithNeonWakeup3(
       () => prisma_default.course.update({
         where: { id },
         data: {
@@ -2733,7 +2964,7 @@ var deleteCourse = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "id de la formation requis" });
     }
-    await retryWithNeonWakeup2(() => prisma_default.course.delete({ where: { id } }));
+    await retryWithNeonWakeup3(() => prisma_default.course.delete({ where: { id } }));
     res.json({ message: "Formation supprim\xE9e avec succ\xE8s" });
   } catch (error) {
     console.error(error);
@@ -2866,7 +3097,7 @@ var getEvaluations = async (req, res) => {
     });
     res.json(evaluations);
   } catch (error) {
-    console.error("Error fetching evaluations:", error);
+    logger_default.error("Failed to fetch evaluations", "evaluation", error);
     res.status(500).json({ error: "Failed to fetch evaluations" });
   }
 };
@@ -2893,7 +3124,7 @@ var createEvaluation = async (req, res) => {
     });
     res.status(201).json(evaluation);
   } catch (error) {
-    console.error("Error creating evaluation:", error);
+    logger_default.error("Failed to create evaluation", "evaluation", error);
     res.status(500).json({ error: "Failed to create evaluation" });
   }
 };
@@ -2912,8 +3143,25 @@ var updateEvaluation = async (req, res) => {
     });
     res.json(evaluation);
   } catch (error) {
-    console.error("Error updating evaluation:", error);
+    logger_default.error("Failed to update evaluation", "evaluation", error);
     res.status(500).json({ error: "Failed to update evaluation" });
+  }
+};
+var deleteEvaluation = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const evaluation = await prisma_default.evaluation.findUnique({ where: { id } });
+    if (!evaluation) {
+      return res.status(404).json({ error: "\xC9valuation non trouv\xE9e" });
+    }
+    if (req.user.role === "TEACHER" && evaluation.teacherId !== req.user.id) {
+      return res.status(403).json({ error: "Vous ne pouvez supprimer que vos propres \xE9valuations" });
+    }
+    await prisma_default.evaluation.delete({ where: { id } });
+    res.json({ message: "\xC9valuation supprim\xE9e avec succ\xE8s" });
+  } catch (error) {
+    logger_default.error("Failed to delete evaluation", "evaluation", error);
+    res.status(500).json({ error: "Failed to delete evaluation" });
   }
 };
 
@@ -2921,8 +3169,9 @@ var updateEvaluation = async (req, res) => {
 var router11 = Router11();
 router11.use(authenticateToken);
 router11.get("/", requireRole(["ADMIN", "SECRETARY", "TEACHER"]), getEvaluations);
-router11.post("/", requireRole(["TEACHER"]), createEvaluation);
-router11.put("/:id", requireRole(["TEACHER", "ADMIN"]), updateEvaluation);
+router11.post("/", requireRole(["TEACHER"]), validateBody(createEvaluationSchema), createEvaluation);
+router11.put("/:id", requireRole(["TEACHER", "ADMIN"]), validateBody(updateEvaluationSchema), updateEvaluation);
+router11.delete("/:id", requireRole(["TEACHER", "ADMIN"]), deleteEvaluation);
 var evaluationRoutes_default = router11;
 
 // server/routes/cityRoutes.ts
@@ -2993,7 +3242,11 @@ import multer4 from "multer";
 import rateLimit4 from "express-rate-limit";
 
 // server/controllers/sessionController.ts
-import crypto5 from "crypto";
+import crypto6 from "crypto";
+import fs4 from "fs";
+import path5 from "path";
+var SESSION_FILES_DIR = path5.join(process.cwd(), "uploads", "session-files");
+fs4.mkdirSync(SESSION_FILES_DIR, { recursive: true });
 var tablesInitialized = false;
 async function ensureSessionTables() {
   if (tablesInitialized) return;
@@ -3067,7 +3320,7 @@ var createSession = async (req, res) => {
       return res.status(400).json({ error: "L'heure de fin doit \xEAtre apr\xE8s l'heure de d\xE9but" });
     }
     const { weekStart, weekEnd, weekLabel } = getWeekInfo(date);
-    const id = crypto5.randomUUID();
+    const id = crypto6.randomUUID();
     const now = /* @__PURE__ */ new Date();
     const courseIdVal = courseId || null;
     const typeVal = type || "PRESENTIEL";
@@ -3323,16 +3576,18 @@ var uploadSessionFile = async (req, res) => {
     if (!rows.length) {
       return res.status(404).json({ error: "S\xE9ance introuvable" });
     }
-    const fileId = crypto5.randomUUID();
-    const base64 = file.buffer.toString("base64");
-    const mimeType = file.mimetype;
-    await prisma_default.$executeRaw`INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "fileData", "uploadedAt")
-       VALUES (${fileId}, ${id}, ${file.originalname}, ${mimeType}, ${base64}, NOW())`;
+    const fileId = crypto6.randomUUID();
+    const ext = path5.extname(file.originalname).toLowerCase();
+    const diskFilename = `${fileId}${ext}`;
+    const diskPath = path5.join(SESSION_FILES_DIR, diskFilename);
+    fs4.writeFileSync(diskPath, file.buffer);
+    await prisma_default.$executeRaw`INSERT INTO "SessionFile" (id, "sessionId", "fileName", "fileType", "filePath", "uploadedAt")
+       VALUES (${fileId}, ${id}, ${file.originalname}, ${file.mimetype}, ${diskFilename}, NOW())`;
     res.status(201).json({
       id: fileId,
       sessionId: id,
       fileName: file.originalname,
-      fileType: mimeType
+      fileType: file.mimetype
     });
   } catch (error) {
     console.error("Upload session file error:", error);
@@ -3364,11 +3619,23 @@ var downloadSessionFile = async (req, res) => {
       return res.status(404).json({ error: "Fichier introuvable" });
     }
     const file = rows[0];
-    const buffer = Buffer.from(file.fileData, "base64");
-    const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255);
-    res.setHeader("Content-Type", file.fileType || "application/octet-stream");
-    res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"`);
-    res.send(buffer);
+    if (file.filePath) {
+      const diskPath = path5.join(SESSION_FILES_DIR, file.filePath);
+      if (fs4.existsSync(diskPath)) {
+        const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255);
+        res.setHeader("Content-Type", file.fileType || "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"`);
+        return res.sendFile(diskPath);
+      }
+    }
+    if (file.fileData) {
+      const buffer = Buffer.from(file.fileData, "base64");
+      const safeFileName = file.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255);
+      res.setHeader("Content-Type", file.fileType || "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFileName}"`);
+      return res.send(buffer);
+    }
+    res.status(404).json({ error: "Fichier non trouv\xE9 sur le disque" });
   } catch (error) {
     console.error("Download session file error:", error);
     res.status(500).json({ error: "Failed to download file" });
@@ -3475,7 +3742,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
         currency: "XOF",
         description,
         metadata: { teacher_id: teacher.id, type: "salary" },
-        idempotency_key: crypto5.randomUUID()
+        idempotency_key: crypto6.randomUUID()
       }),
       signal: AbortSignal.timeout(15e3)
     });
@@ -3488,7 +3755,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
     if (env === "sandbox") {
       return {
         success: true,
-        reference: `SANDBOX-${crypto5.randomUUID().slice(0, 8)}`,
+        reference: `SANDBOX-${crypto6.randomUUID().slice(0, 8)}`,
         error: `\u26A0\uFE0F Mode sandbox : paiement simul\xE9. ${apiMsg}`
       };
     }
@@ -3498,7 +3765,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
     if (env === "sandbox") {
       return {
         success: true,
-        reference: `SANDBOX-${crypto5.randomUUID().slice(0, 8)}`,
+        reference: `SANDBOX-${crypto6.randomUUID().slice(0, 8)}`,
         error: "\u26A0\uFE0F Mode sandbox : paiement simul\xE9 (API non disponible)"
       };
     }
@@ -3642,7 +3909,7 @@ router13.use(authenticateToken);
 router13.get("/salary-report", requireRole(["ADMIN", "ACCOUNTANT", "SECRETARY"]), getMonthlySalaryReport);
 router13.post("/pay-salary", requireRole(["ADMIN", "ACCOUNTANT"]), payTeacherSalary);
 router13.get("/my-sessions", requireRole(["STUDENT"]), getStudentSessions);
-router13.post("/", requireRole(["ADMIN", "ACCOUNTANT", "SECRETARY"]), createSession);
+router13.post("/", requireRole(["ADMIN", "ACCOUNTANT", "SECRETARY"]), validateBody(createSessionSchema), createSession);
 router13.get("/", requireRole(["ADMIN", "ACCOUNTANT", "SECRETARY", "TEACHER", "STUDENT"]), getSessions);
 router13.put("/:id", requireRole(["ADMIN", "ACCOUNTANT", "SECRETARY"]), updateSession);
 router13.delete("/:id", requireRole(["ADMIN", "ACCOUNTANT"]), deleteSession);
@@ -3805,16 +4072,16 @@ import { Router as Router15 } from "express";
 
 // server/utils/contractPdf.ts
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import path5 from "path";
-import fs4 from "fs";
+import path6 from "path";
+import fs5 from "fs";
 import { fileURLToPath as fileURLToPath4 } from "url";
-var __dirname4 = path5.dirname(fileURLToPath4(import.meta.url));
+var __dirname4 = path6.dirname(fileURLToPath4(import.meta.url));
 function base64ToBytes(base64) {
   return Buffer.from(base64, "base64");
 }
 async function generateSignedContractPdf(signatureDataUrl, studentName) {
-  const pdfPath = path5.resolve(__dirname4, "..", "..", "public", "doc", "contrat_exacademy.pdf");
-  const pdfBytes = fs4.readFileSync(pdfPath);
+  const pdfPath = path6.resolve(__dirname4, "..", "..", "public", "doc", "contrat_exacademy.pdf");
+  const pdfBytes = fs5.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBytes);
   const base64Data = signatureDataUrl.split(",")[1];
   const signatureBytes = base64ToBytes(base64Data);
@@ -3962,9 +4229,9 @@ var contractRoutes_default = router15;
 import { Router as Router16 } from "express";
 import multer5 from "multer";
 import rateLimit5 from "express-rate-limit";
-import path6 from "path";
-import fs5 from "fs";
-import crypto6 from "crypto";
+import path7 from "path";
+import fs6 from "fs";
+import crypto7 from "crypto";
 import { fileURLToPath as fileURLToPath5 } from "url";
 
 // server/controllers/shopController.ts
@@ -4286,15 +4553,15 @@ var updateOrderStatus = async (req, res) => {
 };
 
 // server/routes/shopRoutes.ts
-var __dirname5 = path6.dirname(fileURLToPath5(import.meta.url));
-var uploadsDir2 = path6.join(__dirname5, "..", "uploads", "products");
-fs5.mkdirSync(uploadsDir2, { recursive: true });
+var __dirname5 = path7.dirname(fileURLToPath5(import.meta.url));
+var uploadsDir2 = path7.join(__dirname5, "..", "uploads", "products");
+fs6.mkdirSync(uploadsDir2, { recursive: true });
 var upload5 = multer5({
   storage: multer5.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadsDir2),
     filename: (_req, file, cb) => {
-      const ext = path6.extname(file.originalname).toLowerCase();
-      cb(null, `${crypto6.randomUUID()}${ext}`);
+      const ext = path7.extname(file.originalname).toLowerCase();
+      cb(null, `${crypto7.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -4333,6 +4600,9 @@ var shopRoutes_default = router16;
 
 // server/routes/bannerRoutes.ts
 import { Router as Router17 } from "express";
+import multer6 from "multer";
+import path8 from "path";
+import fs7 from "fs";
 
 // server/controllers/bannerController.ts
 var isProduction = process.env.NODE_ENV === "production";
@@ -4481,7 +4751,31 @@ var deleteBanner = async (req, res) => {
 
 // server/routes/bannerRoutes.ts
 var router17 = Router17();
+var bannerUploadDir = path8.resolve(process.cwd(), "uploads", "banners");
+fs7.mkdirSync(bannerUploadDir, { recursive: true });
+var bannerStorage = multer6.diskStorage({
+  destination: (_req, _file, cb) => cb(null, bannerUploadDir),
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    const ext = path8.extname(file.originalname) || ".jpg";
+    cb(null, `banner-${unique}${ext}`);
+  }
+});
+var bannerUpload = multer6({
+  storage: bannerStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp/;
+    const ok = allowed.test(path8.extname(file.originalname).toLowerCase()) && allowed.test(file.mimetype);
+    cb(null, ok);
+  }
+});
 router17.get("/public", getActiveBanners);
+router17.post("/upload", authenticateToken, requireRole(["ADMIN"]), bannerUpload.single("image"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Aucun fichier" });
+  const url = `/uploads/banners/${req.file.filename}`;
+  res.json({ url });
+});
 router17.get("/", authenticateToken, requireRole(["ADMIN"]), getAllBanners);
 router17.get("/:id", authenticateToken, requireRole(["ADMIN"]), getBannerById);
 router17.post("/", authenticateToken, requireRole(["ADMIN"]), createBanner);
@@ -4491,10 +4785,10 @@ var bannerRoutes_default = router17;
 
 // server/routes/blogRoutes.ts
 import { Router as Router18 } from "express";
-import multer6 from "multer";
-import path7 from "path";
-import fs6 from "fs";
-import crypto7 from "crypto";
+import multer7 from "multer";
+import path9 from "path";
+import fs8 from "fs";
+import crypto8 from "crypto";
 import { fileURLToPath as fileURLToPath6 } from "url";
 
 // server/controllers/blogController.ts
@@ -4823,15 +5117,15 @@ var evaluateSubmission = async (req, res) => {
 };
 
 // server/routes/blogRoutes.ts
-var __dirname6 = path7.dirname(fileURLToPath6(import.meta.url));
-var blogUploadsDir = path7.join(__dirname6, "..", "uploads", "blog");
-fs6.mkdirSync(blogUploadsDir, { recursive: true });
-var upload6 = multer6({
-  storage: multer6.diskStorage({
+var __dirname6 = path9.dirname(fileURLToPath6(import.meta.url));
+var blogUploadsDir = path9.join(__dirname6, "..", "uploads", "blog");
+fs8.mkdirSync(blogUploadsDir, { recursive: true });
+var upload6 = multer7({
+  storage: multer7.diskStorage({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
     filename: (_req, file, cb) => {
-      const ext = path7.extname(file.originalname);
-      cb(null, `${crypto7.randomUUID()}${ext}`);
+      const ext = path9.extname(file.originalname);
+      cb(null, `${crypto8.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -5348,10 +5642,10 @@ if (process.argv[1]?.includes("seed-courses")) {
 }
 
 // server/index.ts
-import path8 from "path";
-import fs7 from "fs";
+import path10 from "path";
+import fs9 from "fs";
 import { fileURLToPath as fileURLToPath7 } from "url";
-var __dirname7 = path8.dirname(fileURLToPath7(import.meta.url));
+var __dirname7 = path10.dirname(fileURLToPath7(import.meta.url));
 async function ensureCourseColumns() {
   const tableCheck = await prisma.$queryRaw`
     SELECT EXISTS (
@@ -5593,34 +5887,34 @@ app.get("/api/health", async (req, res) => {
   }
 });
 var projectRoot = process.cwd();
-var rootUploads = path8.resolve(projectRoot, "uploads");
-var serverUploads = path8.resolve(projectRoot, "server", "uploads");
+var rootUploads = path10.resolve(projectRoot, "uploads");
+var serverUploads = path10.resolve(projectRoot, "server", "uploads");
 for (const sub of ["products", "testimonials", "blog", "users", "sessions", "categories"]) {
-  fs7.mkdirSync(path8.join(rootUploads, sub), { recursive: true });
+  fs9.mkdirSync(path10.join(rootUploads, sub), { recursive: true });
 }
 var candidateDistPaths = [
-  path8.resolve(projectRoot, "dist"),
-  path8.resolve(__dirname7, "..", "dist"),
-  path8.resolve(__dirname7, "dist")
+  path10.resolve(projectRoot, "dist"),
+  path10.resolve(__dirname7, "..", "dist"),
+  path10.resolve(__dirname7, "dist")
 ];
-var distPath = candidateDistPaths.find((p) => fs7.existsSync(p)) || candidateDistPaths[0];
+var distPath = candidateDistPaths.find((p) => fs9.existsSync(p)) || candidateDistPaths[0];
 app.use(express.static(distPath));
-var publicDocPath = path8.resolve(projectRoot, "public", "doc");
-if (fs7.existsSync(publicDocPath)) {
+var publicDocPath = path10.resolve(projectRoot, "public", "doc");
+if (fs9.existsSync(publicDocPath)) {
   app.use("/doc", express.static(publicDocPath));
 }
-if (fs7.existsSync(rootUploads)) {
+if (fs9.existsSync(rootUploads)) {
   app.use("/uploads", express.static(rootUploads));
 }
-if (fs7.existsSync(serverUploads)) {
+if (fs9.existsSync(serverUploads)) {
   app.use("/uploads", express.static(serverUploads));
 }
-app.use("/uploads", express.static(path8.join(__dirname7, "uploads")));
+app.use("/uploads", express.static(path10.join(__dirname7, "uploads")));
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (req.path.startsWith("/api/")) return next();
-  const indexPath = path8.join(distPath, "index.html");
-  if (fs7.existsSync(indexPath)) {
+  const indexPath = path10.join(distPath, "index.html");
+  if (fs9.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
   next();
@@ -5793,7 +6087,7 @@ async function initDatabaseDefaults() {
         );
         return;
       }
-      const password = await bcrypt3.hash(initialPassword, 12);
+      const password = await bcrypt4.hash(initialPassword, 12);
       const defaultUsers = [
         { email: "admin@excellence.ci", name: "Administrateur", role: "ADMIN", password },
         { email: "accountant@excellence.ci", name: "Comptable", role: "ACCOUNTANT", password },
