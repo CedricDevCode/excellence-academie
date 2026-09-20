@@ -690,12 +690,12 @@ function Formations({ config }: { config: SectionConfig }) {
             variants={staggerContainer}
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            className="flex flex-wrap justify-center gap-4"
           >
             {displayCourses.map((f, i) => {
               const mFee = f.monthlyFee !== undefined ? Number(f.monthlyFee) : 30000;
               return (
-                <motion.div key={f.id || i} variants={staggerItem}>
+                <motion.div key={f.id || i} variants={staggerItem} className="w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)] xl:w-[calc(25%-12px)]">
                   <Link to={f.id ? `/formation/${f.id}` : '/catalogue'} className="block h-full">
                     <Card hover className="h-full flex flex-col">
                       <div className="flex items-start gap-3 mb-3">
