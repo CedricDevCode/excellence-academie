@@ -15,7 +15,6 @@ export default function StudentRegister() {
         description="Inscrivez-vous à Excellence Académie et préparez vos concours avec les meilleurs formateurs de Côte d'Ivoire."
         url="/register"
       />
-    <div className="min-h-screen bg-surface-900 flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute -top-32 -right-24 w-[420px] h-[420px] bg-primary-500/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -left-24 w-[420px] h-[420px] bg-accent-500/15 rounded-full blur-3xl pointer-events-none" />
 
