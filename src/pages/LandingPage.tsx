@@ -317,6 +317,16 @@ function Actualite({ config }: { config?: SectionConfig }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [featuredItems, setFeaturedItems] = useState<BannerItem[]>(DEFAULT_FEATURED_BANNERS);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  useEffect(() => {
+    if (lightboxOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxOpen(false); };
+      window.addEventListener('keydown', handleEsc);
+      return () => { document.body.style.overflow = ''; window.removeEventListener('keydown', handleEsc); };
+    }
+  }, [lightboxOpen]);
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -383,7 +393,8 @@ function Actualite({ config }: { config?: SectionConfig }) {
                         <img
                           src={src}
                           alt={slide.title || `Actualité ${i + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => setLightboxOpen(true)}
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                         {(slide.title || slide.subtitle) && (
@@ -426,6 +437,47 @@ function Actualite({ config }: { config?: SectionConfig }) {
               )}
             </Card>
           </motion.div>
+
+          {/* Lightbox modal */}
+          <AnimatePresence>
+            {lightboxOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                onClick={() => setLightboxOpen(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.85, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.85, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="relative max-w-3xl w-full"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => setLightboxOpen(false)}
+                    className="absolute -top-3 -right-3 z-10 w-10 h-10 rounded-full bg-white text-gray-800 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <XIcon size={20} />
+                  </button>
+                  <img
+                    src={slides[currentIndex]?.imageUrl || (typeof slides[currentIndex] === 'string' ? slides[currentIndex] : '')}
+                    alt={slides[currentIndex]?.title || 'Bannière'}
+                    className="w-full rounded-2xl shadow-2xl object-contain max-h-[85vh]"
+                  />
+                  {(slides[currentIndex]?.title || slides[currentIndex]?.subtitle) && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-6 sm:p-8 rounded-b-2xl text-white">
+                      {slides[currentIndex]?.title && <h3 className="font-extrabold text-lg sm:text-2xl leading-snug">{slides[currentIndex].title}</h3>}
+                      {slides[currentIndex]?.subtitle && <p className="text-gray-200 text-sm sm:text-base mt-1">{slides[currentIndex].subtitle}</p>}
+                    </div>
+                  )}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </Container>
     </section>
