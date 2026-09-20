@@ -322,7 +322,7 @@ function Actualite({ config }: { config?: SectionConfig }) {
       try {
         const banners = await fetchPublicBanners();
         if (Array.isArray(banners)) {
-          const featured = banners.filter((b: any) => b.isActive && b.imageUrl && (b.featured || !b.productId));
+          const featured = banners.filter((b: any) => b.isActive && b.imageUrl);
           if (featured.length > 0) {
             setFeaturedItems(featured);
           }
@@ -360,12 +360,12 @@ function Actualite({ config }: { config?: SectionConfig }) {
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
             variants={scaleIn}
-            className="relative max-w-sm mx-auto"
+            className="relative max-w-xs mx-auto"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
             <Card padding="none" className="overflow-hidden">
-              <div className="relative h-[420px] sm:h-[500px] md:h-[560px]">
+              <div className="relative h-[420px] sm:h-[500px] md:h-[560px] aspect-[3/4]">
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
