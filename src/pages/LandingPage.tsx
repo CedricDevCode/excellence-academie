@@ -360,12 +360,12 @@ function Actualite({ config }: { config?: SectionConfig }) {
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
             variants={scaleIn}
-            className="relative max-w-xl mx-auto"
+            className="relative max-w-2xl mx-auto"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
             <Card padding="none" className="overflow-hidden">
-              <div className="relative aspect-[3/4] h-[560px] sm:h-[650px] md:h-[780px]">
+              <div className="relative aspect-[3/4] h-[600px] sm:h-[700px] md:h-[850px]">
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
@@ -399,12 +399,12 @@ function Actualite({ config }: { config?: SectionConfig }) {
                 {slides.length > 1 && (
                   <>
                     <button onClick={() => setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1))}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-lg transition-all hover:scale-105 z-10">
-                      <ChevronLeft size={20} />
+                      className="absolute left-2 top-0 bottom-0 my-auto w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-lg transition-all hover:scale-105 z-10">
+                      <ChevronLeft size={22} />
                     </button>
                     <button onClick={() => setCurrentIndex((prev) => (prev + 1) % slides.length)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-lg transition-all hover:scale-105 z-10">
-                      <ChevronRight size={20} />
+                      className="absolute right-2 top-0 bottom-0 my-auto w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/90 hover:bg-white text-gray-800 flex items-center justify-center shadow-lg transition-all hover:scale-105 z-10">
+                      <ChevronRight size={22} />
                     </button>
                   </>
                 )}
