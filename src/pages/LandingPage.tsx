@@ -366,7 +366,7 @@ function Actualite({ config }: { config?: SectionConfig }) {
             onMouseLeave={() => setIsPaused(false)}
           >
             <Card padding="none" className="overflow-hidden">
-              <div className="relative min-h-[350px] aspect-[3/4]">
+              <div className="relative w-full" style={{ minHeight: '350px', maxHeight: '500px', height: '50vw' }}>
                 <AnimatePresence mode="wait">
                   {slides.map((slide: any, i: number) => {
                     if (i !== currentIndex) return null;
