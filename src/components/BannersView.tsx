@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Upload, Image as ImageIcon, X, Save, Loader2, Eye, EyeOff, Calendar } from 'lucide-react';
-import api, { uploadProductImage } from '../utils/api';
+import api, { uploadBannerImage } from '../utils/api';
 import { useToast } from './Toast';
 
 interface Product {
@@ -186,7 +186,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
 
     setUploadingImage(true);
     try {
-      const response = await uploadProductImage(file);
+      const response = await uploadBannerImage(file);
       setForm({ ...form, imageUrl: response.url || response.imageUrl });
       toast('success', 'Image téléchargée');
     } catch (error: any) {

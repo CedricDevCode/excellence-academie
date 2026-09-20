@@ -464,6 +464,18 @@ export const uploadProductImage = async (file: File) => {
   return res.json();
 };
 
+export const uploadBannerImage = async (file: File) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  const res = await fetch(`${API_BASE_URL}/banners/upload`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+  if (!res.ok) throw new Error('Failed to upload banner image');
+  return res.json();
+};
+
 // Shop Orders
 export const fetchShopOrders = async () => {
   const res = await authFetch(`${API_BASE_URL}/shop/admin/orders`);
