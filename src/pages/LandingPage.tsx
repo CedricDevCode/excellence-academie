@@ -1158,9 +1158,9 @@ export default function LandingPage() {
     <div className="min-h-screen font-sans text-gray-800 bg-white selection:bg-accent-500 selection:text-white">
       <SEOHead
         title="Accueil"
-        description="Excellence Académie – Leader de la formation aux concours en Côte d'Ivoire. ENA, Magistrature, Greffe, Agent pénitentiaire, CAPA. 500+ étudiants formés, 51% de réussite."
+        description="Excellence Académie – Leader de la formation aux concours en Côte d'Ivoire. Inscription formation concours : ENA, Magistrature, Greffe, Agent pénitentiaire, CAPA. 500+ étudiants formés, 51% de réussite."
         url="/"
-        keywords="formation concours, ENA Côte d'Ivoire, magistrature, greffe, notaire, avocature, CAPA, agent pénitentiaire, Excellence Académie, Abidjan, concours administratif"
+        keywords="inscription formation concours, formation concours, ENA Côte d'Ivoire, magistrature, greffe, notaire, avocature, CAPA, agent pénitentiaire, Excellence Académie, Abidjan, inscription Excellence Académie"
       />
       <Hero config={homeConfig.hero} currentUser={currentUser} />
       <StatsRibbon config={homeConfig.stats} />

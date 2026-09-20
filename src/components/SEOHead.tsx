@@ -14,11 +14,11 @@ const BASE_URL = 'https://www.exacademie.net';
 
 export default function SEOHead({
   title,
-  description = 'Excellence Académie – Leader de la formation aux concours en Côte d\'Ivoire. ENA, Magistrature, Greffe, Agent pénitentiaire, CAPA.',
+  description = 'Excellence Académie – Leader de la formation aux concours en Côte d\'Ivoire. Inscription formation concours : ENA, Magistrature, Greffe, Agent pénitentiaire, CAPA.',
   url = '/',
   image = '/favicon.jpeg',
   type = 'website',
-  keywords = 'formation concours, ENA Côte d\'Ivoire, magistrature, greffe, notaire, avocature, CAPA, agent pénitentiaire, Excellence Académie, Abidjan',
+  keywords = 'inscription formation concours, formation concours, ENA Côte d\'Ivoire, magistrature, greffe, notaire, avocature, CAPA, agent pénitentiaire, Excellence Académie, Abidjan, inscription Excellence Académie',
 }: SEOProps) {
   const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} – Formation aux Concours en Côte d'Ivoire`;
   const fullUrl = `${BASE_URL}${url}`;

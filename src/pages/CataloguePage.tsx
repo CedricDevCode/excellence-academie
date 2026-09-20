@@ -373,8 +373,9 @@ export default function CataloguePage() {
     <div className="min-h-screen bg-white">
       <SEOHead
         title="Catalogue des Formations"
-        description="Découvrez toutes nos formations aux concours : ENA, Magistrature, Greffe, Notaire, Avocature, Agent pénitentiaire, Police, CAFOP. Inscrivez-vous maintenant."
+        description="Découvrez toutes nos formations aux concours : ENA, Magistrature, Greffe, Notaire, Avocature, Agent pénitentiaire, Police, CAFOP. Inscription formation concours ouverte."
         url="/catalogue"
+        keywords="inscription formation concours, catalogue formations concours, ENA, magistrature, greffe, notaire, avocature, CAPA, agent pénitentiaire, Excellence Académie"
       />
       {/* ─── Hero ─── */}
       <section className="relative bg-gradient-hero py-16 sm:py-24 overflow-hidden">
