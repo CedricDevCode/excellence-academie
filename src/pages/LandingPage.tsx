@@ -8,7 +8,7 @@ import {
   Upload, X as XIcon, Loader2, AlertCircle, Sparkles,
   Play, Target, Zap, TrendingUp, GraduationCap, Phone, Send
 } from "lucide-react";
-import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPublicBanners, fetchCourses, fetchSiteConfig, getMe } from '../utils/api';
+import { fetchTestimonials, createTestimonial, uploadTestimonialImages, fetchPublicBanners, fetchPublicCourses, fetchSiteConfig, getMe } from '../utils/api';
 import { Link } from 'react-router-dom';
 import { useScrollAnimation } from '../hooks/useScrollAnimation';
 import { Badge, Button, Card, SectionTitle, Container, Rating } from '../components/ui';
@@ -639,18 +639,23 @@ function Formations({ config }: { config: SectionConfig }) {
   const [loading, setLoading] = useState(true);
 
   const defaultForms = [
-    { title: "Magistrature", category: "Concours Juridiques & Judiciaires", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "CAFOP (Centre d'Animation et de Formation Pédagogique)", category: "Administration Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: false },
     { title: "ENA (Tous cycles)", category: "Administration Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
-    { title: "Greffe", category: "Concours Juridiques & Judiciaires", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
-    { title: "Agent pénitentiaire", category: "Sécurité & Force Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
-    { title: "Avocature & Notariat", category: "Concours Juridiques & Judiciaires", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
-    { title: "Fonction Publique", category: "Administration Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
-    { title: "EPPJEJ & EPP", category: "Administration Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
-    { title: "Informatique", category: "Technologies & Métiers Numériques", monthlyFee: 25000, hasPresentiel: true, hasOnline: true },
+    { title: "Avocature / CAPA / CPFA (Centre de Formation Professionnelle des Avocats)", category: "Autres concours judiciaires", monthlyFee: 35000, hasPresentiel: true, hasOnline: true },
+    { title: "Notaire (Examen de Premier Clerc de Notaire et de Notaire)", category: "Autres concours judiciaires", monthlyFee: 35000, hasPresentiel: true, hasOnline: true },
+    { title: "Institut International des Assurances (IIA) / CPFA", category: "Finances & Gestion", monthlyFee: 35000, hasPresentiel: true, hasOnline: true },
+    { title: "Ecole du Personnel de la Protection Judiciaire de l'Enfance et de la Jeunesse (EPPJEJ)", category: "INFJ", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "EPP (Tous cycles) / Ecole du Personnel Pénitentiaire", category: "INFJ", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Greffe (Tous cycles)", category: "INFJ", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Magistrature", category: "INFJ", monthlyFee: 35000, hasPresentiel: true, hasOnline: true },
+    { title: "Art Oratoire", category: "Psychologie", monthlyFee: 70000, hasPresentiel: true, hasOnline: true },
+    { title: "Développement Personnel et Leadership Chrétien", category: "Religion", monthlyFee: 100000, hasPresentiel: true, hasOnline: true },
+    { title: "Police (Officier et Commissaire de Police)", category: "Sécurité & Force Publique", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
+    { title: "Informatique", category: "Technologies & Métiers Numériques", monthlyFee: 30000, hasPresentiel: true, hasOnline: true },
   ];
 
   useEffect(() => {
-    fetchCourses()
+    fetchPublicCourses()
       .then((data) => { if (Array.isArray(data) && data.length > 0) setCourses(data); else setCourses(defaultForms); })
       .catch(() => setCourses(defaultForms))
       .finally(() => setLoading(false));
@@ -685,7 +690,7 @@ function Formations({ config }: { config: SectionConfig }) {
             variants={staggerContainer}
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
           >
             {displayCourses.map((f, i) => {
               const mFee = f.monthlyFee !== undefined ? Number(f.monthlyFee) : 30000;

@@ -481,6 +481,12 @@ export const updateShopOrderStatus = async (id: string, status: string) => {
 };
 
 // Courses
+export const fetchPublicCourses = async () => {
+  const res = await fetch(`${API_BASE_URL}/courses`);
+  if (!res.ok) throw new Error('Failed to fetch courses');
+  return res.json();
+};
+
 export const fetchCourses = async () => {
   const res = await authFetch(`${API_BASE_URL}/courses`);
   if (!res.ok) throw new Error('Failed to fetch courses');
