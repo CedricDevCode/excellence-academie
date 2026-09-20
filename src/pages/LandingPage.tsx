@@ -468,12 +468,6 @@ function Actualite({ config }: { config?: SectionConfig }) {
                     alt={slides[currentIndex]?.title || 'Bannière'}
                     className="w-full rounded-2xl shadow-2xl object-contain max-h-[85vh]"
                   />
-                  {(slides[currentIndex]?.title || slides[currentIndex]?.subtitle) && (
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-6 sm:p-8 rounded-b-2xl text-white">
-                      {slides[currentIndex]?.title && <h3 className="font-extrabold text-lg sm:text-2xl leading-snug">{slides[currentIndex].title}</h3>}
-                      {slides[currentIndex]?.subtitle && <p className="text-gray-200 text-sm sm:text-base mt-1">{slides[currentIndex].subtitle}</p>}
-                    </div>
-                  )}
                 </motion.div>
               </motion.div>
             )}
