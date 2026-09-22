@@ -1,7 +1,5 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import {
   getActiveBanners,
   getAllBanners,
@@ -14,20 +12,8 @@ import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 
 const router = Router();
 
-const bannerUploadDir = path.resolve(process.cwd(), 'uploads', 'banners');
-fs.mkdirSync(bannerUploadDir, { recursive: true });
-
-const bannerStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, bannerUploadDir),
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `banner-${unique}${ext}`);
-  }
-});
-
 const bannerUpload = multer({
-  storage: bannerStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp/;
@@ -36,14 +22,16 @@ const bannerUpload = multer({
   }
 });
 
+import path from 'path';
+
 // Public routes
 router.get('/public', getActiveBanners);
 
-// Upload image bannière
+// Upload image bannière → retourne base64 data URL
 router.post('/upload', authenticateToken, requireRole(['ADMIN']), bannerUpload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier' });
-  const url = `/uploads/banners/${req.file.filename}`;
-  res.json({ url });
+  const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  res.json({ url: base64 });
 });
 
 // Admin routes (protégées par rôle ADMIN uniquement)
