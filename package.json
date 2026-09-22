@@ -15,7 +15,7 @@
     "start": "node dist/server.js",
     "start:dev": "tsx server/index.ts",
     "deploy": "prisma generate && prisma migrate deploy && npm run build",
-    "postinstall": "prisma generate && echo '▶️  Applying database migrations...' && (npx prisma migrate deploy && echo '✅ Migrations applied successfully' || echo '⚠️  Migration deploy failed — runtime fallback will add missing columns at startup')"
+    "postinstall": "prisma generate && echo '▶️  Applying database migrations...' && (npx prisma migrate deploy && echo '✅ Migrations applied successfully' || echo '⚠️  Migration deploy failed — runtime fallback will add missing columns at startup') && echo '▶️  Building frontend...' && (npx vite build && npx esbuild server/index.ts --platform=node --format=esm --bundle --outfile=dist/server.js --packages=external && echo '✅ Build completed' || echo '⚠️  Build failed')"
   },
   "engines": {
     "node": ">=22.12.0"

@@ -4599,6 +4599,7 @@ router16.put("/admin/orders/:id/status", authenticateToken, requireRole(["ADMIN"
 var shopRoutes_default = router16;
 
 // server/routes/bannerRoutes.ts
+import path8 from "path";
 import { Router as Router17 } from "express";
 import multer6 from "multer";
 
@@ -4748,7 +4749,6 @@ var deleteBanner = async (req, res) => {
 };
 
 // server/routes/bannerRoutes.ts
-import path8 from "path";
 var router17 = Router17();
 var bannerUpload = multer6({
   storage: multer6.memoryStorage(),
