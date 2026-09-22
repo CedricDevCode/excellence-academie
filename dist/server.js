@@ -4601,8 +4601,6 @@ var shopRoutes_default = router16;
 // server/routes/bannerRoutes.ts
 import { Router as Router17 } from "express";
 import multer6 from "multer";
-import path8 from "path";
-import fs7 from "fs";
 
 // server/controllers/bannerController.ts
 var isProduction = process.env.NODE_ENV === "production";
@@ -4750,19 +4748,10 @@ var deleteBanner = async (req, res) => {
 };
 
 // server/routes/bannerRoutes.ts
+import path8 from "path";
 var router17 = Router17();
-var bannerUploadDir = path8.resolve(process.cwd(), "uploads", "banners");
-fs7.mkdirSync(bannerUploadDir, { recursive: true });
-var bannerStorage = multer6.diskStorage({
-  destination: (_req, _file, cb) => cb(null, bannerUploadDir),
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    const ext = path8.extname(file.originalname) || ".jpg";
-    cb(null, `banner-${unique}${ext}`);
-  }
-});
 var bannerUpload = multer6({
-  storage: bannerStorage,
+  storage: multer6.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp/;
@@ -4773,8 +4762,8 @@ var bannerUpload = multer6({
 router17.get("/public", getActiveBanners);
 router17.post("/upload", authenticateToken, requireRole(["ADMIN"]), bannerUpload.single("image"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Aucun fichier" });
-  const url = `/uploads/banners/${req.file.filename}`;
-  res.json({ url });
+  const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+  res.json({ url: base64 });
 });
 router17.get("/", authenticateToken, requireRole(["ADMIN"]), getAllBanners);
 router17.get("/:id", authenticateToken, requireRole(["ADMIN"]), getBannerById);
@@ -4787,7 +4776,7 @@ var bannerRoutes_default = router17;
 import { Router as Router18 } from "express";
 import multer7 from "multer";
 import path9 from "path";
-import fs8 from "fs";
+import fs7 from "fs";
 import crypto8 from "crypto";
 import { fileURLToPath as fileURLToPath6 } from "url";
 
@@ -5119,7 +5108,7 @@ var evaluateSubmission = async (req, res) => {
 // server/routes/blogRoutes.ts
 var __dirname6 = path9.dirname(fileURLToPath6(import.meta.url));
 var blogUploadsDir = path9.join(__dirname6, "..", "uploads", "blog");
-fs8.mkdirSync(blogUploadsDir, { recursive: true });
+fs7.mkdirSync(blogUploadsDir, { recursive: true });
 var upload6 = multer7({
   storage: multer7.diskStorage({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
@@ -5643,7 +5632,7 @@ if (process.argv[1]?.includes("seed-courses")) {
 
 // server/index.ts
 import path10 from "path";
-import fs9 from "fs";
+import fs8 from "fs";
 import { fileURLToPath as fileURLToPath7 } from "url";
 var __dirname7 = path10.dirname(fileURLToPath7(import.meta.url));
 async function ensureCourseColumns() {
@@ -5890,31 +5879,40 @@ var projectRoot = process.cwd();
 var rootUploads = path10.resolve(projectRoot, "uploads");
 var serverUploads = path10.resolve(projectRoot, "server", "uploads");
 for (const sub of ["products", "testimonials", "blog", "users", "sessions", "categories"]) {
-  fs9.mkdirSync(path10.join(rootUploads, sub), { recursive: true });
+  fs8.mkdirSync(path10.join(rootUploads, sub), { recursive: true });
 }
 var candidateDistPaths = [
   path10.resolve(projectRoot, "dist"),
   path10.resolve(__dirname7, "..", "dist"),
   path10.resolve(__dirname7, "dist")
 ];
-var distPath = candidateDistPaths.find((p) => fs9.existsSync(p)) || candidateDistPaths[0];
-app.use(express.static(distPath));
+var distPath = candidateDistPaths.find((p) => fs8.existsSync(p)) || candidateDistPaths[0];
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".js")) res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+    if (filePath.endsWith(".css")) res.setHeader("Content-Type", "text/css; charset=utf-8");
+    if (filePath.endsWith(".json")) res.setHeader("Content-Type", "application/json; charset=utf-8");
+    if (filePath.endsWith(".wasm")) res.setHeader("Content-Type", "application/wasm");
+    if (filePath.endsWith(".svg")) res.setHeader("Content-Type", "image/svg+xml");
+  }
+}));
 var publicDocPath = path10.resolve(projectRoot, "public", "doc");
-if (fs9.existsSync(publicDocPath)) {
+if (fs8.existsSync(publicDocPath)) {
   app.use("/doc", express.static(publicDocPath));
 }
-if (fs9.existsSync(rootUploads)) {
+if (fs8.existsSync(rootUploads)) {
   app.use("/uploads", express.static(rootUploads));
 }
-if (fs9.existsSync(serverUploads)) {
+if (fs8.existsSync(serverUploads)) {
   app.use("/uploads", express.static(serverUploads));
 }
 app.use("/uploads", express.static(path10.join(__dirname7, "uploads")));
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (req.path.startsWith("/api/")) return next();
+  if (req.path.match(/\.(js|css|json|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|ico|wasm)$/)) return next();
   const indexPath = path10.join(distPath, "index.html");
-  if (fs9.existsSync(indexPath)) {
+  if (fs8.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
   next();

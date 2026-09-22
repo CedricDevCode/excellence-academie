@@ -1,3 +1,4 @@
+import path from 'path';
 import { Router } from 'express';
 import multer from 'multer';
 import {
@@ -21,8 +22,6 @@ const bannerUpload = multer({
     cb(null, ok);
   }
 });
-
-import path from 'path';
 
 // Public routes
 router.get('/public', getActiveBanners);
