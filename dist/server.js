@@ -29,13 +29,21 @@ import bcrypt4 from "bcrypt";
 
 // server/utils/prisma.ts
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeonHttp } from "@prisma/adapter-neon";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 var databaseUrl = process.env.DATABASE_URL;
 function isNeonHost(url) {
   const host = url.replace(/^[a-z]+:\/\/[^:@/]*:[^@]*@/, "").split("/")[0];
   return host.includes("-pooler.") && host.endsWith(".neon.tech");
 }
-var adapter = databaseUrl && isNeonHost(databaseUrl) ? new PrismaNeonHttp(databaseUrl) : void 0;
+function buildAdapter(dbUrl) {
+  if (isNeonHost(dbUrl)) {
+    const pool = new pg.Pool({ connectionString: dbUrl });
+    return new PrismaPg(pool);
+  }
+  return new PrismaPg({ connectionString: dbUrl });
+}
+var adapter = databaseUrl ? buildAdapter(databaseUrl) : void 0;
 var prisma = new PrismaClient(
   adapter ? { adapter } : void 0
 );
