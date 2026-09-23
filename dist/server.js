@@ -1449,6 +1449,79 @@ function maskEmail(email) {
   const maskedDomain = domainName.slice(0, 1) + "***";
   return `${maskedLocal}@${maskedDomain}.${tld.join(".")}`;
 }
+async function sendWelcomeEmail(params) {
+  const { email, prenom, nom, matricule, totalAmount, inscriptionAmount, monthlyAmount, courses, paymentMethod, reference } = params;
+  const nodemailer2 = await import("nodemailer").catch(() => null);
+  if (!nodemailer2) return;
+  try {
+    const transporter2 = nodemailer2.default.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: true,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    const methodLabels = {
+      wave: "Wave",
+      orange_money: "Orange Money",
+      mtn_money: "MTN MoMo",
+      moov_money: "Moov Money",
+      card: "Carte bancaire",
+      ESPECES: "Esp\xE8ces",
+      especes: "Esp\xE8ces"
+    };
+    const courseList = courses.map((c) => `<li style="padding:4px 0;color:#333">${c}</li>`).join("");
+    await transporter2.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: email,
+      subject: `Bienvenue chez Excellence Acad\xE9mie - ${prenom || ""} ${nom || ""}`,
+      html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
+        <div style="background:linear-gradient(135deg,#f5a623,#c97e00);padding:30px;border-radius:12px 12px 0 0;text-align:center">
+          <h1 style="color:white;margin:0;font-size:24px">Bienvenue chez Excellence Acad\xE9mie !</h1>
+          <p style="color:white;margin:8px 0 0;opacity:0.9">Votre inscription a \xE9t\xE9 confirm\xE9e</p>
+        </div>
+
+        <div style="background:#fff;padding:30px;border:1px solid #e5e5e5;border-top:none">
+          <p>Bonjour <strong>${prenom || ""} ${nom || ""}</strong>,</p>
+          <p>Nous vous confirmons que votre inscription et votre paiement ont \xE9t\xE9 enregistr\xE9s avec succ\xE8s.</p>
+
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin:20px 0">
+            <h3 style="margin:0 0 10px;color:#0369a1;font-size:16px">\u{1F511} Vos identifiants de connexion</h3>
+            <table style="width:100%;border-collapse:collapse">
+              <tr><td style="padding:4px 8px;color:#666;width:120px">Email</td><td style="padding:4px 8px;font-weight:bold">${email}</td></tr>
+              <tr><td style="padding:4px 8px;color:#666">Mot de passe</td><td style="padding:4px 8px;font-weight:bold">(celui que vous avez choisi lors de l'inscription)</td></tr>
+              ${matricule ? `<tr><td style="padding:4px 8px;color:#666">Matricule</td><td style="padding:4px 8px;font-weight:bold;color:#c97e00">${matricule}</td></tr>` : ""}
+            </table>
+          </div>
+
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:20px 0">
+            <h3 style="margin:0 0 10px;color:#92400e;font-size:16px">\u{1F4B3} Re\xE7u de paiement</h3>
+            <table style="width:100%;border-collapse:collapse">
+              <tr><td style="padding:4px 8px;color:#666;width:160px">Formations</td><td style="padding:4px 8px;font-weight:bold">${courseList ? '<ul style="margin:0;padding-left:18px">' + courseList + "</ul>" : "\u2014"}</td></tr>
+              <tr><td style="padding:4px 8px;color:#666">Frais d'inscription</td><td style="padding:4px 8px;font-weight:bold">${inscriptionAmount.toLocaleString("fr-FR")} FCFA</td></tr>
+              <tr><td style="padding:4px 8px;color:#666">1\xE8re mensualit\xE9</td><td style="padding:4px 8px;font-weight:bold">${monthlyAmount.toLocaleString("fr-FR")} FCFA</td></tr>
+              <tr><td style="padding:4px 8px;color:#666">Mode de paiement</td><td style="padding:4px 8px;font-weight:bold">${methodLabels[paymentMethod] || paymentMethod}</td></tr>
+              ${reference ? `<tr><td style="padding:4px 8px;color:#666">R\xE9f\xE9rence</td><td style="padding:4px 8px;font-weight:bold;font-size:12px">${reference}</td></tr>` : ""}
+              <tr><td style="padding:8px 8px 0;color:#666;font-size:16px;border-top:2px solid #fde68a"><strong>Total pay\xE9</strong></td><td style="padding:8px 8px 0;font-size:20px;font-weight:bold;color:#c97e00;border-top:2px solid #fde68a">${totalAmount.toLocaleString("fr-FR")} FCFA</td></tr>
+            </table>
+            <p style="margin:12px 0 0;font-size:12px;color:#999">Date : ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+          </div>
+
+          <p style="text-align:center;margin:24px 0">
+            <a href="${process.env.FRONTEND_URL || "https://www.exacademie.net"}/student/dashboard" style="display:inline-block;background:#c97e00;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold">Acc\xE9der \xE0 mon espace</a>
+          </p>
+
+          <p style="color:#999;font-size:12px;text-align:center;margin-top:24px;border-top:1px solid #eee;padding-top:16px">
+            Excellence Acad\xE9mie - Cocody Angr\xE9, Abidjan<br>
+            T\xE9l: 07 47 43 94 43 | Email: ea@exacademie.net
+          </p>
+        </div>
+      </div>`
+    });
+  } catch (err) {
+    logger_default.error("Failed to send welcome email", "auth", err);
+  }
+}
 async function retryWithNeonWakeup(fn, retries = 2, delayMs = 2e3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -1650,6 +1723,18 @@ var confirmCashRegistration = async (req, res) => {
     try {
       await sendNotification(user.id, "Inscription confirm\xE9e", `Bienvenue ! Votre inscription a \xE9t\xE9 confirm\xE9e. Matricule: ${user.matricule}`);
       await sendNotificationToRole("ADMIN", "Nouvel \xE9tudiant inscrit (esp\xE8ces)", `${user.name || user.email} - ${user.matricule}`);
+      const validCourses = await prisma_default.course.findMany({ where: { id: { in: d.courseIds } } });
+      await sendWelcomeEmail({
+        email: cleanEmail,
+        prenom: d.prenom,
+        nom: d.nom,
+        matricule: user.matricule || void 0,
+        totalAmount: regPrice + monthly,
+        inscriptionAmount: regPrice,
+        monthlyAmount: monthly,
+        courses: validCourses.map((c) => c.title),
+        paymentMethod: "ESPECES"
+      });
     } catch {
     }
     res.status(201).json({ message: "Inscription confirm\xE9e", user: { id: user.id, email: user.email, name: user.name, role: user.role, matricule: user.matricule } });
@@ -1954,6 +2039,18 @@ var confirmPayment = async (req, res) => {
           "Paiement inscription re\xE7u",
           `Un nouvel \xE9tudiant a finalis\xE9 son inscription et pay\xE9 ${totalAmount.toLocaleString("fr-FR")} FCFA.`
         );
+        await sendWelcomeEmail({
+          email: result.email,
+          prenom: pending.name?.split(" ")[0],
+          nom: pending.name?.split(" ").slice(1).join(" "),
+          matricule: result.matricule || void 0,
+          totalAmount,
+          inscriptionAmount,
+          monthlyAmount: monthlyAmt,
+          courses: pendingCourses.map((c) => c.title),
+          paymentMethod: gpData.payment_method || "unknown",
+          reference
+        });
       } catch (err) {
         console.error("Notification error on payment confirmation:", err);
       }
