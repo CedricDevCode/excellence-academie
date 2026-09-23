@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { register, registerAndPay, confirmPayment, login, logout, getMe, addCourseForExistingStudent } from '../controllers/authController';
+import { register, registerAndPay, confirmPayment, registerCash, confirmCashRegistration, login, logout, getMe, addCourseForExistingStudent } from '../controllers/authController';
 import { forgotPassword, resetPassword } from '../controllers/passwordResetController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { validateBody, loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from '../middleware/validate';
@@ -49,6 +49,8 @@ router.post('/login', loginLimiter, validateBody(loginSchema), login);
 router.post('/logout', logout);
 router.post('/register', registerLimiter, validateBody(registerSchema), register);
 router.post('/register-and-pay', registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
+router.post('/register-cash', registerLimiter, registerCash);
+router.post('/confirm-cash-registration', confirmCashRegistration);
 router.post('/forgot-password', loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validateBody(resetPasswordSchema), resetPassword);
 

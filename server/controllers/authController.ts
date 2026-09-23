@@ -125,6 +125,135 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Inscription + Paiement Espèces (OTP) ────────────────────────────────────
+const cashOtpStore = new Map<string, { data: any; otp: string; expiresAt: number }>();
+
+export const registerCash = async (req: Request, res: Response) => {
+  try {
+    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance } = req.body;
+
+    if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+      return res.status(400).json({ error: 'Email, mot de passe et au moins un concours sont requis' });
+    }
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    if (existing) return res.status(409).json({ error: 'Un compte avec cet email existe déjà' });
+
+    const validCourses = await prisma.course.findMany({ where: { id: { in: courseIds } } });
+    if (validCourses.length === 0) return res.status(400).json({ error: 'Aucun concours valide sélectionné' });
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+    const regData = {
+      email: cleanEmail, passwordHash, name, nom, prenom, telephone, pays, ville,
+      courseIds, mode, coursParticuliers, dateNaissance,
+    };
+
+    cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + 15 * 60 * 1000 });
+
+    const nodemailer = await import('nodemailer').catch(() => null);
+    if (nodemailer) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 465,
+        secure: true, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: cleanEmail,
+        subject: 'Code de confirmation - Excellence Académie',
+        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
+          <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
+          <p>Bonjour ${prenom || name || ''},</p>
+          <p>Voici votre code de confirmation pour finaliser votre inscription :</p>
+          <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
+          <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demandé cette inscription, ignorez cet email.</p>
+        </div>`
+      }).catch(() => {});
+    }
+
+    res.status(200).json({ message: 'Code OTP envoyé par email', email: cleanEmail });
+  } catch (error: any) {
+    logger.error('Cash registration error', 'auth', error);
+    res.status(500).json({ error: 'Erreur lors de l\'inscription' });
+  }
+};
+
+export const confirmCashRegistration = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'Email et code OTP requis' });
+
+    const cleanEmail = email.trim().toLowerCase();
+    const stored = cashOtpStore.get(cleanEmail);
+    if (!stored) return res.status(400).json({ error: 'Aucune inscription en attente. Veuillez recommencer.' });
+    if (stored.expiresAt < Date.now()) { cashOtpStore.delete(cleanEmail); return res.status(400).json({ error: 'Le code OTP a expiré. Veuillez recommencer.' }); }
+    if (stored.otp !== otp) return res.status(400).json({ error: 'Code OTP incorrect' });
+
+    const d = stored.data;
+    cashOtpStore.delete(cleanEmail);
+
+    const user = await prisma.user.create({
+      data: {
+        email: d.cleanEmail || cleanEmail, password: d.passwordHash, name: d.name,
+        telephone: d.telephone, pays: d.pays, ville: d.ville,
+        role: 'STUDENT', isActive: true,
+        matricule: await generateMatricule(),
+      },
+    });
+
+    const regPrice = calcRegistrationTotal(d.pays, d.ville, d.coursParticuliers);
+    const monthly = calcMonthlyTotal(d.pays, d.ville, d.mode, d.coursParticuliers);
+
+    await prisma.payment.create({
+      data: {
+        userId: user.id, amount: regPrice, method: 'ESPECES',
+        status: 'SUCCESS', type: 'REGISTRATION',
+        reference: await generateReceiptNumber(),
+        description: `Frais d'inscription (espèces) - ${new Date().toLocaleDateString('fr-FR')}`,
+      },
+    });
+
+    for (const cid of d.courseIds) {
+      const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
+      await prisma.subscription.create({
+        data: {
+          userId: user.id, courseId: cid, status: 'ACTIVE',
+          startDate: new Date(), endDate: nextMonth,
+          monthlyAmount: monthly,
+        },
+      });
+    }
+
+    await prisma.payment.create({
+      data: {
+        userId: user.id, amount: monthly, method: 'ESPECES',
+        status: 'SUCCESS', type: 'MONTHLY',
+        reference: await generateReceiptNumber(),
+        description: `Mensualité - ${new Date().toLocaleDateString('fr-FR')}`,
+      },
+    });
+
+    const jwt = await import('jsonwebtoken');
+    const token = jwt.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET!, { expiresIn: '30d' });
+    setAuthCookie(res, token);
+
+    try {
+      await sendNotification(user.id, 'Inscription confirmée', `Bienvenue ! Votre inscription a été confirmée. Matricule: ${user.matricule}`);
+      await sendNotificationToRole('ADMIN', 'Nouvel étudiant inscrit (espèces)', `${user.name || user.email} - ${user.matricule}`);
+    } catch {}
+
+    res.status(201).json({ message: 'Inscription confirmée', user: { id: user.id, email: user.email, name: user.name, role: user.role, matricule: user.matricule } });
+  } catch (error: any) {
+    logger.error('Confirm cash registration error', 'auth', error);
+    res.status(500).json({ error: 'Erreur lors de la confirmation' });
+  }
+};
+
 // ─── Inscription + Paiement GeniusPay ─────────────────────────────────────────
 // SÉCURITÉ : On ne stocke PLUS le password_hash dans les métadonnées GeniusPay.
 // On crée un enregistrement temporaire `PendingRegistration` en base,

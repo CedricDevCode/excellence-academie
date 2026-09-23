@@ -1389,6 +1389,49 @@ function clearAuthCookie(res) {
   });
 }
 
+// server/utils/logger.ts
+var LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+var MIN_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL] || LOG_LEVELS.info;
+function formatEntry(entry) {
+  const prefix = `[${entry.timestamp}] [${entry.level.toUpperCase()}]${entry.context ? ` [${entry.context}]` : ""}`;
+  const msg = `${prefix} ${entry.message}`;
+  if (entry.data !== void 0) {
+    return `${msg} ${JSON.stringify(entry.data)}`;
+  }
+  return msg;
+}
+function log(level, message, context, data) {
+  if (LOG_LEVELS[level] < MIN_LEVEL) return;
+  const entry = {
+    level,
+    message,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    context,
+    data
+  };
+  const formatted = formatEntry(entry);
+  switch (level) {
+    case "error":
+      console.error(formatted);
+      break;
+    case "warn":
+      console.warn(formatted);
+      break;
+    case "debug":
+      console.debug(formatted);
+      break;
+    default:
+      console.log(formatted);
+  }
+}
+var logger = {
+  debug: (message, context, data) => log("debug", message, context, data),
+  info: (message, context, data) => log("info", message, context, data),
+  warn: (message, context, data) => log("warn", message, context, data),
+  error: (message, context, data) => log("error", message, context, data)
+};
+var logger_default = logger;
+
 // server/controllers/authController.ts
 var passwordResetTokens = /* @__PURE__ */ new Map();
 function cleanupExpiredTokens() {
@@ -1474,6 +1517,145 @@ var register = async (req, res) => {
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ error: "Erreur lors de la cr\xE9ation du compte" });
+  }
+};
+var cashOtpStore = /* @__PURE__ */ new Map();
+var registerCash = async (req, res) => {
+  try {
+    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance } = req.body;
+    if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+      return res.status(400).json({ error: "Email, mot de passe et au moins un concours sont requis" });
+    }
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = await prisma_default.user.findUnique({ where: { email: cleanEmail } });
+    if (existing) return res.status(409).json({ error: "Un compte avec cet email existe d\xE9j\xE0" });
+    const validCourses = await prisma_default.course.findMany({ where: { id: { in: courseIds } } });
+    if (validCourses.length === 0) return res.status(400).json({ error: "Aucun concours valide s\xE9lectionn\xE9" });
+    const passwordHash = await bcrypt2.hash(password, 12);
+    const otp = String(Math.floor(1e5 + Math.random() * 9e5));
+    const regData = {
+      email: cleanEmail,
+      passwordHash,
+      name,
+      nom,
+      prenom,
+      telephone,
+      pays,
+      ville,
+      courseIds,
+      mode,
+      coursParticuliers,
+      dateNaissance
+    };
+    cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + 15 * 60 * 1e3 });
+    const nodemailer2 = await import("nodemailer").catch(() => null);
+    if (nodemailer2) {
+      const transporter2 = nodemailer2.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: true,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      });
+      await transporter2.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: cleanEmail,
+        subject: "Code de confirmation - Excellence Acad\xE9mie",
+        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
+          <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
+          <p>Bonjour ${prenom || name || ""},</p>
+          <p>Voici votre code de confirmation pour finaliser votre inscription :</p>
+          <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
+          <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demand\xE9 cette inscription, ignorez cet email.</p>
+        </div>`
+      }).catch(() => {
+      });
+    }
+    res.status(200).json({ message: "Code OTP envoy\xE9 par email", email: cleanEmail });
+  } catch (error) {
+    logger_default.error("Cash registration error", "auth", error);
+    res.status(500).json({ error: "Erreur lors de l'inscription" });
+  }
+};
+var confirmCashRegistration = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: "Email et code OTP requis" });
+    const cleanEmail = email.trim().toLowerCase();
+    const stored = cashOtpStore.get(cleanEmail);
+    if (!stored) return res.status(400).json({ error: "Aucune inscription en attente. Veuillez recommencer." });
+    if (stored.expiresAt < Date.now()) {
+      cashOtpStore.delete(cleanEmail);
+      return res.status(400).json({ error: "Le code OTP a expir\xE9. Veuillez recommencer." });
+    }
+    if (stored.otp !== otp) return res.status(400).json({ error: "Code OTP incorrect" });
+    const d = stored.data;
+    cashOtpStore.delete(cleanEmail);
+    const user = await prisma_default.user.create({
+      data: {
+        email: d.cleanEmail || cleanEmail,
+        password: d.passwordHash,
+        name: d.name,
+        telephone: d.telephone,
+        pays: d.pays,
+        ville: d.ville,
+        role: "STUDENT",
+        isActive: true,
+        matricule: await generateMatricule()
+      }
+    });
+    const regPrice = calcRegistrationTotal(d.pays, d.ville, d.coursParticuliers);
+    const monthly = calcMonthlyTotal(d.pays, d.ville, d.mode, d.coursParticuliers);
+    await prisma_default.payment.create({
+      data: {
+        userId: user.id,
+        amount: regPrice,
+        method: "ESPECES",
+        status: "SUCCESS",
+        type: "REGISTRATION",
+        reference: await generateReceiptNumber(),
+        description: `Frais d'inscription (esp\xE8ces) - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
+      }
+    });
+    for (const cid of d.courseIds) {
+      const nextMonth = /* @__PURE__ */ new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      await prisma_default.subscription.create({
+        data: {
+          userId: user.id,
+          courseId: cid,
+          status: "ACTIVE",
+          startDate: /* @__PURE__ */ new Date(),
+          endDate: nextMonth,
+          monthlyAmount: monthly
+        }
+      });
+    }
+    await prisma_default.payment.create({
+      data: {
+        userId: user.id,
+        amount: monthly,
+        method: "ESPECES",
+        status: "SUCCESS",
+        type: "MONTHLY",
+        reference: await generateReceiptNumber(),
+        description: `Mensualit\xE9 - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
+      }
+    });
+    const jwt3 = await import("jsonwebtoken");
+    const token = jwt3.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "30d" });
+    setAuthCookie(res, token);
+    try {
+      await sendNotification(user.id, "Inscription confirm\xE9e", `Bienvenue ! Votre inscription a \xE9t\xE9 confirm\xE9e. Matricule: ${user.matricule}`);
+      await sendNotificationToRole("ADMIN", "Nouvel \xE9tudiant inscrit (esp\xE8ces)", `${user.name || user.email} - ${user.matricule}`);
+    } catch {
+    }
+    res.status(201).json({ message: "Inscription confirm\xE9e", user: { id: user.id, email: user.email, name: user.name, role: user.role, matricule: user.matricule } });
+  } catch (error) {
+    logger_default.error("Confirm cash registration error", "auth", error);
+    res.status(500).json({ error: "Erreur lors de la confirmation" });
   }
 };
 var registerAndPay = async (req, res) => {
@@ -1902,51 +2084,6 @@ var getMe = async (req, res) => {
 // server/controllers/passwordResetController.ts
 import bcrypt3 from "bcrypt";
 import crypto3 from "crypto";
-
-// server/utils/logger.ts
-var LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
-var MIN_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL] || LOG_LEVELS.info;
-function formatEntry(entry) {
-  const prefix = `[${entry.timestamp}] [${entry.level.toUpperCase()}]${entry.context ? ` [${entry.context}]` : ""}`;
-  const msg = `${prefix} ${entry.message}`;
-  if (entry.data !== void 0) {
-    return `${msg} ${JSON.stringify(entry.data)}`;
-  }
-  return msg;
-}
-function log(level, message, context, data) {
-  if (LOG_LEVELS[level] < MIN_LEVEL) return;
-  const entry = {
-    level,
-    message,
-    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    context,
-    data
-  };
-  const formatted = formatEntry(entry);
-  switch (level) {
-    case "error":
-      console.error(formatted);
-      break;
-    case "warn":
-      console.warn(formatted);
-      break;
-    case "debug":
-      console.debug(formatted);
-      break;
-    default:
-      console.log(formatted);
-  }
-}
-var logger = {
-  debug: (message, context, data) => log("debug", message, context, data),
-  info: (message, context, data) => log("info", message, context, data),
-  warn: (message, context, data) => log("warn", message, context, data),
-  error: (message, context, data) => log("error", message, context, data)
-};
-var logger_default = logger;
-
-// server/controllers/passwordResetController.ts
 var passwordResetTokens2 = /* @__PURE__ */ new Map();
 function cleanupExpiredTokens2() {
   const now = Date.now();
@@ -2144,6 +2281,8 @@ router3.post("/login", loginLimiter, validateBody(loginSchema), login);
 router3.post("/logout", logout);
 router3.post("/register", registerLimiter, validateBody(registerSchema), register);
 router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
+router3.post("/register-cash", registerLimiter, registerCash);
+router3.post("/confirm-cash-registration", confirmCashRegistration);
 router3.post("/forgot-password", loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
 router3.post("/reset-password", validateBody(resetPasswordSchema), resetPassword);
 router3.get("/me", authenticateToken, getMe);

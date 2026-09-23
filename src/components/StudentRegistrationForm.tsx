@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCourses, registerAndPay, getMe } from "../utils/api";
-import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, FileText, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, FileText, Loader2, AlertCircle, Sparkles, Lock } from "lucide-react";
 import { StudentPersonalFields, StudentProgramFields } from "./StudentRegistrationFields";
 import { MODES, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora } from "../constants/student";
 import { paymentMethods } from "../utils/payment";
@@ -56,6 +56,9 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const update = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
@@ -89,7 +92,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const payWithMethod = async () => {
     setError(null);
     if (!form.paymentMethod) { setError("Veuillez choisir un moyen de paiement."); return; }
-    if (!form.geniusPhone) { setError("Veuillez entrer votre numéro de téléphone pour le paiement."); return; }
+    if (form.paymentMethod !== "especes" && !form.geniusPhone) { setError("Veuillez entrer votre numéro de téléphone pour le paiement."); return; }
     if (!embedded && !form.cgu) { setError("Vous devez accepter les conditions générales."); return; }
 
     if (signature) {
@@ -99,6 +102,32 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
 
     setSubmitting(true);
     try {
+      if (form.paymentMethod === "especes") {
+        const res = await fetch('/api/auth/register-cash', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: `${form.prenom} ${form.nom}`.trim(),
+            prenom: form.prenom,
+            nom: form.nom,
+            email: form.email,
+            password: form.password,
+            telephone: form.telephone,
+            pays: form.pays,
+            ville: form.ville,
+            courseIds: form.courseIds,
+            mode: form.mode,
+            coursParticuliers: form.coursParticuliers,
+            dateNaissance: form.dateNaissance,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erreur lors de l'inscription");
+        setOtpStep(true);
+        setSubmitting(false);
+        return;
+      }
+
       const payment = await registerAndPay({
         name: `${form.prenom} ${form.nom}`.trim(),
         prenom: form.prenom,
@@ -138,6 +167,28 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     await payWithMethod();
   };
 
+  const verifyOtp = async () => {
+    setError(null);
+    if (!otpCode || otpCode.length < 4) { setError("Veuillez entrer le code OTP reçu par email."); return; }
+    setOtpLoading(true);
+    try {
+      const res = await fetch('/api/auth/confirm-cash-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, otp: otpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Code OTP invalide");
+      setSuccessMsg("Inscription confirmée avec succès !");
+      setOtpStep(false);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setError(err?.message || "Erreur lors de la confirmation");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const selectedCourses = courses.filter((c) => form.courseIds.includes(c.id));
   const inscPrice = calcRegistrationTotal(selectedCourses, form.coursParticuliers, form.pays, form.ville);
   const monthlyAmount = calcMonthlyTotal(selectedCourses, form.coursParticuliers, form.pays, form.mode);
@@ -163,8 +214,13 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     mtn: "MTN_MOMO",
     moov: "MOOV",
     card: "CARTE",
+    especes: "ESPECES",
   };
-  const localMethods = paymentMethods.filter(p => p.id !== "MOBILE_MONEY").map(p => ({
+  const localMethods = paymentMethods.filter(p => {
+    if (p.id === "MOBILE_MONEY") return false;
+    if (p.id === "ESPECES" && !embedded) return false;
+    return true;
+  }).map(p => ({
     id: Object.keys(paymentMethodMap).find(k => paymentMethodMap[k] === p.id) || p.id,
     name: p.name,
     image: p.image,
@@ -285,7 +341,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         </div>
       )}
 
-      {step === 5 && (
+      {step === 5 && !otpStep && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 mb-6">
             <CreditCard size={20} className="text-[#c97e00]" />
@@ -334,12 +390,17 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
               ))}
             </div>
           </div>
-          {form.paymentMethod && (
+          {form.paymentMethod && form.paymentMethod !== "especes" && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Numéro de téléphone pour le paiement</label>
               <input type="tel" value={form.geniusPhone} onChange={e => update("geniusPhone", e.target.value)}
                 placeholder="Ex: 07 01 02 03 04"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors" />
+            </div>
+          )}
+          {form.paymentMethod === "especes" && (
+            <div className="bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-800">
+              Un code de confirmation sera envoyé par email à <strong>{form.email}</strong>. Vous devrez le saisir pour finaliser l'inscription.
             </div>
           )}
           <div className="bg-green-50 border-2 border-green-200 rounded p-4 text-sm text-green-800 flex items-center gap-2">
@@ -358,6 +419,34 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         </div>
       )}
 
+      {step === 5 && otpStep && (
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 mb-6">
+            <Lock size={20} className="text-[#c97e00]" />
+            <h2 className="text-xl font-black text-gray-900">Confirmation par code OTP</h2>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded p-4 text-sm text-blue-800">
+            Un code de confirmation a été envoyé à <strong>{form.email}</strong>. Veuillez le saisir ci-dessous pour finaliser l'inscription.
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Code OTP</label>
+            <input type="text" value={otpCode} onChange={e => setOtpCode(e.target.value)}
+              placeholder="Entrez le code reçu par email"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors text-center text-lg tracking-widest"
+              maxLength={8} />
+          </div>
+          <button type="button" onClick={verifyOtp} disabled={otpLoading}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#c97e00] hover:bg-[#6b4500] text-white font-bold text-sm rounded transition-all shadow-md hover:shadow-lg disabled:opacity-50">
+            {otpLoading ? <><Loader2 size={16} className="animate-spin" /> Vérification...</> : <><CheckCircle size={16} /> Confirmer l'inscription</>}
+          </button>
+          <button type="button" onClick={() => { setOtpStep(false); setOtpCode(""); setError(null); }}
+            className="w-full text-center text-sm text-gray-500 hover:text-gray-700 underline">
+            Retour au paiement
+          </button>
+        </div>
+      )}
+
+      {!otpStep && (
       <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-100">
         {step > 1 ? (
           <button type="button" onClick={() => { setError(null); setStep(s => s - 1); }}
@@ -396,6 +485,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
           </button>
         )}
       </div>
+      )}
     </form>
   );
 }
