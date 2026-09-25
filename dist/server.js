@@ -5883,7 +5883,7 @@ async function ensureCourseColumns() {
     return;
   }
   const existingCols = await prisma.$queryRaw`
-    SELECT column_name FROM information_schema.columns
+    SELECT column_name::text AS column_name FROM information_schema.columns
     WHERE table_name = 'Course' AND table_schema = 'public'
   `;
   const existingNames = new Set(existingCols.map((c) => c.column_name));
