@@ -58,6 +58,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [otpStep, setOtpStep] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
 
   const update = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
@@ -123,6 +124,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Erreur lors de l'inscription");
+        setOtpEmail(data.otpEmail || "");
         setOtpStep(true);
         setSubmitting(false);
         return;
@@ -400,7 +402,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
           )}
           {form.paymentMethod === "especes" && (
             <div className="bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-800">
-              Un code de confirmation sera envoyé par email à <strong>{form.email}</strong>. Vous devrez le saisir pour finaliser l'inscription.
+              Un code de confirmation sera envoyé par email à l'adresse de l'établissement. Vous devrez le saisir pour finaliser l'inscription.
             </div>
           )}
           <div className="bg-green-50 border-2 border-green-200 rounded p-4 text-sm text-green-800 flex items-center gap-2">
@@ -426,7 +428,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
             <h2 className="text-xl font-black text-gray-900">Confirmation par code OTP</h2>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded p-4 text-sm text-blue-800">
-            Un code de confirmation a été envoyé à <strong>{form.email}</strong>. Veuillez le saisir ci-dessous pour finaliser l'inscription.
+            Un code de confirmation a été envoyé à <strong>{otpEmail || "l'adresse de l'établissement"}</strong>. Veuillez le saisir ci-dessous pour finaliser l'inscription.
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Code OTP</label>

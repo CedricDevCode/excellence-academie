@@ -1593,6 +1593,7 @@ var register = async (req, res) => {
   }
 };
 var cashOtpStore = /* @__PURE__ */ new Map();
+var CASH_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || "ea@exacademie.com";
 var registerCash = async (req, res) => {
   try {
     const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance } = req.body;
@@ -1625,7 +1626,12 @@ var registerCash = async (req, res) => {
     };
     cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + 15 * 60 * 1e3 });
     const nodemailer2 = await import("nodemailer").catch(() => null);
-    if (nodemailer2) {
+    if (!nodemailer2) {
+      cashOtpStore.delete(cleanEmail);
+      logger_default.error("Cash OTP: nodemailer indisponible", "auth");
+      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. R\xE9essayez plus tard." });
+    }
+    try {
       const transporter2 = nodemailer2.createTransport({
         host: process.env.SMTP_HOST,
         port: Number(process.env.SMTP_PORT) || 465,
@@ -1634,19 +1640,23 @@ var registerCash = async (req, res) => {
       });
       await transporter2.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: cleanEmail,
+        to: CASH_OTP_EMAIL,
         subject: "Code de confirmation - Excellence Acad\xE9mie",
         html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
           <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
-          <p>Bonjour ${prenom || name || ""},</p>
-          <p>Voici votre code de confirmation pour finaliser votre inscription :</p>
+          <p>Bonjour,</p>
+          <p>Une inscription par paiement en esp\xE8ces a \xE9t\xE9 initi\xE9e pour <strong>${cleanEmail}</strong> et attend votre confirmation :</p>
           <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
           <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demand\xE9 cette inscription, ignorez cet email.</p>
         </div>`
-      }).catch(() => {
       });
+    } catch (err) {
+      cashOtpStore.delete(cleanEmail);
+      logger_default.error("Cash OTP email delivery failed", "auth", err);
+      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. R\xE9essayez plus tard." });
     }
-    res.status(200).json({ message: "Code OTP envoy\xE9 par email", email: cleanEmail });
+    logger_default.info(`Cash OTP email \u2192 ${CASH_OTP_EMAIL} (inscription: ${cleanEmail})`, "auth");
+    res.status(200).json({ message: "Code OTP envoy\xE9 par email", email: cleanEmail, otpEmail: CASH_OTP_EMAIL });
   } catch (error) {
     logger_default.error("Cash registration error", "auth", error);
     res.status(500).json({ error: "Erreur lors de l'inscription" });
@@ -5482,9 +5492,9 @@ var upload6 = multer7({
   }
 });
 var router18 = Router18();
+router18.use(authenticateToken);
 router18.get("/", getBlogPosts);
 router18.get("/:slug", getBlogPostBySlug);
-router18.use(authenticateToken);
 router18.post("/", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), createBlogPost);
 router18.put("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), updateBlogPost);
 router18.delete("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteBlogPost);

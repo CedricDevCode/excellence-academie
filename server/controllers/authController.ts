@@ -204,6 +204,9 @@ export const register = async (req: Request, res: Response) => {
 // ─── Inscription + Paiement Espèces (OTP) ────────────────────────────────────
 const cashOtpStore = new Map<string, { data: any; otp: string; expiresAt: number }>();
 
+// Destinataire par défaut du code de confirmation (mail de l'administration).
+const CASH_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || 'ea@exacademie.com';
+
 export const registerCash = async (req: Request, res: Response) => {
   try {
     const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance } = req.body;
@@ -233,26 +236,37 @@ export const registerCash = async (req: Request, res: Response) => {
     cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + 15 * 60 * 1000 });
 
     const nodemailer = await import('nodemailer').catch(() => null);
-    if (nodemailer) {
+    if (!nodemailer) {
+      cashOtpStore.delete(cleanEmail);
+      logger.error('Cash OTP: nodemailer indisponible', 'auth');
+      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. Réessayez plus tard." });
+    }
+
+    try {
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 465,
         secure: true, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       });
       await transporter.sendMail({
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: cleanEmail,
+        to: CASH_OTP_EMAIL,
         subject: 'Code de confirmation - Excellence Académie',
         html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
           <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
-          <p>Bonjour ${prenom || name || ''},</p>
-          <p>Voici votre code de confirmation pour finaliser votre inscription :</p>
+          <p>Bonjour,</p>
+          <p>Une inscription par paiement en espèces a été initiée pour <strong>${cleanEmail}</strong> et attend votre confirmation :</p>
           <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
           <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demandé cette inscription, ignorez cet email.</p>
         </div>`
-      }).catch(() => {});
+      });
+    } catch (err: any) {
+      cashOtpStore.delete(cleanEmail);
+      logger.error('Cash OTP email delivery failed', 'auth', err);
+      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. Réessayez plus tard." });
     }
 
-    res.status(200).json({ message: 'Code OTP envoyé par email', email: cleanEmail });
+    logger.info(`Cash OTP email → ${CASH_OTP_EMAIL} (inscription: ${cleanEmail})`, 'auth');
+    res.status(200).json({ message: 'Code OTP envoyé par email', email: cleanEmail, otpEmail: CASH_OTP_EMAIL });
   } catch (error: any) {
     logger.error('Cash registration error', 'auth', error);
     res.status(500).json({ error: 'Erreur lors de l\'inscription' });

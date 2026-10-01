@@ -37,12 +37,15 @@ const upload = multer({
 
 const router = Router();
 
-// ─── Public routes ───────────────────────────────────────────
+// ─── Accès restreint ─────────────────────────────────────────
+// Le blog est réservé aux membres actifs : étudiants inscrits
+// (compte actif) et équipe (ADMIN / TEACHER / SECRETARY).
+router.use(authenticateToken);
+
 router.get('/', getBlogPosts);
 router.get('/:slug', getBlogPostBySlug);
 
 // ─── Protected routes ────────────────────────────────────────
-router.use(authenticateToken);
 
 // Posts
 router.post('/', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), createBlogPost);

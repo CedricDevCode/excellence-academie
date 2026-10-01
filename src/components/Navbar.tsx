@@ -172,7 +172,10 @@ export default function Navbar() {
     };
   }, []);
 
-  const navLinks = baseNavLinks;
+  // Le blog est réservé aux membres actifs : masqué aux visiteurs non connectés.
+  const navLinks = currentUser
+    ? baseNavLinks
+    : baseNavLinks.filter((link) => link.href !== "/blog");
 
   useEffect(() => {
     const updateCount = () => setCartCount(getCartCount(readCart()));

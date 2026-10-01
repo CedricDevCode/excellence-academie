@@ -21,7 +21,8 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchBlogPosts, fetchCourses, getMe } from "../utils/api";
 import { Card, Badge, Button, Container } from "../components/ui";
-import { DEFAULT_BLOG_POSTS, BlogPostItem } from "../constants/defaultBlogPosts";
+import BlogRestricted from "../components/BlogRestricted";
+import { BlogPostItem } from "../types/blog";
 
 const TOPIC_CATEGORIES = [
   "Tous",
@@ -54,6 +55,7 @@ export default function BlogList() {
   const [user, setUser] = useState<any>(null);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSuccess, setNewsletterSuccess] = useState(false);
+  const [accessDenied, setAccessDenied] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCourses().then(setCourses).catch(() => {});
@@ -71,21 +73,20 @@ export default function BlogList() {
       .then((res) => {
         setApiData(res);
       })
-      .catch(() => {})
+      .catch((err: any) => {
+        if (err?.status === 401 || err?.status === 403) setAccessDenied(err.status);
+      })
       .finally(() => setLoading(false));
   }, [page, courseFilter, tagFilter]);
 
-  // Merge with curated defaults if API returns 0 posts
+  // Uniquement les articles réellement publiés en base (aucun contenu de démonstration)
   const allPosts: BlogPostItem[] = useMemo(() => {
-    if (apiData.posts && apiData.posts.length > 0) {
-      return apiData.posts.map((p: any) => ({
-        ...p,
-        category: p.course?.title || (p.tags?.[0]?.tag?.name) || "Concours",
-        readingTime: p.readingTime || "5 min de lecture",
-        publishedAt: p.createdAt || new Date().toISOString(),
-      }));
-    }
-    return DEFAULT_BLOG_POSTS;
+    return (apiData.posts || []).map((p: any) => ({
+      ...p,
+      category: p.course?.title || (p.tags?.[0]?.tag?.name) || "Concours",
+      readingTime: p.readingTime || "5 min de lecture",
+      publishedAt: p.createdAt || new Date().toISOString(),
+    }));
   }, [apiData.posts]);
 
   // Client-side filtering for fast, responsive magazine feel
@@ -128,6 +129,11 @@ export default function BlogList() {
     setNewsletterEmail("");
     setTimeout(() => setNewsletterSuccess(false), 4000);
   };
+
+  if (accessDenied) return <BlogRestricted status={accessDenied} />;
+
+  const popularPosts = allPosts.slice(0, 3);
+  const hasPosts = allPosts.length > 0;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
@@ -341,20 +347,26 @@ export default function BlogList() {
             {filteredPosts.length === 0 ? (
               <Card className="text-center py-16 px-6 bg-white rounded-3xl border border-slate-200">
                 <BookOpen size={48} className="mx-auto text-slate-300 mb-4" />
-                <h4 className="text-lg font-bold text-slate-800 mb-2">Aucun article trouvé</h4>
+                <h4 className="text-lg font-bold text-slate-800 mb-2">
+                  {hasPosts ? "Aucun article trouvé" : "Aucun article publié"}
+                </h4>
                 <p className="text-slate-500 text-sm max-w-md mx-auto mb-6">
-                  Aucun article ne correspond à vos filtres actuels. Réinitialisez la recherche pour voir tous les contenus pédagogiques.
+                  {hasPosts
+                    ? "Aucun article ne correspond à vos filtres actuels. Réinitialisez la recherche pour voir tous les contenus pédagogiques."
+                    : "Aucun article n'a encore été publié. Revenez prochainement pour découvrir nos nouvelles publications."}
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedCategory("Tous");
-                  }}
-                >
-                  Réinitialiser les filtres
-                </Button>
+                {hasPosts && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory("Tous");
+                    }}
+                  >
+                    Réinitialiser les filtres
+                  </Button>
+                )}
               </Card>
             ) : (
               <motion.div
@@ -505,33 +517,35 @@ export default function BlogList() {
             </div>
 
             {/* Popular Articles Widget */}
-            <Card padding="md" className="rounded-2xl border border-slate-200">
-              <h4 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
-                <TrendingUp size={16} className="text-accent-500" />
-                Articles les plus consultés
-              </h4>
-              <div className="space-y-3.5">
-                {DEFAULT_BLOG_POSTS.slice(0, 3).map((p, idx) => (
-                  <Link
-                    key={p.id}
-                    to={`/blog/${p.slug}`}
-                    className="flex items-start gap-3 group py-1.5 border-b border-slate-100 last:border-none"
-                  >
-                    <span className="font-black text-slate-300 group-hover:text-accent-500 transition-colors text-lg leading-none shrink-0 w-4">
-                      0{idx + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <h5 className="text-xs font-bold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-2 leading-snug mb-1">
-                        {p.title}
-                      </h5>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        {p.readingTime}
+            {popularPosts.length > 0 && (
+              <Card padding="md" className="rounded-2xl border border-slate-200">
+                <h4 className="font-extrabold text-slate-900 text-sm mb-4 flex items-center gap-2">
+                  <TrendingUp size={16} className="text-accent-500" />
+                  Articles les plus consultés
+                </h4>
+                <div className="space-y-3.5">
+                  {popularPosts.map((p, idx) => (
+                    <Link
+                      key={p.id}
+                      to={`/blog/${p.slug}`}
+                      className="flex items-start gap-3 group py-1.5 border-b border-slate-100 last:border-none"
+                    >
+                      <span className="font-black text-slate-300 group-hover:text-accent-500 transition-colors text-lg leading-none shrink-0 w-4">
+                        0{idx + 1}
                       </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </Card>
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-2 leading-snug mb-1">
+                          {p.title}
+                        </h5>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          {p.readingTime}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             {/* Newsletter Subscription */}
             <Card padding="md" className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-orange-50/30">

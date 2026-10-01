@@ -1009,16 +1009,25 @@ export const getSignedContractPdfUrl = (contractId: string) => {
 };
 
 // ─── Blog ──────────────────────────────────────────────────────────
+// Le blog est réservé aux membres actifs : on propage le statut HTTP
+// pour que les pages puissent distinguer « non connecté » (401/403)
+// d'une erreur réseau.
+const blogFetchError = (res: Response, message: string) => {
+  const err: any = new Error(message);
+  err.status = res.status;
+  return err;
+};
+
 export const fetchBlogPosts = async (params?: { page?: number; limit?: number; courseId?: string; authorId?: string; tag?: string }) => {
   const query = params ? '?' + new URLSearchParams(Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : '';
   const res = await fetch(`${API_BASE_URL}/blog${query}`);
-  if (!res.ok) throw new Error('Failed to fetch blog posts');
+  if (!res.ok) throw blogFetchError(res, 'Failed to fetch blog posts');
   return res.json();
 };
 
 export const fetchBlogPostBySlug = async (slug: string) => {
   const res = await fetch(`${API_BASE_URL}/blog/${encodeURIComponent(slug)}`);
-  if (!res.ok) throw new Error('Failed to fetch blog post');
+  if (!res.ok) throw blogFetchError(res, 'Failed to fetch blog post');
   return res.json();
 };
 

@@ -25,8 +25,9 @@ Inspiré des plateformes de référence (Medium, Dev.to, Substack) :
   - Bloc d'appel à l'action pour préparer un concours avec Excellence Académie.
   - Widget "Articles les plus consultés" numéroté (01, 02, 03).
   - Formulaire d'inscription aux "Alertes Concours & Concours Blancs" par email avec confirmation instantanée.
-- **Contenu Pédagogique de Référence Garanti (`defaultBlogPosts.ts`)** :
-  - Si la base de données est vide, la plateforme affiche automatiquement des articles complets à forte valeur ajoutée rédigés pour les concours (Magistrature, ENA, Greffe, Méthode de révision). Dès qu'un article est publié via le tableau de bord, il s'affiche en priorité.
+- **Accès Restreint + Données Réelles uniquement** :
+  - Le blog est réservé aux membres actifs : étudiants inscrits (compte actif) et équipe (ADMIN / TEACHER / SECRETARY). Les visiteurs non connectés voient un écran « Blog réservé aux inscrits » avec renvoi vers la connexion, et le lien disparaît de la navigation publique.
+  - Seuls les articles réellement publiés en base sont affichés (liste, article à la une, articles les plus consultés, articles connexes). Aucun contenu de démonstration n'est injecté : si la base est vide, la page affiche « Aucun article publié ».
 - **Page de Lecture Dédiée (`BlogDetail.tsx`)** :
   - Fil d'Ariane, bouton de retour, bouton de partage avec copie de lien dans le presse-papier.
   - Typographie soignée (`prose`), bloc biographique de l'auteur, exercices interactifs avec dépôt de devoirs par les étudiants, et suggestions d'articles connexes.

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
+  fetchBlogPosts,
   fetchBlogPostBySlug,
   createComment,
   deleteComment,
@@ -33,7 +34,8 @@ import {
   getMe,
 } from "../utils/api";
 import { Card, Badge, Button, Container } from "../components/ui";
-import { DEFAULT_BLOG_POSTS, BlogPostItem } from "../constants/defaultBlogPosts";
+import BlogRestricted from "../components/BlogRestricted";
+import { BlogPostItem } from "../types/blog";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -49,8 +51,10 @@ export default function BlogDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [post, setPost] = useState<any>(null);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPostItem[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState<number | null>(null);
   const [commentText, setCommentText] = useState("");
   const [exerciseForm, setExerciseForm] = useState({ title: "", description: "" });
   const [submitForm, setSubmitForm] = useState<Record<string, { content: string; file: File | null }>>({});
@@ -62,11 +66,25 @@ export default function BlogDetail() {
     try {
       const data = await fetchBlogPostBySlug(slug);
       setPost(data);
-    } catch {
-      // Fallback to rich default post if not in database
-      const fallback = DEFAULT_BLOG_POSTS.find((p) => p.slug === slug || p.id === slug);
-      if (fallback) {
-        setPost(fallback);
+      setRelatedPosts([]);
+      fetchBlogPosts({ limit: 12 })
+        .then((res: any) => {
+          setRelatedPosts(
+            (res.posts || [])
+              .filter((p: any) => p.slug !== data.slug)
+              .slice(0, 2)
+              .map((p: any) => ({
+                ...p,
+                category: p.course?.title || p.tags?.[0]?.tag?.name || "Concours",
+                readingTime: p.readingTime || "5 min de lecture",
+                publishedAt: p.createdAt || new Date().toISOString(),
+              }))
+          );
+        })
+        .catch(() => setRelatedPosts([]));
+    } catch (err: any) {
+      if (err?.status === 401 || err?.status === 403) {
+        setAccessDenied(err.status);
       } else {
         navigate("/blog");
       }
@@ -86,28 +104,15 @@ export default function BlogDetail() {
   const handleComment = async () => {
     if (!commentText.trim() || !post) return;
     try {
-      if (post.id && !post.id.startsWith("default-post")) {
-        const c = await createComment(post.id, commentText);
-        setPost({ ...post, comments: [c, ...(post.comments || [])] });
-      } else {
-        // Mock local comment for fallback post
-        const mockComment = {
-          id: `comment-${Date.now()}`,
-          author: { name: user?.name || "Lecteur Invité" },
-          content: commentText,
-          createdAt: new Date().toISOString(),
-        };
-        setPost({ ...post, comments: [mockComment, ...(post.comments || [])] });
-      }
+      const c = await createComment(post.id, commentText);
+      setPost({ ...post, comments: [c, ...(post.comments || [])] });
       setCommentText("");
     } catch {}
   };
 
   const handleDeleteComment = async (id: string) => {
     try {
-      if (!id.startsWith("comment-")) {
-        await deleteComment(id);
-      }
+      await deleteComment(id);
       setPost({ ...post, comments: post.comments.filter((c: any) => c.id !== id) });
     } catch {}
   };
@@ -115,26 +120,15 @@ export default function BlogDetail() {
   const handleAddExercise = async () => {
     if (!exerciseForm.title.trim() || !post) return;
     try {
-      if (post.id && !post.id.startsWith("default-post")) {
-        const ex = await createExercise(post.id, exerciseForm);
-        setPost({ ...post, exercises: [...(post.exercises || []), ex] });
-      } else {
-        const mockEx = {
-          id: `ex-${Date.now()}`,
-          title: exerciseForm.title,
-          description: exerciseForm.description,
-        };
-        setPost({ ...post, exercises: [...(post.exercises || []), mockEx] });
-      }
+      const ex = await createExercise(post.id, exerciseForm);
+      setPost({ ...post, exercises: [...(post.exercises || []), ex] });
       setExerciseForm({ title: "", description: "" });
     } catch {}
   };
 
   const handleDeleteExercise = async (id: string) => {
     try {
-      if (!id.startsWith("ex-")) {
-        await deleteExercise(id);
-      }
+      await deleteExercise(id);
       setPost({ ...post, exercises: post.exercises.filter((e: any) => e.id !== id) });
     } catch {}
   };
@@ -143,9 +137,7 @@ export default function BlogDetail() {
     const form = submitForm[exerciseId];
     if (!form?.content?.trim() && !form?.file) return;
     try {
-      if (!exerciseId.startsWith("ex-") && !post.id.startsWith("default-post")) {
-        await submitExercise(exerciseId, { content: form.content, file: form.file || undefined });
-      }
+      await submitExercise(exerciseId, { content: form.content, file: form.file || undefined });
       alert("Votre travail a été transmis avec succès pour correction !");
       setSubmitForm((prev) => ({ ...prev, [exerciseId]: { content: "", file: null } }));
     } catch (e: any) {
@@ -165,9 +157,7 @@ export default function BlogDetail() {
   const handleDeletePost = async () => {
     if (!post || !confirm("Supprimer cet article ?")) return;
     try {
-      if (!post.id.startsWith("default-post")) {
-        await deleteBlogPost(post.id);
-      }
+      await deleteBlogPost(post.id);
       navigate("/blog");
     } catch {}
   };
@@ -180,13 +170,12 @@ export default function BlogDetail() {
     );
   }
 
+  if (accessDenied) return <BlogRestricted status={accessDenied} />;
+
   if (!post) return null;
 
   const readingTime = post.readingTime || "5 min de lecture";
   const categoryName = post.category || post.course?.title || post.tags?.[0]?.tag?.name || "Concours";
-
-  // Related posts
-  const relatedPosts = DEFAULT_BLOG_POSTS.filter((p) => p.slug !== post.slug).slice(0, 2);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
