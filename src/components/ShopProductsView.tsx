@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Package, X, Save, Loader2, ShoppingBag, Tag, Layers, Upload, Image as ImageIcon } from 'lucide-react';
 import { fetchAdminProducts, createProduct, updateProduct, deleteProduct, uploadProductImage } from '../utils/api';
+import { compressImage } from '../utils/image';
 import { useToast } from './Toast';
 
 const PRODUCT_TYPES = [
@@ -102,8 +103,8 @@ export default function ShopProductsView() {
       setEditingId(null);
       setForm({ ...emptyForm, imageUrls: [] });
       load();
-    } catch {
-      toast('error', 'Erreur lors de la sauvegarde');
+    } catch (err) {
+      toast('error', err instanceof Error && err.message ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
       setSubmitting(false);
     }
@@ -129,13 +130,14 @@ export default function ShopProductsView() {
     if (!file) return;
     setUploadingIdx(idx);
     try {
-      const result = await uploadProductImage(file);
+      const compressed = await compressImage(file);
+      const result = await uploadProductImage(compressed);
       const urls = [...form.imageUrls];
       urls[idx] = result.url;
       setForm({ ...form, imageUrls: urls });
       toast('success', 'Image téléchargée');
-    } catch {
-      toast('error', 'Erreur lors du téléchargement de l\'image');
+    } catch (err) {
+      toast('error', err instanceof Error && err.message ? err.message : 'Erreur lors du téléchargement de l\'image');
     } finally {
       setUploadingIdx(null);
       if (fileInputRefs.current[idx]) fileInputRefs.current[idx]!.value = '';

@@ -1,43 +1,34 @@
 import { Router } from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
-import { fileURLToPath } from 'url';
 import { getProducts, getProductById, getAllProducts, createProduct, updateProduct, deleteProduct, getOrders, createOrder, updateOrderStatus, getStudentOrders, uploadProductImage, getProductReviews, createReview } from '../controllers/shopController';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'products');
-fs.mkdirSync(uploadsDir, { recursive: true });
-
+// Les images sont stockées en base (table ProductImage) : multer garde le fichier
+// en mémoire, plus rien n'est écrit sur disque (les uploads disque étaient perdus
+// à chaque redéploiement Hostinger).
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${crypto.randomUUID()}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (_req, file, cb) => {
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Format invalide. Seules les images (JPEG, PNG, WebP, GIF) sont autorisées.'));
+      const err: any = new Error('Format invalide. Seules les images (JPEG, PNG, WebP, GIF) sont autorisées.');
+      err.status = 400;
+      cb(err);
     }
   },
 });
 
 const router = Router();
 
-// Rate limiting spécifique pour les uploads (20/heure)
+// Rate limiting spécifique pour les uploads (100/heure — un catalogue complet
+// de produits ne doit jamais être bloqué par la limite)
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 20,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop d\'uploads. Réessayez dans une heure.' },

@@ -1,5 +1,6 @@
 import './env';
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -30,9 +31,11 @@ import siteConfigRoutes from './routes/siteConfigRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 import pushRoutes from './routes/pushRoutes';
 import appSettingsRoutes from './routes/appSettingsRoutes';
+import mediaRoutes from './routes/mediaRoutes';
 import { seedFormations } from './seed-courses';
 import { ensureSessionTables } from './controllers/sessionController';
 import { ensureCategoryTable } from './controllers/categoryController';
+import { backfillProductImages } from './backfillProductImages';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -95,6 +98,40 @@ async function ensureCourseColumns() {
   }
 }
 
+/**
+ * Fallback runtime : crée la table ProductImage si `prisma migrate deploy`
+ * a échoué (Hostinger). Même pattern que SiteConfig / AppSettings.
+ */
+async function ensureProductImagesTable() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ProductImage" (
+      "id" TEXT NOT NULL,
+      "productId" TEXT,
+      "data" BYTEA NOT NULL,
+      "mimeType" TEXT NOT NULL,
+      "size" INTEGER NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
+    )
+  `);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ProductImage_productId_idx" ON "ProductImage"("productId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ProductImage_createdAt_idx" ON "ProductImage"("createdAt")`);
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ProductImage_productId_fkey'
+      ) THEN
+        ALTER TABLE "ProductImage"
+          ADD CONSTRAINT "ProductImage_productId_fkey"
+          FOREIGN KEY ("productId") REFERENCES "Product"("id")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+  console.log('✅ Table ProductImage vérifiée/créée');
+}
+
 const app = express();
 const port = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -111,7 +148,7 @@ if (!process.env.JWT_SECRET) {
 // ─── Rate Limiting global ─────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // 200 requêtes par fenêtre
+  max: 400, // 400 requêtes par fenêtre (un catalogue complet génère beaucoup d'appels)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes. Réessayez dans 15 minutes.' },
@@ -136,7 +173,7 @@ const webhookLimiter = rateLimit({
 
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 20, // 20 uploads par heure
+  max: 100, // 100 uploads par heure (20 bloquait la création d'un catalogue)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop d\'uploads. Réessayez dans une heure.' },
@@ -241,6 +278,10 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req
 });
 
 // ─── Body parsers ─────────────────────────────────────────────────────────────
+// Les bannières stockent leur image en base64 dans le body JSON : une image de
+// ~1,4 Mo dépasse la limite de 2 Mo (413). Ce parser est monté AVANT le parser
+// global (body-parser ignore les parsers suivants si le body est déjà parsé).
+app.use('/api/banners', express.json({ limit: '8mb' }));
 // Limite à 2mb par défaut — évite les attaques DoS par payload surdimensionné
 // Les routes nécessitant plus (ex: signature de contrat) gèrent leur propre limite
 app.use(express.json({ limit: '2mb' }));
@@ -378,6 +419,11 @@ if (fs.existsSync(serverUploads)) {
 }
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// ─── Images produit servies depuis la base (hors /api) ───────────────────────
+// Avant le fallback SPA : ces URLs n'ont pas d'extension et seraient
+// autrement interceptées par la réécriture vers index.html.
+app.use('/media', mediaRoutes);
+
 // ─── Fallback SPA ─────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
@@ -471,6 +517,15 @@ async function initDatabaseDefaults() {
       create: { key: 'global', additionalCourseAmount: 10000 },
     });
     console.log('✅ Table AppSettings vérifiée/créée');
+
+    // Table ProductImage (images produit en base) + migration des anciennes
+    // images encore présentes sur disque (perdues à chaque déploiement Hostinger).
+    await ensureProductImagesTable();
+    try {
+      await backfillProductImages();
+    } catch (e: any) {
+      console.error('⚠️ [BackfillImages] Échec :', e?.message || e);
+    }
 
     // Créer les bannières « À la une » par défaut en base (pas de contenu en dur
     // côté front) — modifiables depuis le tableau de bord (Actualités À la une).
@@ -597,6 +652,40 @@ async function keepAlive() {
     console.warn('⚠️ [Neon Keep-Alive] Ping DB :', err?.message || err?.code || String(err));
   }
 }
+
+// ─── Gestionnaire d'erreurs (doit rester en DERNIER de la chaîne) ────────────
+// Multer, body-parser et les erreurs async atterrissent ici → réponse JSON au
+// lieu du HTML 500 qui faisait échouer les toasts côté front.
+app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) return next(err);
+
+  // Payload JSON trop volumineux (express.json, express.raw)
+  if (err?.type === 'entity.too.large' || err?.status === 413 || err?.statusCode === 413) {
+    return res.status(413).json({ error: 'Contenu trop volumineux. Réduisez la taille de l\'image ou du fichier.' });
+  }
+  // Corps JSON malformé
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Corps de requête JSON invalide.' });
+  }
+  // Multer : limite de taille / champ de fichier inattendu
+  if (err?.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'Image trop volumineuse (5 Mo maximum).' });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({ error: 'Fichier inattendu dans la requête.' });
+    }
+    return res.status(400).json({ error: err.message || 'Erreur lors de l\'upload.' });
+  }
+  // Erreurs 4xx explicitement marquées (ex: fileFilter multer → err.status = 400)
+  const status = err?.status || err?.statusCode;
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    return res.status(status).json({ error: err.message || 'Requête invalide.' });
+  }
+
+  console.error('Erreur serveur non gérée:', err);
+  res.status(500).json({ error: 'Erreur interne du serveur.' });
+});
 
 // ─── Démarrage du serveur ─────────────────────────────────────────────────────
 // Crucial : on écoute le port IMMÉDIATEMENT, sans attendre l'init DB.

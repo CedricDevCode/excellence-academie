@@ -431,7 +431,10 @@ export const createProduct = async (data: any) => {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create product');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || 'Erreur lors de la création du produit');
+  }
   return res.json();
 };
 
@@ -440,7 +443,10 @@ export const updateProduct = async (id: string, data: any) => {
     method: 'PUT',
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update product');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || 'Erreur lors de la mise à jour du produit');
+  }
   return res.json();
 };
 
@@ -460,7 +466,10 @@ export const uploadProductImage = async (file: File) => {
     credentials: 'include',
     body: formData,
   });
-  if (!res.ok) throw new Error('Failed to upload image');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || 'Erreur lors du téléchargement de l\'image');
+  }
   return res.json();
 };
 
@@ -472,7 +481,10 @@ export const uploadBannerImage = async (file: File) => {
     credentials: 'include',
     body: formData,
   });
-  if (!res.ok) throw new Error('Failed to upload banner image');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || 'Erreur lors du téléchargement de l\'image');
+  }
   return res.json();
 };
 

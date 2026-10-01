@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Upload, Image as ImageIcon, X, Save, Loader2, Eye, EyeOff, Calendar } from 'lucide-react';
 import api, { uploadBannerImage } from '../utils/api';
+import { compressImage } from '../utils/image';
 import { useToast } from './Toast';
 
 interface Product {
@@ -158,7 +159,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
       setForm(emptyForm);
       await loadData();
     } catch (error: any) {
-      toast('error', error.response?.data?.message || 'Erreur lors de la sauvegarde');
+      toast('error', error?.message || 'Erreur lors de la sauvegarde');
     } finally {
       setSubmitting(false);
     }
@@ -186,11 +187,12 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
 
     setUploadingImage(true);
     try {
-      const response = await uploadBannerImage(file);
+      const compressed = await compressImage(file);
+      const response = await uploadBannerImage(compressed);
       setForm({ ...form, imageUrl: response.url || response.imageUrl });
       toast('success', 'Image téléchargée');
     } catch (error: any) {
-      toast('error', 'Erreur lors du téléchargement');
+      toast('error', error?.message || 'Erreur lors du téléchargement');
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

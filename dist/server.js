@@ -4465,12 +4465,52 @@ var contractRoutes_default = router15;
 import { Router as Router16 } from "express";
 import multer5 from "multer";
 import rateLimit5 from "express-rate-limit";
-import path7 from "path";
-import fs6 from "fs";
-import crypto7 from "crypto";
-import { fileURLToPath as fileURLToPath5 } from "url";
 
 // server/controllers/shopController.ts
+function parseNumberField(value, label) {
+  if (value === null || value === void 0) return { ok: true, value: null };
+  if (typeof value === "string" && value.trim() === "") return { ok: true, value: null };
+  const n = typeof value === "number" ? value : Number(String(value).trim().replace(",", "."));
+  if (!Number.isFinite(n)) {
+    return { ok: false, message: `Le champ \xAB ${label} \xBB n'est pas un nombre valide.` };
+  }
+  return { ok: true, value: n };
+}
+function parseStockField(value) {
+  const parsed = parseNumberField(value, "stock");
+  if (!parsed.ok) return parsed;
+  if (parsed.value === null) return { ok: true, value: null };
+  if (parsed.value < 0) return { ok: false, message: "Le stock ne peut pas \xEAtre n\xE9gatif." };
+  return { ok: true, value: Math.trunc(parsed.value) };
+}
+function extractImageIds(imageUrl) {
+  if (typeof imageUrl !== "string" || !imageUrl.trim()) return [];
+  const trimmed = imageUrl.trim();
+  let entries = [trimmed];
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      entries = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      entries = [trimmed];
+    }
+  }
+  const ids = /* @__PURE__ */ new Set();
+  for (const entry of entries) {
+    if (typeof entry !== "string") continue;
+    const match = entry.match(/\/media\/product-images\/([A-Za-z0-9-]+)/);
+    if (match) ids.add(match[1]);
+  }
+  return [...ids];
+}
+async function attachProductImages(productId, imageUrl) {
+  const ids = extractImageIds(imageUrl);
+  if (!ids.length) return;
+  await prisma_default.productImage.updateMany({
+    where: { id: { in: ids }, productId: null },
+    data: { productId }
+  });
+}
 var getProducts = async (req, res) => {
   try {
     const products = await prisma_default.product.findMany({
@@ -4509,20 +4549,36 @@ var getAllProducts = async (req, res) => {
 var createProduct = async (req, res) => {
   try {
     const { title, description, price, originalPrice, type, imageUrl, isActive, stock } = req.body;
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ error: "Le nom du produit est requis." });
+    }
+    const priceParse = parseNumberField(price, "prix");
+    if (!priceParse.ok) return res.status(400).json({ error: priceParse.message });
+    if (priceParse.value === null) return res.status(400).json({ error: "Le prix est requis." });
+    if (priceParse.value < 0) return res.status(400).json({ error: "Le prix ne peut pas \xEAtre n\xE9gatif." });
+    const originalPriceParse = parseNumberField(originalPrice, "prix original");
+    if (!originalPriceParse.ok) return res.status(400).json({ error: originalPriceParse.message });
+    if (originalPriceParse.value !== null && originalPriceParse.value < 0) {
+      return res.status(400).json({ error: "Le prix original ne peut pas \xEAtre n\xE9gatif." });
+    }
+    const stockParse = parseStockField(stock);
+    if (!stockParse.ok) return res.status(400).json({ error: stockParse.message });
     const product = await prisma_default.product.create({
       data: {
-        title,
-        description,
-        price: parseFloat(price),
-        originalPrice: originalPrice !== void 0 ? parseFloat(originalPrice) : null,
-        type,
-        imageUrl,
+        title: String(title).trim(),
+        description: description ?? null,
+        price: priceParse.value,
+        originalPrice: originalPriceParse.value,
+        type: type || "DOCUMENT",
+        imageUrl: typeof imageUrl === "string" && imageUrl.trim() ? imageUrl : null,
         isActive: isActive ?? true,
-        stock: stock ? parseInt(stock) : null
+        stock: stockParse.value
       }
     });
+    await attachProductImages(product.id, imageUrl);
     res.status(201).json(product);
   } catch (error) {
+    console.error("Create product error:", error);
     res.status(500).json({ error: "Failed to create product" });
   }
 };
@@ -4530,30 +4586,80 @@ var updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, price, originalPrice, type, imageUrl, isActive, stock } = req.body;
+    const existing = await prisma_default.product.findUnique({
+      where: { id },
+      select: { id: true }
+    });
+    if (!existing) return res.status(404).json({ error: "Produit introuvable" });
+    const data = {};
+    if (title !== void 0) {
+      if (!title || !String(title).trim()) {
+        return res.status(400).json({ error: "Le nom du produit est requis." });
+      }
+      data.title = String(title).trim();
+    }
+    if (description !== void 0) data.description = description ?? null;
+    if (price !== void 0) {
+      const priceParse = parseNumberField(price, "prix");
+      if (!priceParse.ok) return res.status(400).json({ error: priceParse.message });
+      if (priceParse.value === null) return res.status(400).json({ error: "Le prix est requis." });
+      if (priceParse.value < 0) return res.status(400).json({ error: "Le prix ne peut pas \xEAtre n\xE9gatif." });
+      data.price = priceParse.value;
+    }
+    if (originalPrice !== void 0) {
+      const originalPriceParse = parseNumberField(originalPrice, "prix original");
+      if (!originalPriceParse.ok) return res.status(400).json({ error: originalPriceParse.message });
+      if (originalPriceParse.value !== null && originalPriceParse.value < 0) {
+        return res.status(400).json({ error: "Le prix original ne peut pas \xEAtre n\xE9gatif." });
+      }
+      data.originalPrice = originalPriceParse.value;
+    }
+    if (stock !== void 0) {
+      const stockParse = parseStockField(stock);
+      if (!stockParse.ok) return res.status(400).json({ error: stockParse.message });
+      data.stock = stockParse.value;
+    }
+    if (type !== void 0) data.type = type;
+    if (isActive !== void 0) data.isActive = isActive;
+    if (imageUrl !== void 0) {
+      data.imageUrl = typeof imageUrl === "string" && imageUrl.trim() ? imageUrl : null;
+    }
+    const previousImageIds = imageUrl !== void 0 ? (await prisma_default.productImage.findMany({ where: { productId: id }, select: { id: true } })).map((i) => i.id) : [];
     const product = await prisma_default.product.update({
       where: { id },
-      data: {
-        title,
-        description,
-        price: price !== void 0 ? parseFloat(price) : void 0,
-        originalPrice: originalPrice !== void 0 ? parseFloat(originalPrice) : void 0,
-        type,
-        imageUrl,
-        isActive,
-        stock: stock !== void 0 ? stock === null ? null : parseInt(stock) : void 0
-      }
+      data
     });
+    if (imageUrl !== void 0) {
+      const newIds = extractImageIds(imageUrl);
+      if (newIds.length) {
+        await prisma_default.productImage.updateMany({
+          where: { id: { in: newIds }, OR: [{ productId: null }, { productId: id }] },
+          data: { productId: id }
+        });
+      }
+      const removedIds = previousImageIds.filter((pid) => !newIds.includes(pid));
+      if (removedIds.length) {
+        await prisma_default.productImage.deleteMany({
+          where: { id: { in: removedIds }, productId: id }
+        });
+      }
+    }
     res.json(product);
   } catch (error) {
+    console.error("Update product error:", error);
     res.status(500).json({ error: "Failed to update product" });
   }
 };
 var deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
+    const existing = await prisma_default.product.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: "Produit introuvable" });
+    await prisma_default.productImage.deleteMany({ where: { productId: id } });
     await prisma_default.product.delete({ where: { id } });
     res.json({ message: "Product deleted" });
   } catch (error) {
+    console.error("Delete product error:", error);
     res.status(500).json({ error: "Failed to delete product" });
   }
 };
@@ -4563,8 +4669,28 @@ var uploadProductImage = async (req, res) => {
     if (!file) {
       return res.status(400).json({ error: "Aucun fichier fourni" });
     }
-    const url = `/uploads/products/${file.filename}`;
-    res.json({ url });
+    if (!file.buffer || file.buffer.length === 0) {
+      return res.status(400).json({ error: "Fichier vide" });
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return res.status(413).json({ error: "Image trop volumineuse (5 Mo maximum)." });
+    }
+    await prisma_default.productImage.deleteMany({
+      where: {
+        productId: null,
+        createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1e3) }
+      }
+    });
+    const image = await prisma_default.productImage.create({
+      data: {
+        productId: null,
+        // multer type le buffer en Buffer<ArrayBufferLike>, Prisma attend Uint8Array<ArrayBuffer>
+        data: new Uint8Array(file.buffer),
+        mimeType: file.mimetype,
+        size: file.size
+      }
+    });
+    res.json({ url: `/media/product-images/${image.id}` });
   } catch (error) {
     console.error("Upload product image error:", error);
     res.status(500).json({ error: "Failed to upload image" });
@@ -4789,17 +4915,8 @@ var updateOrderStatus = async (req, res) => {
 };
 
 // server/routes/shopRoutes.ts
-var __dirname5 = path7.dirname(fileURLToPath5(import.meta.url));
-var uploadsDir2 = path7.join(__dirname5, "..", "uploads", "products");
-fs6.mkdirSync(uploadsDir2, { recursive: true });
 var upload5 = multer5({
-  storage: multer5.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir2),
-    filename: (_req, file, cb) => {
-      const ext = path7.extname(file.originalname).toLowerCase();
-      cb(null, `${crypto7.randomUUID()}${ext}`);
-    }
-  }),
+  storage: multer5.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   // 5 MB
   fileFilter: (_req, file, cb) => {
@@ -4807,14 +4924,16 @@ var upload5 = multer5({
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Format invalide. Seules les images (JPEG, PNG, WebP, GIF) sont autoris\xE9es."));
+      const err = new Error("Format invalide. Seules les images (JPEG, PNG, WebP, GIF) sont autoris\xE9es.");
+      err.status = 400;
+      cb(err);
     }
   }
 });
 var router16 = Router16();
 var uploadLimiter = rateLimit5({
   windowMs: 60 * 60 * 1e3,
-  max: 20,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop d'uploads. R\xE9essayez dans une heure." }
@@ -4835,7 +4954,7 @@ router16.put("/admin/orders/:id/status", authenticateToken, requireRole(["ADMIN"
 var shopRoutes_default = router16;
 
 // server/routes/bannerRoutes.ts
-import path8 from "path";
+import path7 from "path";
 import { Router as Router17 } from "express";
 import multer6 from "multer";
 
@@ -4991,7 +5110,7 @@ var bannerUpload = multer6({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp/;
-    const ok = allowed.test(path8.extname(file.originalname).toLowerCase()) && allowed.test(file.mimetype);
+    const ok = allowed.test(path7.extname(file.originalname).toLowerCase()) && allowed.test(file.mimetype);
     cb(null, ok);
   }
 });
@@ -5011,10 +5130,10 @@ var bannerRoutes_default = router17;
 // server/routes/blogRoutes.ts
 import { Router as Router18 } from "express";
 import multer7 from "multer";
-import path9 from "path";
-import fs7 from "fs";
-import crypto8 from "crypto";
-import { fileURLToPath as fileURLToPath6 } from "url";
+import path8 from "path";
+import fs6 from "fs";
+import crypto7 from "crypto";
+import { fileURLToPath as fileURLToPath5 } from "url";
 
 // server/controllers/blogController.ts
 import DOMPurify from "isomorphic-dompurify";
@@ -5342,15 +5461,15 @@ var evaluateSubmission = async (req, res) => {
 };
 
 // server/routes/blogRoutes.ts
-var __dirname6 = path9.dirname(fileURLToPath6(import.meta.url));
-var blogUploadsDir = path9.join(__dirname6, "..", "uploads", "blog");
-fs7.mkdirSync(blogUploadsDir, { recursive: true });
+var __dirname5 = path8.dirname(fileURLToPath5(import.meta.url));
+var blogUploadsDir = path8.join(__dirname5, "..", "uploads", "blog");
+fs6.mkdirSync(blogUploadsDir, { recursive: true });
 var upload6 = multer7({
   storage: multer7.diskStorage({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
     filename: (_req, file, cb) => {
-      const ext = path9.extname(file.originalname);
-      cb(null, `${crypto8.randomUUID()}${ext}`);
+      const ext = path8.extname(file.originalname);
+      cb(null, `${crypto7.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -5748,6 +5867,34 @@ router22.use(authenticateToken);
 router22.put("/", requireRole(["ADMIN"]), updateAppSettings);
 var appSettingsRoutes_default = router22;
 
+// server/routes/mediaRoutes.ts
+import { Router as Router23 } from "express";
+var router23 = Router23();
+router23.get("/product-images/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!/^[A-Za-z0-9-]{1,64}$/.test(id)) {
+      return res.status(404).json({ error: "Image introuvable" });
+    }
+    const image = await prisma_default.productImage.findUnique({ where: { id } });
+    if (!image) {
+      return res.status(404).json({ error: "Image introuvable" });
+    }
+    const buffer = Buffer.from(image.data);
+    res.setHeader("Content-Type", image.mimeType);
+    res.setHeader("Content-Length", String(buffer.length));
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Content-Disposition", "inline");
+    res.status(200).end(buffer);
+  } catch (error) {
+    console.error("Get product image error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to load image" });
+    }
+  }
+});
+var mediaRoutes_default = router23;
+
 // server/seed-courses.ts
 var DEFAULT_FORMATIONS = [
   {
@@ -5866,6 +6013,110 @@ if (process.argv[1]?.includes("seed-courses")) {
   });
 }
 
+// server/backfillProductImages.ts
+import fs7 from "fs";
+import path9 from "path";
+import { fileURLToPath as fileURLToPath6 } from "url";
+var __dirname6 = path9.dirname(fileURLToPath6(import.meta.url));
+var MIME_BY_EXT = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif"
+};
+function candidateDirs() {
+  const cwd = process.cwd();
+  return [
+    path9.resolve(cwd, "uploads", "products"),
+    path9.resolve(cwd, "server", "uploads", "products"),
+    path9.resolve(__dirname6, "uploads", "products"),
+    path9.resolve(__dirname6, "..", "uploads", "products")
+  ];
+}
+function findOnDisk(filename) {
+  for (const dir of candidateDirs()) {
+    const full = path9.join(dir, filename);
+    if (path9.dirname(full) !== path9.resolve(dir)) continue;
+    try {
+      if (fs7.existsSync(full) && fs7.statSync(full).isFile()) return full;
+    } catch {
+    }
+  }
+  return null;
+}
+function parseEntries(imageUrl) {
+  const trimmed = imageUrl.trim();
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return { entries: parsed.filter((e) => typeof e === "string"), isArray: true };
+      }
+    } catch {
+    }
+  }
+  return { entries: [trimmed], isArray: false };
+}
+async function backfillProductImages() {
+  const products = await prisma.product.findMany({
+    where: { imageUrl: { not: null } },
+    select: { id: true, imageUrl: true }
+  });
+  let migrated = 0;
+  for (const product of products) {
+    const raw = product.imageUrl;
+    if (!raw) continue;
+    const { entries, isArray } = parseEntries(raw);
+    const newEntries = [];
+    let changed = false;
+    for (const entry of entries) {
+      const match = entry.match(/^\/uploads\/products\/([^/]+)$/);
+      if (!match) {
+        newEntries.push(entry);
+        continue;
+      }
+      const filename = path9.basename(match[1]);
+      const file = findOnDisk(filename);
+      if (!file) {
+        newEntries.push(entry);
+        continue;
+      }
+      try {
+        const data = fs7.readFileSync(file);
+        if (!data.length) {
+          newEntries.push(entry);
+          continue;
+        }
+        const ext = path9.extname(filename).toLowerCase();
+        const image = await prisma.productImage.create({
+          data: {
+            productId: product.id,
+            data,
+            mimeType: MIME_BY_EXT[ext] || "application/octet-stream",
+            size: data.length
+          }
+        });
+        newEntries.push(`/media/product-images/${image.id}`);
+        changed = true;
+        migrated++;
+      } catch (err) {
+        console.warn(`\u26A0\uFE0F [BackfillImages] ${filename} :`, err?.message || err);
+        newEntries.push(entry);
+      }
+    }
+    if (changed) {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { imageUrl: isArray ? JSON.stringify(newEntries) : newEntries[0] ?? null }
+      });
+    }
+  }
+  if (migrated > 0) {
+    console.log(`\u2705 ${migrated} image(s) produit migr\xE9e(s) du disque vers la base`);
+  }
+}
+
 // server/index.ts
 import path10 from "path";
 import fs8 from "fs";
@@ -5919,6 +6170,35 @@ async function ensureCourseColumns() {
     console.log("\u2705 Toutes les colonnes pricing de la table Course existent d\xE9j\xE0");
   }
 }
+async function ensureProductImagesTable() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ProductImage" (
+      "id" TEXT NOT NULL,
+      "productId" TEXT,
+      "data" BYTEA NOT NULL,
+      "mimeType" TEXT NOT NULL,
+      "size" INTEGER NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
+    )
+  `);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ProductImage_productId_idx" ON "ProductImage"("productId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ProductImage_createdAt_idx" ON "ProductImage"("createdAt")`);
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ProductImage_productId_fkey'
+      ) THEN
+        ALTER TABLE "ProductImage"
+          ADD CONSTRAINT "ProductImage_productId_fkey"
+          FOREIGN KEY ("productId") REFERENCES "Product"("id")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+  console.log("\u2705 Table ProductImage v\xE9rifi\xE9e/cr\xE9\xE9e");
+}
 var app = express();
 var port = process.env.PORT || 3001;
 var isProduction3 = process.env.NODE_ENV === "production";
@@ -5930,8 +6210,8 @@ if (!process.env.JWT_SECRET) {
 var globalLimiter = rateLimit6({
   windowMs: 15 * 60 * 1e3,
   // 15 minutes
-  max: 200,
-  // 200 requêtes par fenêtre
+  max: 400,
+  // 400 requêtes par fenêtre (un catalogue complet génère beaucoup d'appels)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de requ\xEAtes. R\xE9essayez dans 15 minutes." }
@@ -5956,8 +6236,8 @@ var webhookLimiter2 = rateLimit6({
 });
 var uploadLimiter2 = rateLimit6({
   windowMs: 60 * 60 * 1e3,
-  max: 20,
-  // 20 uploads par heure
+  max: 100,
+  // 100 uploads par heure (20 bloquait la création d'un catalogue)
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop d'uploads. R\xE9essayez dans une heure." }
@@ -6035,6 +6315,7 @@ app.use("/api/payments/webhook", express.raw({ type: "application/json" }), (req
   }
   next();
 });
+app.use("/api/banners", express.json({ limit: "8mb" }));
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use("/api/auth", authLimiter, authRoutes_default);
@@ -6143,6 +6424,7 @@ if (fs8.existsSync(serverUploads)) {
   app.use("/uploads", express.static(serverUploads));
 }
 app.use("/uploads", express.static(path10.join(__dirname7, "uploads")));
+app.use("/media", mediaRoutes_default);
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (req.path.startsWith("/api/")) return next();
@@ -6221,6 +6503,12 @@ async function initDatabaseDefaults() {
       create: { key: "global", additionalCourseAmount: 1e4 }
     });
     console.log("\u2705 Table AppSettings v\xE9rifi\xE9e/cr\xE9\xE9e");
+    await ensureProductImagesTable();
+    try {
+      await backfillProductImages();
+    } catch (e) {
+      console.error("\u26A0\uFE0F [BackfillImages] \xC9chec :", e?.message || e);
+    }
     const featuredWithImage = await prisma.shopBanner.count({
       where: { featured: true, isActive: true, imageUrl: { not: null } }
     });
@@ -6360,6 +6648,30 @@ async function keepAlive() {
     console.warn("\u26A0\uFE0F [Neon Keep-Alive] Ping DB :", err?.message || err?.code || String(err));
   }
 }
+app.use((err, _req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err?.type === "entity.too.large" || err?.status === 413 || err?.statusCode === 413) {
+    return res.status(413).json({ error: "Contenu trop volumineux. R\xE9duisez la taille de l'image ou du fichier." });
+  }
+  if (err?.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Corps de requ\xEAte JSON invalide." });
+  }
+  if (err?.name === "MulterError") {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({ error: "Image trop volumineuse (5 Mo maximum)." });
+    }
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({ error: "Fichier inattendu dans la requ\xEAte." });
+    }
+    return res.status(400).json({ error: err.message || "Erreur lors de l'upload." });
+  }
+  const status = err?.status || err?.statusCode;
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    return res.status(status).json({ error: err.message || "Requ\xEAte invalide." });
+  }
+  console.error("Erreur serveur non g\xE9r\xE9e:", err);
+  res.status(500).json({ error: "Erreur interne du serveur." });
+});
 app.listen(port, () => {
   console.log(`\u{1F680} Serveur d\xE9marr\xE9 sur le port ${port} [${isProduction3 ? "PRODUCTION" : "D\xC9VELOPPEMENT"}]`);
   keepAlive();

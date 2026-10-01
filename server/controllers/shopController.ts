@@ -6,6 +6,63 @@ import { sendDirectEmail } from './notificationController';
 
 // --- PRODUCTS ---
 
+type NumberParse = { ok: true; value: number | null } | { ok: false; message: string };
+
+/**
+ * Parse numérique sûr : `null`, `undefined` ou `''` → null (valeur absente),
+ * un nombre invalide → erreur 400 (au lieu d'un NaN qui casse Prisma en 500).
+ */
+function parseNumberField(value: unknown, label: string): NumberParse {
+  if (value === null || value === undefined) return { ok: true, value: null };
+  if (typeof value === 'string' && value.trim() === '') return { ok: true, value: null };
+  const n = typeof value === 'number' ? value : Number(String(value).trim().replace(',', '.'));
+  if (!Number.isFinite(n)) {
+    return { ok: false, message: `Le champ « ${label} » n'est pas un nombre valide.` };
+  }
+  return { ok: true, value: n };
+}
+
+function parseStockField(value: unknown): NumberParse {
+  const parsed = parseNumberField(value, 'stock');
+  if (!parsed.ok) return parsed;
+  if (parsed.value === null) return { ok: true, value: null };
+  if (parsed.value < 0) return { ok: false, message: 'Le stock ne peut pas être négatif.' };
+  // stock: 0 est une valeur valide (= rupture de stock), null = illimité
+  return { ok: true, value: Math.trunc(parsed.value) };
+}
+
+/** Extrait les ids d'images depuis `imageUrl` (JSON array ou URL unique). */
+function extractImageIds(imageUrl: unknown): string[] {
+  if (typeof imageUrl !== 'string' || !imageUrl.trim()) return [];
+  const trimmed = imageUrl.trim();
+  let entries: unknown[] = [trimmed];
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      entries = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      entries = [trimmed];
+    }
+  }
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    if (typeof entry !== 'string') continue;
+    const match = entry.match(/\/media\/product-images\/([A-Za-z0-9-]+)/);
+    if (match) ids.add(match[1]);
+  }
+  return [...ids];
+}
+
+/** Rattache les ProductImage « en attente » référencées par imageUrl au produit. */
+async function attachProductImages(productId: string, imageUrl: unknown): Promise<void> {
+  const ids = extractImageIds(imageUrl);
+  if (!ids.length) return;
+  await prisma.productImage.updateMany({
+    where: { id: { in: ids }, productId: null },
+    data: { productId },
+  });
+}
+
 export const getProducts = async (req: Request, res: Response) => {
   try {
     const products = await prisma.product.findMany({
@@ -47,53 +104,144 @@ export const getAllProducts = async (req: Request, res: Response) => {
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const { title, description, price, originalPrice, type, imageUrl, isActive, stock } = req.body;
+
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ error: 'Le nom du produit est requis.' });
+    }
+
+    const priceParse = parseNumberField(price, 'prix');
+    if (!priceParse.ok) return res.status(400).json({ error: priceParse.message });
+    if (priceParse.value === null) return res.status(400).json({ error: 'Le prix est requis.' });
+    if (priceParse.value < 0) return res.status(400).json({ error: 'Le prix ne peut pas être négatif.' });
+
+    const originalPriceParse = parseNumberField(originalPrice, 'prix original');
+    if (!originalPriceParse.ok) return res.status(400).json({ error: originalPriceParse.message });
+    if (originalPriceParse.value !== null && originalPriceParse.value < 0) {
+      return res.status(400).json({ error: 'Le prix original ne peut pas être négatif.' });
+    }
+
+    const stockParse = parseStockField(stock);
+    if (!stockParse.ok) return res.status(400).json({ error: stockParse.message });
+
     const product = await prisma.product.create({
       data: {
-        title,
-        description,
-        price: parseFloat(price),
-        originalPrice: originalPrice !== undefined ? parseFloat(originalPrice) : null,
-        type,
-        imageUrl,
+        title: String(title).trim(),
+        description: description ?? null,
+        price: priceParse.value!,
+        originalPrice: originalPriceParse.value,
+        type: type || 'DOCUMENT',
+        imageUrl: typeof imageUrl === 'string' && imageUrl.trim() ? imageUrl : null,
         isActive: isActive ?? true,
-        stock: stock ? parseInt(stock) : null
+        stock: stockParse.value
       }
     });
+
+    await attachProductImages(product.id, imageUrl);
+
     res.status(201).json(product);
   } catch (error) {
+    console.error('Create product error:', error);
     res.status(500).json({ error: 'Failed to create product' });
   }
 };
 
 export const updateProduct = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { title, description, price, originalPrice, type, imageUrl, isActive, stock } = req.body;
+
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      select: { id: true }
+    });
+    if (!existing) return res.status(404).json({ error: 'Produit introuvable' });
+
+    const data: Record<string, unknown> = {};
+
+    if (title !== undefined) {
+      if (!title || !String(title).trim()) {
+        return res.status(400).json({ error: 'Le nom du produit est requis.' });
+      }
+      data.title = String(title).trim();
+    }
+    if (description !== undefined) data.description = description ?? null;
+
+    if (price !== undefined) {
+      const priceParse = parseNumberField(price, 'prix');
+      if (!priceParse.ok) return res.status(400).json({ error: priceParse.message });
+      if (priceParse.value === null) return res.status(400).json({ error: 'Le prix est requis.' });
+      if (priceParse.value < 0) return res.status(400).json({ error: 'Le prix ne peut pas être négatif.' });
+      data.price = priceParse.value;
+    }
+
+    if (originalPrice !== undefined) {
+      const originalPriceParse = parseNumberField(originalPrice, 'prix original');
+      if (!originalPriceParse.ok) return res.status(400).json({ error: originalPriceParse.message });
+      if (originalPriceParse.value !== null && originalPriceParse.value < 0) {
+        return res.status(400).json({ error: 'Le prix original ne peut pas être négatif.' });
+      }
+      data.originalPrice = originalPriceParse.value;
+    }
+
+    if (stock !== undefined) {
+      const stockParse = parseStockField(stock);
+      if (!stockParse.ok) return res.status(400).json({ error: stockParse.message });
+      data.stock = stockParse.value;
+    }
+
+    if (type !== undefined) data.type = type;
+    if (isActive !== undefined) data.isActive = isActive;
+    if (imageUrl !== undefined) {
+      data.imageUrl = typeof imageUrl === 'string' && imageUrl.trim() ? imageUrl : null;
+    }
+
+    const previousImageIds = imageUrl !== undefined
+      ? (await prisma.productImage.findMany({ where: { productId: id }, select: { id: true } })).map(i => i.id)
+      : [];
+
     const product = await prisma.product.update({
       where: { id },
-      data: {
-        title,
-        description,
-        price: price !== undefined ? parseFloat(price) : undefined,
-        originalPrice: originalPrice !== undefined ? parseFloat(originalPrice) : undefined,
-        type,
-        imageUrl,
-        isActive,
-        stock: stock !== undefined ? (stock === null ? null : parseInt(stock)) : undefined
-      }
+      data
     });
+
+    if (imageUrl !== undefined) {
+      const newIds = extractImageIds(imageUrl);
+      if (newIds.length) {
+        // Rattache les nouvelles images (orphelines ou déjà à ce produit)
+        await prisma.productImage.updateMany({
+          where: { id: { in: newIds }, OR: [{ productId: null }, { productId: id }] },
+          data: { productId: id }
+        });
+      }
+      // Supprime les images retirées du formulaire (FK cascade si produit supprimé)
+      const removedIds = previousImageIds.filter(pid => !newIds.includes(pid));
+      if (removedIds.length) {
+        await prisma.productImage.deleteMany({
+          where: { id: { in: removedIds }, productId: id }
+        });
+      }
+    }
+
     res.json(product);
   } catch (error) {
+    console.error('Update product error:', error);
     res.status(500).json({ error: 'Failed to update product' });
   }
 };
 
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
+    const existing = await prisma.product.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: 'Produit introuvable' });
+
+    // Suppression en cascade des images produit (doublon du ON DELETE CASCADE
+    // de la FK, par sécurité si la table a été créée par le fallback runtime)
+    await prisma.productImage.deleteMany({ where: { productId: id } });
     await prisma.product.delete({ where: { id } });
     res.json({ message: 'Product deleted' });
   } catch (error) {
+    console.error('Delete product error:', error);
     res.status(500).json({ error: 'Failed to delete product' });
   }
 };
@@ -104,8 +252,32 @@ export const uploadProductImage = async (req: Request, res: Response) => {
     if (!file) {
       return res.status(400).json({ error: 'Aucun fichier fourni' });
     }
-    const url = `/uploads/products/${file.filename}`;
-    res.json({ url });
+    if (!file.buffer || file.buffer.length === 0) {
+      return res.status(400).json({ error: 'Fichier vide' });
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return res.status(413).json({ error: 'Image trop volumineuse (5 Mo maximum).' });
+    }
+
+    // Purge des uploads orphelins (produit jamais créé / formulaire annulé) > 24 h
+    await prisma.productImage.deleteMany({
+      where: {
+        productId: null,
+        createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }
+    });
+
+    const image = await prisma.productImage.create({
+      data: {
+        productId: null,
+        // multer type le buffer en Buffer<ArrayBufferLike>, Prisma attend Uint8Array<ArrayBuffer>
+        data: new Uint8Array(file.buffer),
+        mimeType: file.mimetype,
+        size: file.size
+      }
+    });
+
+    res.json({ url: `/media/product-images/${image.id}` });
   } catch (error) {
     console.error('Upload product image error:', error);
     res.status(500).json({ error: 'Failed to upload image' });
