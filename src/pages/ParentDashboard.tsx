@@ -33,7 +33,11 @@ export default function ParentDashboard() {
   const [childSubscriptions, setChildSubscriptions] = useState<any[]>([]);
   const [loadingChildData, setLoadingChildData] = useState(false);
 
-  const { unreadCount } = useLiveNotifications(user?.id);
+  useLiveNotifications((newNotif) => {
+    setNotifications(prev => [newNotif, ...prev]);
+  });
+
+  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const loadUser = useCallback(async () => {
     try {
@@ -77,10 +81,8 @@ export default function ParentDashboard() {
   }, [selectedChild]);
 
   useEffect(() => {
-    if (activeTab === 'notifs') {
-      fetchNotifications().then(setNotifications).catch(() => {});
-    }
-  }, [activeTab]);
+    fetchNotifications().then(setNotifications).catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     await apiLogout();
@@ -90,12 +92,12 @@ export default function ParentDashboard() {
 
   const handleMarkRead = async (id: string) => {
     await markNotificationRead(id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
   const handleMarkAllRead = async () => {
     await markAllNotificationsRead();
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   };
 
   if (loading) {
@@ -459,7 +461,7 @@ export default function ParentDashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h1 className="text-xl font-bold text-surface-900">Notifications</h1>
-                  {notifications.some(n => !n.read) && (
+                  {notifications.some(n => !n.isRead) && (
                     <button onClick={handleMarkAllRead} className="text-xs text-accent-600 font-semibold hover:underline">
                       Tout marquer comme lu
                     </button>
@@ -473,14 +475,14 @@ export default function ParentDashboard() {
                     </div>
                   ) : (
                     notifications.map(n => (
-                      <div key={n.id} className={`p-4 flex items-start gap-3 transition-colors ${!n.read ? 'bg-accent-50/50' : ''}`}>
-                        <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${!n.read ? 'bg-accent-500' : 'bg-transparent'}`} />
+                      <div key={n.id} className={`p-4 flex items-start gap-3 transition-colors ${!n.isRead ? 'bg-accent-50/50' : ''}`}>
+                        <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${!n.isRead ? 'bg-accent-500' : 'bg-transparent'}`} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-surface-900">{n.title}</p>
                           <p className="text-xs text-surface-500 mt-0.5 line-clamp-2">{n.message}</p>
                           <p className="text-[10px] text-surface-400 mt-1">{new Date(n.createdAt).toLocaleDateString('fr-FR')}</p>
                         </div>
-                        {!n.read && (
+                        {!n.isRead && (
                           <button onClick={() => handleMarkRead(n.id)} className="text-xs text-accent-600 font-semibold hover:underline shrink-0">
                             Lu
                           </button>
