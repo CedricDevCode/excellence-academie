@@ -287,60 +287,86 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
     const d = stored.data;
     cashOtpStore.delete(cleanEmail);
 
-    const user = await prisma.user.create({
-      data: {
-        email: d.cleanEmail || cleanEmail, password: d.passwordHash, name: d.name,
-        telephone: d.telephone, pays: d.pays, ville: d.ville,
-        role: 'STUDENT', isActive: true,
-        matricule: await generateMatricule(),
-      },
-    });
+    const courses = await prisma.course.findMany({ where: { id: { in: d.courseIds } } });
+    const cParticuliers = d.coursParticuliers === true || d.coursParticuliers === 'true';
+    const cMode = d.mode || 'presentiel';
 
-    const regPrice = calcRegistrationTotal(d.pays, d.ville, d.coursParticuliers);
-    const monthly = calcMonthlyTotal(d.pays, d.ville, d.mode, d.coursParticuliers);
+    // Montants calculés sur les concours réellement sélectionnés et le mode de formation.
+    // (L'ancien appel passait les mauvais arguments : la mensualité tombait à 0 et
+    // les frais d'inscription ne correspondaient pas au concours choisi.)
+    const regPrice = calcRegistrationTotal(courses, cParticuliers, d.pays, d.ville);
+    const monthly = calcMonthlyTotal(courses, cParticuliers, d.pays, cMode);
+    const paymentCourseId = courses.length === 1 ? courses[0].id : null;
+    const matricule = await generateMatricule();
 
-    await prisma.payment.create({
-      data: {
-        userId: user.id, amount: regPrice, method: 'ESPECES',
-        status: 'SUCCESS', type: 'REGISTRATION',
-        reference: await generateReceiptNumber(),
-        description: `Frais d'inscription (espèces) - ${new Date().toLocaleDateString('fr-FR')}`,
-      },
-    });
-
-    for (const cid of d.courseIds) {
-      const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
-      await prisma.subscription.create({
+    // Transaction atomique : l'étudiant, ses paiements et ses abonnements sont créés ensemble.
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
         data: {
-          userId: user.id, courseId: cid, status: 'ACTIVE',
-          startDate: new Date(), endDate: nextMonth,
-          monthlyAmount: monthly,
+          email: cleanEmail, password: d.passwordHash, name: d.name,
+          telephone: d.telephone, pays: d.pays, ville: d.ville,
+          role: 'STUDENT', isActive: true, matricule,
         },
       });
-    }
 
-    await prisma.payment.create({
-      data: {
-        userId: user.id, amount: monthly, method: 'ESPECES',
-        status: 'SUCCESS', type: 'MONTHLY',
-        reference: await generateReceiptNumber(),
-        description: `Mensualité - ${new Date().toLocaleDateString('fr-FR')}`,
-      },
+      // Frais d'inscription → comptabilisés dans les revenus
+      if (regPrice > 0) {
+        await tx.payment.create({
+          data: {
+            userId: created.id,
+            courseId: paymentCourseId,
+            amount: regPrice,
+            status: 'SUCCESS',
+            type: 'REGISTRATION',
+            receiptNumber: generateReceiptNumber(),
+            description: `Frais d'inscription (espèces) - ${new Date().toLocaleDateString('fr-FR')}`,
+          },
+        });
+      }
+
+      // 1ère mensualité → comptabilisée dans les revenus
+      if (monthly > 0) {
+        await tx.payment.create({
+          data: {
+            userId: created.id,
+            courseId: paymentCourseId,
+            amount: monthly,
+            status: 'SUCCESS',
+            type: 'MONTHLY',
+            receiptNumber: generateReceiptNumber(),
+            description: `Mensualité - ${new Date().toLocaleDateString('fr-FR')}`,
+          },
+        });
+      }
+
+      // Un abonnement par concours, avec la mensualité propre à chaque concours
+      for (const course of courses) {
+        const nextPayment = new Date();
+        nextPayment.setMonth(nextPayment.getMonth() + 1);
+        await tx.subscription.create({
+          data: {
+            userId: created.id,
+            courseId: course.id,
+            amount: calcMonthlyTotal([course], cParticuliers, d.pays, cMode),
+            status: 'ACTIVE',
+            nextPayment,
+            formule: cMode,
+            coursParticuliers: cParticuliers,
+          },
+        });
+      }
+
+      return created;
     });
-
-    const jwt = await import('jsonwebtoken');
-    const token = jwt.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET!, { expiresIn: '30d' });
-    setAuthCookie(res, token);
 
     try {
       await sendNotification(user.id, 'Inscription confirmée', `Bienvenue ! Votre inscription a été confirmée. Matricule: ${user.matricule}`);
       await sendNotificationToRole('ADMIN', 'Nouvel étudiant inscrit (espèces)', `${user.name || user.email} - ${user.matricule}`);
-      const validCourses = await prisma.course.findMany({ where: { id: { in: d.courseIds } } });
       await sendWelcomeEmail({
         email: cleanEmail, prenom: d.prenom, nom: d.nom,
         matricule: user.matricule || undefined,
         totalAmount: regPrice + monthly, inscriptionAmount: regPrice, monthlyAmount: monthly,
-        courses: validCourses.map((c: any) => c.title),
+        courses: courses.map((c: any) => c.title),
         paymentMethod: 'ESPECES',
       });
     } catch {}
