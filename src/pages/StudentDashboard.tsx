@@ -422,7 +422,12 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="font-black text-gray-900 text-xl mb-2">Mes paiements</h2>
-            <p className="text-gray-500 text-sm">Suivez l'historique complet de vos paiements.</p>
+            <p className="text-gray-500 text-sm flex items-center gap-2">
+              Suivez l'historique complet de vos paiements.
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Temps réel
+              </span>
+            </p>
           </div>
           {payments.length > 0 && (
             <div className="flex flex-wrap gap-3">
@@ -1140,9 +1145,25 @@ export default function StudentDashboard() {
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  const refreshPayments = useCallback(async () => {
+    try {
+      const [paymentsData, subsData, overdueData] = await Promise.all([
+        fetchMyPayments(),
+        fetchMySubscriptions(),
+        fetchOverdueItems(),
+      ]);
+      setPayments(paymentsData);
+      setSubscriptions(subsData);
+      setOverdueItems(overdueData.items || []);
+    } catch {
+      // silencieux : ne pas interrompre le dashboard en cas d'échec ponctuel
+    }
+  }, []);
+
   // In-app real-time notifications
   useLiveNotifications((newNotif) => {
     setNotifs(prev => [newNotif, ...prev]);
+    refreshPayments();
   });
 
   const loadData = useCallback(async () => {
@@ -1172,6 +1193,20 @@ export default function StudentDashboard() {
   }, [navigate]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Rafraîchissement automatique des paiements pour un suivi en temps réel
+  useEffect(() => {
+    if (!user) return;
+    const tick = () => {
+      if (document.visibilityState === 'visible') refreshPayments();
+    };
+    const interval = setInterval(tick, 15000);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [user, refreshPayments]);
 
   useEffect(() => {
     if (user) {
