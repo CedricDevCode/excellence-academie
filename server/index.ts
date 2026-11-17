@@ -43,6 +43,30 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** Ajoute les colonnes pricing manquantes à la table Course si elles n'existent pas (migration manquante) */
+/** Rend les champs de signature du contrat nullables (contrat en attente de signature) */
+async function ensureContractNullableColumns() {
+  try {
+    const cols: any[] = await prisma.$queryRaw`
+      SELECT column_name::text AS column_name, is_nullable
+      FROM information_schema.columns
+      WHERE table_name = 'Contract' AND table_schema = 'public'
+        AND column_name IN ('signatureData', 'signedAt')
+    `;
+    if (!cols.length) return;
+
+    const notNullable = cols.filter((c: any) => c.is_nullable === 'NO').map((c: any) => c.column_name);
+    for (const name of notNullable) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Contract" ALTER COLUMN "${name}" DROP NOT NULL`);
+      console.log(`  Colonne Contract."${name}" rendue nullable`);
+    }
+    if (notNullable.includes('signedAt')) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Contract" ALTER COLUMN "signedAt" DROP DEFAULT`).catch(() => {});
+    }
+  } catch (err: any) {
+    console.error('ContractColumns migration error:', err?.message || err);
+  }
+}
+
 async function ensureCourseColumns() {
   // Vérifier si la table Course existe
   const tableCheck: any[] = await prisma.$queryRaw`
@@ -456,6 +480,9 @@ async function initDatabaseDefaults() {
       console.error('⚠️ [CourseColumns] Échec de la migration initiale:', e?.message || e);
       console.log('ℹ️ [CourseColumns] Le lazy migration dans getAllCourses ajoutera les colonnes manquantes au premier appel');
     }
+
+    // Contrat en attente de signature : signatureData / signedAt doivent être nullables
+    await ensureContractNullableColumns();
 
     // Créer la table PendingRegistration si elle n'existe pas
     await prisma.$executeRawUnsafe(`
