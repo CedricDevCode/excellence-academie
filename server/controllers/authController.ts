@@ -293,7 +293,8 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
     if (stored.otp !== otp) return res.status(400).json({ error: 'Code OTP incorrect' });
 
     const d = stored.data;
-    cashOtpStore.delete(cleanEmail);
+    // Ne PAS supprimer l'OTP ici : on le conserve jusqu'à la fin de la transaction.
+    // En cas d'échec, l'admin peut réessayer avec le même code (fenêtre de 15 min).
 
     const courses = await prisma.course.findMany({ where: { id: { in: d.courseIds } } });
     const cParticuliers = d.coursParticuliers === true || d.coursParticuliers === 'true';
@@ -370,6 +371,9 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
 
       return created;
     });
+
+    // Succès complet → on consomme le code OTP
+    cashOtpStore.delete(cleanEmail);
 
     try {
       await sendNotification(user.id, 'Inscription confirmée', `Bienvenue ! Votre inscription a été confirmée. Matricule: ${user.matricule}`);

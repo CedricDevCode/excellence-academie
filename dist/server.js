@@ -1736,7 +1736,6 @@ var confirmCashRegistration = async (req, res) => {
     }
     if (stored.otp !== otp) return res.status(400).json({ error: "Code OTP incorrect" });
     const d = stored.data;
-    cashOtpStore.delete(cleanEmail);
     const courses = await prisma_default.course.findMany({ where: { id: { in: d.courseIds } } });
     const cParticuliers = d.coursParticuliers === true || d.coursParticuliers === "true";
     const cMode = d.mode || "presentiel";
@@ -1802,6 +1801,7 @@ var confirmCashRegistration = async (req, res) => {
       await tx.contract.create({ data: { userId: created.id, paymentId: regPaymentId } });
       return created;
     });
+    cashOtpStore.delete(cleanEmail);
     try {
       await sendNotification(user.id, "Inscription confirm\xE9e", `Bienvenue ! Votre inscription a \xE9t\xE9 confirm\xE9e. Matricule: ${user.matricule}`);
       await sendNotificationToRole("ADMIN", "Nouvel \xE9tudiant inscrit (esp\xE8ces)", `${user.name || user.email} - ${user.matricule}`);
