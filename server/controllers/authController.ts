@@ -13,10 +13,17 @@ import logger from '../utils/logger';
 // ─── Password Reset Token Store (in-memory, TTL 1h) ─────────────────────────
 const passwordResetTokens = new Map<string, { userId: string; expiresAt: number }>();
 
+// Mot de passe en clair conservé UNIQUEMENT en mémoire le temps de l'inscription,
+// afin de l'envoyer par email avec les identifiants de connexion. Jamais persisté en base.
+const pendingPlainPasswords = new Map<string, { password: string; expiresAt: number }>();
+
 function cleanupExpiredTokens() {
   const now = Date.now();
   for (const [token, data] of passwordResetTokens) {
     if (data.expiresAt < now) passwordResetTokens.delete(token);
+  }
+  for (const [token, data] of pendingPlainPasswords) {
+    if (data.expiresAt < now) pendingPlainPasswords.delete(token);
   }
 }
 setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
@@ -38,8 +45,9 @@ async function sendWelcomeEmail(params: {
   email: string; prenom?: string; nom?: string; matricule?: string;
   totalAmount: number; inscriptionAmount: number; monthlyAmount: number;
   courses: string[]; paymentMethod: string; reference?: string;
+  password?: string;
 }) {
-  const { email, prenom, nom, matricule, totalAmount, inscriptionAmount, monthlyAmount, courses, paymentMethod, reference } = params;
+  const { email, prenom, nom, matricule, totalAmount, inscriptionAmount, monthlyAmount, courses, paymentMethod, reference, password } = params;
   const nodemailer = await import('nodemailer').catch(() => null);
   if (!nodemailer) return;
 
@@ -75,7 +83,7 @@ async function sendWelcomeEmail(params: {
             <h3 style="margin:0 0 10px;color:#0369a1;font-size:16px">🔑 Vos identifiants de connexion</h3>
             <table style="width:100%;border-collapse:collapse">
               <tr><td style="padding:4px 8px;color:#666;width:120px">Email</td><td style="padding:4px 8px;font-weight:bold">${email}</td></tr>
-              <tr><td style="padding:4px 8px;color:#666">Mot de passe</td><td style="padding:4px 8px;font-weight:bold">(celui que vous avez choisi lors de l'inscription)</td></tr>
+              <tr><td style="padding:4px 8px;color:#666">Mot de passe</td><td style="padding:4px 8px;font-weight:bold">${password || "(celui que vous avez choisi lors de l'inscription)"}</td></tr>
               ${matricule ? `<tr><td style="padding:4px 8px;color:#666">Matricule</td><td style="padding:4px 8px;font-weight:bold;color:#c97e00">${matricule}</td></tr>` : ''}
             </table>
           </div>
@@ -229,7 +237,7 @@ export const registerCash = async (req: Request, res: Response) => {
     const otp = String(Math.floor(100000 + Math.random() * 900000));
 
     const regData = {
-      email: cleanEmail, passwordHash, name, nom, prenom, telephone, pays, ville,
+      email: cleanEmail, passwordHash, password, name, nom, prenom, telephone, pays, ville,
       courseIds, mode, coursParticuliers, dateNaissance,
     };
 
@@ -368,6 +376,7 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
         totalAmount: regPrice + monthly, inscriptionAmount: regPrice, monthlyAmount: monthly,
         courses: courses.map((c: any) => c.title),
         paymentMethod: 'ESPECES',
+        password: d.password,
       });
     } catch {}
 
@@ -446,6 +455,9 @@ export const registerAndPay = async (req: Request, res: Response) => {
         expiresAt,
       },
     });
+
+    // Conserver le mot de passe en clair en mémoire (TTL du pending) pour l'email d'accès.
+    pendingPlainPasswords.set(pending.token, { password: password as string, expiresAt: expiresAt.getTime() });
 
     const courseTitles = courses.map((c: any) => c.title).join(', ');
     const label = cParticuliers ? 'Cours particuliers' : `Inscription (${effectiveMode})`;
@@ -659,6 +671,10 @@ export const confirmPayment = async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Session d\'inscription expirée. Veuillez recommencer.' });
       }
 
+      // Identifiants conservés en mémoire lors de l'initiation du paiement
+      const storedCredentials = pendingPlainPasswords.get(pendingToken);
+      pendingPlainPasswords.delete(pendingToken);
+
       const courseIdList: string[] = Array.isArray(pending.courseIds) ? pending.courseIds : [];
       const pendingCourses = await prisma.course.findMany({ where: { id: { in: courseIdList } } });
       const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.ville);
@@ -735,6 +751,23 @@ export const confirmPayment = async (req: Request, res: Response) => {
         return user;
       });
 
+      // Si le mot de passe en clair n'est plus disponible (redémarrage serveur entre
+      // l'initiation et la confirmation), on génère un mot de passe temporaire pour
+      // garantir l'accès à l'étudiant et on l'inclut dans l'email.
+      let passwordToSend = storedCredentials?.password;
+      if (!passwordToSend && result.role === 'STUDENT') {
+        try {
+          const tempPassword = crypto.randomBytes(8).toString('base64url').slice(0, 10);
+          await prisma.user.update({
+            where: { id: result.id },
+            data: { password: await bcrypt.hash(tempPassword, 12) },
+          });
+          passwordToSend = tempPassword;
+        } catch (err) {
+          logger.error('Temp password generation failed', 'auth', err as any);
+        }
+      }
+
       try {
         await sendNotification(
           result.id,
@@ -755,6 +788,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
           courses: pendingCourses.map((c: any) => c.title),
           paymentMethod: gpData.payment_method || 'unknown',
           reference,
+          password: passwordToSend,
         });
       } catch (err) {
         console.error('Notification error on payment confirmation:', err);
