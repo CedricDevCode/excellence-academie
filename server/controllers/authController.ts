@@ -328,7 +328,6 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
             status: 'SUCCESS',
             type: 'REGISTRATION',
             receiptNumber: generateReceiptNumber(),
-            description: `Frais d'inscription (espèces) - ${new Date().toLocaleDateString('fr-FR')}`,
           },
         });
         regPaymentId = regPayment.id;
@@ -344,7 +343,6 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
             status: 'SUCCESS',
             type: 'MONTHLY',
             receiptNumber: generateReceiptNumber(),
-            description: `Mensualité - ${new Date().toLocaleDateString('fr-FR')}`,
           },
         });
       }

@@ -11,11 +11,26 @@ interface LogEntry {
 const LOG_LEVELS: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 const MIN_LEVEL: number = LOG_LEVELS[process.env.LOG_LEVEL as LogLevel] || LOG_LEVELS.info;
 
+function serializeData(data: any): string {
+  if (data instanceof Error) {
+    const extra: Record<string, any> = {};
+    for (const key of Object.keys(data)) {
+      if (!['name', 'message', 'stack'].includes(key)) extra[key] = (data as any)[key];
+    }
+    return JSON.stringify({ name: data.name, message: data.message, ...extra });
+  }
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return String(data);
+  }
+}
+
 function formatEntry(entry: LogEntry): string {
   const prefix = `[${entry.timestamp}] [${entry.level.toUpperCase()}]${entry.context ? ` [${entry.context}]` : ''}`;
   const msg = `${prefix} ${entry.message}`;
   if (entry.data !== undefined) {
-    return `${msg} ${JSON.stringify(entry.data)}`;
+    return `${msg} ${serializeData(entry.data)}`;
   }
   return msg;
 }

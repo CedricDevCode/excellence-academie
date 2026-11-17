@@ -1434,11 +1434,25 @@ function clearAuthCookie(res) {
 // server/utils/logger.ts
 var LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 var MIN_LEVEL = LOG_LEVELS[process.env.LOG_LEVEL] || LOG_LEVELS.info;
+function serializeData(data) {
+  if (data instanceof Error) {
+    const extra = {};
+    for (const key of Object.keys(data)) {
+      if (!["name", "message", "stack"].includes(key)) extra[key] = data[key];
+    }
+    return JSON.stringify({ name: data.name, message: data.message, ...extra });
+  }
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return String(data);
+  }
+}
 function formatEntry(entry) {
   const prefix = `[${entry.timestamp}] [${entry.level.toUpperCase()}]${entry.context ? ` [${entry.context}]` : ""}`;
   const msg = `${prefix} ${entry.message}`;
   if (entry.data !== void 0) {
-    return `${msg} ${JSON.stringify(entry.data)}`;
+    return `${msg} ${serializeData(entry.data)}`;
   }
   return msg;
 }
@@ -1753,8 +1767,7 @@ var confirmCashRegistration = async (req, res) => {
             amount: regPrice,
             status: "SUCCESS",
             type: "REGISTRATION",
-            receiptNumber: generateReceiptNumber(),
-            description: `Frais d'inscription (esp\xE8ces) - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
+            receiptNumber: generateReceiptNumber()
           }
         });
         regPaymentId = regPayment.id;
@@ -1767,8 +1780,7 @@ var confirmCashRegistration = async (req, res) => {
             amount: monthly,
             status: "SUCCESS",
             type: "MONTHLY",
-            receiptNumber: generateReceiptNumber(),
-            description: `Mensualit\xE9 - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
+            receiptNumber: generateReceiptNumber()
           }
         });
       }
