@@ -4,6 +4,7 @@ import { METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { generateReceiptNumber } from '../utils/generators';
 import { logger } from '../utils/logger';
+import { calcRegistrationTotal, calcMonthlyTotal } from '../constants';
 import { computeNextDueDate, normalizeDueDay } from '../utils/dueDate';
 
 /**
@@ -357,6 +358,217 @@ export const confirmCashPayment = async (req: Request, res: Response) => {
     res.status(201).json({ ok: true, amount: stored.amount, months: stored.months, paidAt: paidDate.toISOString(), nextPayment: result.nextPayment.toISOString(), receiptNumber: result.payment.receiptNumber });
   } catch (error: any) {
     logger.error('Confirm cash payment error', 'subscriptions', error);
+    res.status(500).json({ error: "Erreur lors de la confirmation" });
+  }
+};
+
+// ─── Finaliser l’inscription d’un étudiant (paiement jamais encaissé) ───────
+// Pour les étudiants inscrits par l’admin dont le paiement n’a pas été pris
+// en compte (ex. après une erreur OTP) : l’admin choisit les formations,
+// encaisse en espèces (OTP obligatoire) → crée paiements, abonnements et
+// contrat en attente. La prochaine mensualité est définie à partir de la
+// date de paiement choisie.
+const registrationOtpStore = new Map<string, { userId: string; courseIds: string[]; mode: string; paidAt: string; regPrice: number; monthly: number; amount: number; otp: string; expiresAt: number }>();
+const REGISTRATION_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || 'ea@exacademie.com';
+
+async function sendRegistrationOtpMail(to: string, otp: string, studentName: string, studentEmail: string, courseTitles: string[], amount: number): Promise<boolean> {
+  const nodemailer = await import('nodemailer').catch(() => null);
+  if (!nodemailer) return false;
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 465,
+      secure: true, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject: "Code de confirmation - Finalisation d'inscription - Excellence Académie",
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
+        <h2 style="color:#c97e00;text-align:center">Finalisation d'inscription</h2>
+        <p>Bonjour,</p>
+        <p>Un encaissement en espèces est en attente de confirmation pour finaliser l'inscription de <strong>${studentName}</strong> (${studentEmail}) — formation(s) : <strong>${courseTitles.join(', ')}</strong> — montant : <strong>${amount.toLocaleString('fr-FR')} FCFA</strong> :</p>
+        <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
+        <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas effectué cette opération, ignorez cet email.</p>
+      </div>`,
+    });
+    return true;
+  } catch (err: any) {
+    logger.error('Registration completion OTP email delivery failed', 'subscriptions', err);
+    return false;
+  }
+}
+
+function resolvePaidAt(paidAt: any): Date | null {
+  const d = paidAt ? new Date(paidAt) : new Date();
+  if (isNaN(d.getTime())) return null;
+  if (d.getTime() > Date.now() + 24 * 60 * 60 * 1000) return null;
+  return d;
+}
+
+// Étape 1 : initie la finalisation (crée l’OTP et l’envoie)
+export const initRegistrationCompletion = async (req: Request, res: Response) => {
+  try {
+    const { userId, courseIds, mode, paidAt } = req.body || {};
+    if (!userId) return res.status(400).json({ error: 'userId requis' });
+    if (!Array.isArray(courseIds) || courseIds.length === 0) return res.status(400).json({ error: 'Au moins une formation est requise' });
+
+    const user = await prisma.user.findUnique({ where: { id: String(userId) } });
+    if (!user || user.role !== 'STUDENT') return res.status(404).json({ error: 'Étudiant introuvable' });
+
+    const ids: string[] = courseIds.map((c: any) => String(c));
+    const courses = await prisma.course.findMany({ where: { id: { in: ids } } });
+    if (courses.length === 0) return res.status(400).json({ error: 'Aucune formation valide sélectionnée' });
+
+    const paidDate = resolvePaidAt(paidAt);
+    if (!paidDate) return res.status(400).json({ error: 'Date de paiement invalide' });
+
+    const cMode = String(mode || 'presentiel');
+    const regPrice = calcRegistrationTotal(courses as any[], false, user.pays || '', user.ville || '');
+    const monthly = calcMonthlyTotal(courses as any[], false, user.pays || '', cMode as any);
+    const amount = regPrice + monthly;
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + CASH_PAYMENT_OTP_TTL_MS;
+
+    registrationOtpStore.set(String(req.user.id), {
+      userId: user.id,
+      courseIds: courses.map(c => c.id),
+      mode: cMode,
+      paidAt: paidDate.toISOString(),
+      regPrice,
+      monthly,
+      amount,
+      otp,
+      expiresAt,
+    });
+
+    const studentName = user.name || user.email;
+    const sent = await sendRegistrationOtpMail(REGISTRATION_OTP_EMAIL, otp, studentName, user.email, courses.map(c => c.title), amount);
+    if (!sent) {
+      registrationOtpStore.delete(String(req.user.id));
+      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. Réessayez plus tard." });
+    }
+
+    res.status(200).json({ ok: true, amount, regPrice, monthly, paidAt: paidDate.toISOString(), otpEmail: REGISTRATION_OTP_EMAIL, expiresAt, expiresInSeconds: Math.floor(CASH_PAYMENT_OTP_TTL_MS / 1000) });
+  } catch (error: any) {
+    logger.error('Init registration completion error', 'subscriptions', error);
+    res.status(500).json({ error: "Erreur lors de l'initialisation" });
+  }
+};
+
+// Étape 1 bis : renvoi du code
+export const resendRegistrationCompletionOtp = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.body || {};
+    const stored = registrationOtpStore.get(String(req.user.id));
+    if (!stored || stored.userId !== String(userId)) {
+      return res.status(400).json({ error: 'Aucune finalisation en attente. Veuillez recommencer.' });
+    }
+    const user = await prisma.user.findUnique({ where: { id: stored.userId } });
+    if (!user) { registrationOtpStore.delete(String(req.user.id)); return res.status(404).json({ error: 'Étudiant introuvable' }); }
+    const courses = await prisma.course.findMany({ where: { id: { in: stored.courseIds } } });
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + CASH_PAYMENT_OTP_TTL_MS;
+    registrationOtpStore.set(String(req.user.id), { ...stored, otp, expiresAt });
+
+    const studentName = user.name || user.email;
+    const sent = await sendRegistrationOtpMail(REGISTRATION_OTP_EMAIL, otp, studentName, user.email, courses.map(c => c.title), stored.amount);
+    if (!sent) return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. Réessayez plus tard." });
+
+    res.status(200).json({ ok: true, expiresAt, expiresInSeconds: Math.floor(CASH_PAYMENT_OTP_TTL_MS / 1000) });
+  } catch (error: any) {
+    logger.error('Resend registration completion OTP error', 'subscriptions', error);
+    res.status(500).json({ error: "Erreur lors du renvoi du code" });
+  }
+};
+
+// Étape 2 : confirmation → crée paiements, abonnements et contrat en attente
+export const confirmRegistrationCompletion = async (req: Request, res: Response) => {
+  try {
+    const { userId, otp } = req.body || {};
+    if (!userId || !otp) return res.status(400).json({ error: 'userId et code OTP requis' });
+
+    const stored = registrationOtpStore.get(String(req.user.id));
+    if (!stored) return res.status(400).json({ error: 'Aucune finalisation en attente. Veuillez recommencer.' });
+    if (stored.userId !== String(userId)) return res.status(400).json({ error: 'Finalisation en attente incohérente. Veuillez recommencer.' });
+    if (stored.expiresAt < Date.now()) { registrationOtpStore.delete(String(req.user.id)); return res.status(400).json({ error: 'Le code OTP a expiré. Veuillez recommencer.' }); }
+    if (stored.otp !== String(otp).trim()) return res.status(400).json({ error: 'Code OTP incorrect' });
+
+    const paidDate = new Date(stored.paidAt);
+    const courses = await prisma.course.findMany({ where: { id: { in: stored.courseIds } } });
+    const regPaymentCourseId = courses.length === 1 ? courses[0].id : null;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: stored.userId } });
+      if (!user || user.role !== 'STUDENT') throw new Error('Étudiant introuvable');
+
+      let regPaymentId: string | null = null;
+      if (stored.regPrice > 0) {
+        const regPayment = await tx.payment.create({
+          data: {
+            userId: user.id,
+            courseId: regPaymentCourseId,
+            amount: stored.regPrice,
+            status: 'SUCCESS',
+            type: 'REGISTRATION',
+            receiptNumber: generateReceiptNumber(),
+            createdAt: paidDate,
+          },
+        });
+        regPaymentId = regPayment.id;
+      }
+
+      if (stored.monthly > 0) {
+        await tx.payment.create({
+          data: {
+            userId: user.id,
+            courseId: regPaymentCourseId,
+            amount: stored.monthly,
+            status: 'SUCCESS',
+            type: 'MONTHLY',
+            receiptNumber: generateReceiptNumber(),
+            createdAt: paidDate,
+          },
+        });
+      }
+
+      const nextPayment = computeNextDueDate(paidDate, 1);
+      for (const course of courses) {
+        const amount = calcMonthlyTotal([course as any], false, user.pays || '', stored.mode as any);
+        const existing = await tx.subscription.findFirst({ where: { userId: user.id, courseId: course.id } });
+        if (existing) {
+          await tx.subscription.update({
+            where: { id: existing.id },
+            data: { status: 'ACTIVE', amount, nextPayment, coursParticuliers: false, formule: stored.mode },
+          });
+        } else {
+          await tx.subscription.create({
+            data: {
+              userId: user.id,
+              courseId: course.id,
+              amount,
+              status: 'ACTIVE',
+              nextPayment,
+              formule: stored.mode,
+              coursParticuliers: false,
+            },
+          });
+        }
+      }
+
+      const existingContract = await tx.contract.findFirst({ where: { userId: user.id } });
+      if (!existingContract) {
+        await tx.contract.create({ data: { userId: user.id, paymentId: regPaymentId } });
+      }
+
+      return { nextPayment };
+    });
+
+    registrationOtpStore.delete(String(req.user.id));
+    res.status(201).json({ ok: true, amount: stored.amount, nextPayment: result.nextPayment.toISOString() });
+  } catch (error: any) {
+    logger.error('Confirm registration completion error', 'subscriptions', error);
     res.status(500).json({ error: "Erreur lors de la confirmation" });
   }
 };

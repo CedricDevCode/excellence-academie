@@ -303,6 +303,37 @@ export const resendCashRegistrationOtp = async (data: { email: string }) => {
   return body;
 };
 
+// Finaliser l'inscription d'un étudiant (paiement rattrapable, OTP requis)
+export const initRegistrationCompletion = async (data: { userId: string; courseIds: string[]; mode?: string; paidAt?: string }) => {
+  const res = await authFetch(`${API_BASE_URL}/subscriptions/complete-registration/init`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || "Erreur lors de l'initialisation");
+  return body;
+};
+
+export const resendRegistrationCompletionOtp = async (data: { userId: string }) => {
+  const res = await authFetch(`${API_BASE_URL}/subscriptions/complete-registration/resend`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || 'Erreur lors du renvoi du code');
+  return body;
+};
+
+export const confirmRegistrationCompletion = async (data: { userId: string; otp: string }) => {
+  const res = await authFetch(`${API_BASE_URL}/subscriptions/complete-registration/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || 'Erreur lors de la confirmation');
+  return body;
+};
+
 export const fetchMyPayments = async () => {
   const res = await authFetch(`${API_BASE_URL}/payments/my-payments`);
   if (!res.ok) throw new Error('Failed to fetch payments');

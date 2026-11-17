@@ -7,13 +7,14 @@ import {
 import {
   fetchUsers, createUser, updateUser, deleteUser, registerStudent, registerAndPay,
   sendBulkNotification, fetchCourses, fetchPaymentsByUser, fetchSubscriptionsByUser,
-  initCashPayment, confirmCashPayment, resendCashPaymentOtp
+  initCashPayment, confirmCashPayment, resendCashPaymentOtp,
+  initRegistrationCompletion, confirmRegistrationCompletion, resendRegistrationCompletionOtp
 } from "../../utils/api";
 import OtpCountdown from "../OtpCountdown";
 import { useToast } from "../Toast";
 import LoadingSpinner from "./LoadingSpinner";
 import StudentRegistrationForm from "../StudentRegistrationForm";
-import { calcRegistrationPrice, PAYS, VILLES } from "../../constants/student";
+import { calcRegistrationTotal, calcMonthlyTotal, PAYS, VILLES, isDiaspora } from "../../constants/student";
 
 import { generateTempPassword } from "./helpers";
 
@@ -59,6 +60,108 @@ function StudentsView() {
   const [cashPayLoading, setCashPayLoading] = useState(false);
   const [cashPayResending, setCashPayResending] = useState(false);
   const [cashPayError, setCashPayError] = useState<string | null>(null);
+
+  // Finalisation d'inscription (étudiant sans formation/paiement enregistré)
+  const [completionTarget, setCompletionTarget] = useState<any>(null);
+  const [completionCourseIds, setCompletionCourseIds] = useState<string[]>([]);
+  const [completionMode, setCompletionMode] = useState<'presentiel' | 'en_ligne' | 'les_deux'>('presentiel');
+  const [completionPaidAt, setCompletionPaidAt] = useState(() => new Date().toISOString().split('T')[0]);
+  const [completionOtpSent, setCompletionOtpSent] = useState(false);
+  const [completionOtp, setCompletionOtp] = useState("");
+  const [completionExpiresAt, setCompletionExpiresAt] = useState(0);
+  const [completionLoading, setCompletionLoading] = useState(false);
+  const [completionResending, setCompletionResending] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+
+  const openCompletion = (student: any) => {
+    setCompletionTarget(student);
+    setCompletionCourseIds([]);
+    setCompletionMode('presentiel');
+    setCompletionPaidAt(new Date().toISOString().split('T')[0]);
+    setCompletionOtpSent(false);
+    setCompletionOtp("");
+    setCompletionExpiresAt(0);
+    setCompletionError(null);
+  };
+
+  const closeCompletion = () => {
+    setCompletionTarget(null);
+    setCompletionOtpSent(false);
+    setCompletionOtp("");
+    setCompletionError(null);
+  };
+
+  const selectedCompletionCourses = courses.filter((c: any) => completionCourseIds.includes(c.id));
+  const completionDiaspora = isDiaspora(completionTarget?.pays || '');
+  const completionRegPrice = calcRegistrationTotal(selectedCompletionCourses, false, completionTarget?.pays || '', completionTarget?.ville || '');
+  const completionMonthly = calcMonthlyTotal(selectedCompletionCourses, false, completionTarget?.pays || '', completionMode);
+  const completionAmount = completionRegPrice + completionMonthly;
+
+  const toggleCompletionCourse = (id: string) => {
+    setCompletionCourseIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
+  };
+
+  const startCompletion = async () => {
+    if (!completionTarget) return;
+    if (completionCourseIds.length === 0) { setCompletionError('Sélectionnez au moins une formation.'); return; }
+    setCompletionError(null);
+    setCompletionLoading(true);
+    try {
+      const res = await initRegistrationCompletion({
+        userId: completionTarget.id,
+        courseIds: completionCourseIds,
+        mode: completionMode,
+        paidAt: completionPaidAt,
+      });
+      setCompletionExpiresAt(typeof res?.expiresAt === 'number' ? res.expiresAt : Date.now() + 15 * 60 * 1000);
+      setCompletionOtp("");
+      setCompletionOtpSent(true);
+    } catch (err: any) {
+      setCompletionError(err?.message || "Erreur lors de l'initialisation");
+    } finally {
+      setCompletionLoading(false);
+    }
+  };
+
+  const resendCompletionOtp = async () => {
+    if (!completionTarget) return;
+    setCompletionError(null);
+    setCompletionResending(true);
+    try {
+      const res = await resendRegistrationCompletionOtp({ userId: completionTarget.id });
+      setCompletionExpiresAt(typeof res?.expiresAt === 'number' ? res.expiresAt : Date.now() + 15 * 60 * 1000);
+      setCompletionOtp("");
+    } catch (err: any) {
+      setCompletionError(err?.message || "Erreur lors du renvoi du code");
+    } finally {
+      setCompletionResending(false);
+    }
+  };
+
+  const confirmCompletion = async () => {
+    if (!completionTarget) return;
+    if (!completionOtp || completionOtp.length < 4) { setCompletionError("Veuillez entrer le code OTP reçu par email."); return; }
+    setCompletionError(null);
+    setCompletionLoading(true);
+    try {
+      await confirmRegistrationCompletion({ userId: completionTarget.id, otp: completionOtp });
+      toast('success', 'Paiement enregistré — formations activées');
+      closeCompletion();
+      loadUsers();
+      if (paymentsStudent && paymentsStudent.id === completionTarget.id) {
+        const [payments, subscriptions] = await Promise.all([
+          fetchPaymentsByUser(paymentsStudent.id),
+          fetchSubscriptionsByUser(paymentsStudent.id),
+        ]);
+        setStudentPayments(payments);
+        setStudentSubscriptions(subscriptions);
+      }
+    } catch (err: any) {
+      setCompletionError(err?.message || "Erreur lors de la confirmation");
+    } finally {
+      setCompletionLoading(false);
+    }
+  };
 
   const openCashPay = (sub: any) => {
     setCashPaySub(sub);
@@ -656,7 +759,9 @@ function StudentsView() {
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-xs text-gray-400 italic">Non renseignée</span>
+                              <button onClick={() => openCompletion(u)} className="text-xs text-amber-600 font-semibold hover:underline text-left">
+                                Non renseignée — finaliser
+                              </button>
                             )}
                           </td>
                           <td className="px-5 py-4">
@@ -713,6 +818,11 @@ function StudentsView() {
                           </td>
                           <td className="px-5 py-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
+                              {studentCourses.length === 0 && (
+                                <button onClick={() => openCompletion(u)} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors" title="Finaliser l'inscription (encaisser le paiement)">
+                                  <Banknote size={15} />
+                                </button>
+                              )}
                               <button onClick={() => openEditModal(u)} className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
                                 <Edit size={15} />
                               </button>
@@ -1103,6 +1213,119 @@ function StudentsView() {
                       className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded transition-all disabled:opacity-60">
                       {cashPayLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                       {cashPayLoading ? 'Confirmation…' : "Confirmer l'encaissement"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Registration Completion Modal (admin, OTP requis) */}
+      {completionTarget && (
+        <div className="fixed inset-0 bg-surface-900/60 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4 modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeCompletion(); }}>
+          <div className="bg-white rounded w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] modal-content" role="dialog" aria-modal="true" aria-label="Finaliser l'inscription">
+            <div className="p-5 bg-gradient-to-r from-primary-700 via-[#c97e00] to-primary-800 text-white flex items-center gap-3 shrink-0">
+              <div className="w-11 h-11 rounded bg-white/15 flex items-center justify-center shrink-0"><Banknote size={22} /></div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-base leading-tight">Finaliser l'inscription</h3>
+                <p className="text-amber-100/90 text-[11px] mt-0.5 truncate">{completionTarget.name || completionTarget.email} — paiement rattrapable</p>
+              </div>
+              <button onClick={closeCompletion} className="text-amber-100 hover:text-white bg-white/10 hover:bg-white/20 rounded p-2 transition-colors shrink-0" aria-label="Fermer"><X size={17} /></button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto">
+              {completionError && (
+                <div className="bg-red-50 border border-red-200 rounded p-3 text-xs text-red-700 flex items-start gap-2">
+                  <X size={14} className="shrink-0 mt-0.5" /> <span>{completionError}</span>
+                </div>
+              )}
+
+              {!completionOtpSent ? (
+                <>
+                  <div>
+                    <p className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5">Formation(s) *</p>
+                    <div className="max-h-44 overflow-y-auto border border-surface-300 rounded p-2 space-y-0.5 bg-surface-50/40">
+                      {courses.length === 0 ? (
+                        <p className="text-xs text-surface-400 italic px-1 py-1">Aucune formation disponible</p>
+                      ) : courses.map((c: any) => {
+                        const checked = completionCourseIds.includes(c.id);
+                        return (
+                          <label key={c.id} className={`flex items-center gap-2.5 px-2 py-1.5 text-sm cursor-pointer rounded transition-colors ${checked ? 'bg-primary-50' : 'hover:bg-surface-100'}`}>
+                            <input type="checkbox" checked={checked} onChange={() => toggleCompletionCourse(c.id)} className="accent-[#c97e00] w-4 h-4" />
+                            <span className={checked ? 'text-surface-900 font-medium' : 'text-surface-600'}>{c.title}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {!completionDiaspora && (
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="completion-mode">Mode de formation</label>
+                      <select id="completion-mode" value={completionMode} onChange={e => setCompletionMode(e.target.value as any)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
+                        <option value="presentiel">Présentiel</option>
+                        <option value="en_ligne">En ligne</option>
+                        <option value="les_deux">Présentiel + En ligne</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="completion-paidat">Date de paiement *</label>
+                    <input id="completion-paidat" type="date" value={completionPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
+                  </div>
+
+                  <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="text-surface-500">Frais d'inscription</span>
+                      <span className="font-bold text-surface-900 tabular-nums">{completionRegPrice.toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="text-surface-500">1ère mensualité</span>
+                      <span className="font-bold text-surface-900 tabular-nums">{completionMonthly.toLocaleString('fr-FR')} FCFA</span>
+                    </div>
+                    <div className="border-t border-primary-200/70 pt-1.5 flex items-center justify-between gap-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-surface-500">Total à encaisser</span>
+                      <span className="text-xl font-black text-primary-800 tabular-nums">{completionAmount.toLocaleString('fr-FR')} <span className="text-xs">FCFA</span></span>
+                    </div>
+                  </div>
+
+                  <button type="button" onClick={startCompletion} disabled={completionLoading || completionCourseIds.length === 0}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded transition-all shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
+                    {completionLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {completionLoading ? 'Envoi du code…' : 'Envoyer le code OTP'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-4 text-xs text-blue-800">
+                    Un code à 6 chiffres a été envoyé à la boîte mail de l'établissement pour l'encaissement de <strong>{completionAmount.toLocaleString('fr-FR')} FCFA</strong>.
+                  </div>
+                  <div className="flex items-center justify-between gap-3 px-1">
+                    <OtpCountdown expiresAt={completionExpiresAt} />
+                    <button type="button" onClick={resendCompletionOtp} disabled={completionResending}
+                      className="text-xs font-bold text-primary-800 hover:text-primary-900 hover:underline disabled:opacity-50 transition-colors">
+                      {completionResending ? 'Envoi…' : 'Renvoyer le code'}
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="completion-otp">Code OTP</label>
+                    <input id="completion-otp" type="text" inputMode="numeric" autoComplete="one-time-code" value={completionOtp} onChange={e => setCompletionOtp(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmCompletion(); } }}
+                      placeholder="Code reçu par email" maxLength={8} autoFocus
+                      className="w-full px-4 py-3 border-2 border-surface-300 rounded text-center text-lg tracking-widest font-black tabular-nums focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => { setCompletionOtpSent(false); setCompletionOtp(""); setCompletionError(null); }}
+                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded text-xs font-semibold hover:bg-surface-100 transition-colors">
+                      Retour
+                    </button>
+                    <button type="button" onClick={confirmCompletion} disabled={completionLoading}
+                      className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded transition-all disabled:opacity-60">
+                      {completionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                      {completionLoading ? 'Confirmation…' : "Confirmer l'encaissement"}
                     </button>
                   </div>
                 </>
