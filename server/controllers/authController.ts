@@ -6,6 +6,7 @@ import { setAuthCookie, clearAuthCookie } from '../utils/jwt';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { calcRegistrationTotal, calcMonthlyTotal, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
+import { computeNextDueDate } from '../utils/dueDate';
 import { sendNotification, sendNotificationToRole } from './notificationController';
 import { invalidateUserCache } from '../middleware/authMiddleware';
 import logger from '../utils/logger';
@@ -399,9 +400,8 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
 
       // Un abonnement par concours, avec la mensualité propre à chaque concours
       for (const course of courses) {
-        // La prochaine mensualité est définie à partir de la date d'inscription
-        const nextPayment = new Date(inscriptionDate);
-        nextPayment.setMonth(nextPayment.getMonth() + 1);
+        // La prochaine mensualité est définie à partir de la date d'inscription (échéance le 05)
+        const nextPayment = computeNextDueDate(inscriptionDate, 1);
         await tx.subscription.create({
           data: {
             userId: created.id,
@@ -796,8 +796,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
             where: { userId: user.id, courseId: cId },
           });
           if (!existingSub) {
-            const nextPayment = new Date();
-            nextPayment.setMonth(nextPayment.getMonth() + 1);
+            const nextPayment = computeNextDueDate(new Date(), 1);
             await tx.subscription.create({
               data: {
                 userId: user.id,

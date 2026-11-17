@@ -177,6 +177,20 @@ function StudentsView() {
     return { label: 'Présentiel', type: 'presentiel', color: 'bg-primary-100 text-[#c97e00] border border-primary-200' };
   };
 
+  // Helper : prochaine échéance de mensualité (le 05 du mois).
+  // Règle métier : payable au plus tard le 05 ; au-delà → "En retard".
+  const MONTHLY_DUE_DAY = 5;
+  const getStudentEcheance = (u: any) => {
+    const activeSubs = (u.subscriptions || []).filter((s: any) => s.status === 'ACTIVE' && !s.coursParticuliers);
+    if (activeSubs.length === 0) return null;
+    const due = new Date(Math.min(...activeSubs.map((s: any) => new Date(s.nextPayment).getTime())));
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    const diffDays = Math.round((dueDay.getTime() - now.getTime()) / 86400000);
+    return { due: dueDay, diffDays };
+  };
+
   // Filtre automatique instantané
   const filtered = useMemo(() => {
     return users.filter(u => {
@@ -580,6 +594,7 @@ function StudentsView() {
                     <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Formation(s)</th>
                     <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Type de formation</th>
                     <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date Inscription</th>
+                    <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider" title="Mensualité payable au plus tard le 05 du mois">Échéance mensualité</th>
                     <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Statut</th>
                     <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                   </tr>
@@ -587,7 +602,7 @@ function StudentsView() {
                 <tbody className="divide-y divide-gray-100">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-gray-400 text-sm">
+                      <td colSpan={9} className="px-6 py-12 text-center text-gray-400 text-sm">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Users size={32} className="text-gray-300" />
                           <p className="font-semibold text-gray-600">Aucun étudiant ne correspond aux filtres</p>
@@ -603,6 +618,7 @@ function StudentsView() {
                     filtered.map((u: any) => {
                       const studentCourses = getStudentCourses(u);
                       const modeBadge = getStudentMode(u);
+                      const echeance = getStudentEcheance(u);
 
                       return (
                         <tr key={u.id} className="hover:bg-gray-50 transition-colors">
@@ -656,6 +672,32 @@ function StudentsView() {
                               </div>
                             ) : (
                               '—'
+                            )}
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            {!echeance ? (
+                              <span className="text-xs text-gray-400">—</span>
+                            ) : echeance.diffDays < 0 ? (
+                              <span className="inline-flex flex-col items-start gap-0.5">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                                  <Clock size={11} /> En retard
+                                </span>
+                                <span className="text-[10px] text-red-500 font-semibold pl-0.5">échéance le {echeance.due.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })} (+{Math.abs(echeance.diffDays)} j)</span>
+                              </span>
+                            ) : echeance.diffDays <= 7 ? (
+                              <span className="inline-flex flex-col items-start gap-0.5">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                  <Calendar size={11} /> {echeance.due.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}
+                                </span>
+                                <span className="text-[10px] text-amber-600 font-semibold pl-0.5">dans {echeance.diffDays} j</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex flex-col items-start gap-0.5">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                                  <Calendar size={11} /> {echeance.due.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}
+                                </span>
+                                <span className="text-[10px] text-gray-400 font-medium pl-0.5">→ 05 du mois suivant</span>
+                              </span>
                             )}
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap">

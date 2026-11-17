@@ -34,6 +34,7 @@ import appSettingsRoutes from './routes/appSettingsRoutes';
 import mediaRoutes from './routes/mediaRoutes';
 import { seedFormations } from './seed-courses';
 import { ensureSessionTables } from './controllers/sessionController';
+import { normalizeSubscriptionDueDates } from './controllers/subscriptionController';
 import { ensureCategoryTable } from './controllers/categoryController';
 import { backfillProductImages } from './backfillProductImages';
 import path from 'path';
@@ -500,6 +501,9 @@ async function initDatabaseDefaults() {
 
     // Contrat en attente de signature : signatureData / signedAt doivent être nullables
     await ensureContractNullableColumns();
+
+    // Aligner les échéances mensualités sur le 05 (règle métier de la liste étudiants)
+    await normalizeSubscriptionDueDates();
 
     // Créer la table PendingRegistration si elle n'existe pas
     await prisma.$executeRawUnsafe(`

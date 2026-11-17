@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import prisma from '../utils/prisma';
 import { calcMonthlyTotal } from '../constants';
+import { computeNextDueDate } from '../utils/dueDate';
 
 // Champs sûrs à exposer pour un utilisateur (exclut le mot de passe)
 const USER_SAFE_SELECT = {
@@ -213,8 +214,7 @@ export const updateUser = async (req: Request, res: Response) => {
       const byCourse = new Map(subscriptions.map(s => [s.courseId, s]));
       const activeSub = subscriptions.find(s => s.status === 'ACTIVE');
       const formule = activeSub?.formule || 'presentiel';
-      const nextPayment = new Date();
-      nextPayment.setMonth(nextPayment.getMonth() + 1);
+      const nextPayment = computeNextDueDate(new Date(), 1);
 
       for (const course of courses) {
         const amount = calcMonthlyTotal([course], false, user.pays || undefined, formule);

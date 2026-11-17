@@ -158,6 +158,17 @@ var METHOD_TO_GP = {
   CARTE: "card"
 };
 
+// server/utils/dueDate.ts
+var MONTHLY_DUE_DAY = 5;
+function computeNextDueDate(fromDate, monthsCovered = 1) {
+  const d = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+  d.setMonth(d.getMonth() + Math.max(1, monthsCovered));
+  return new Date(d.getFullYear(), d.getMonth(), MONTHLY_DUE_DAY, 0, 0, 0, 0);
+}
+function normalizeDueDay(date) {
+  return new Date(date.getFullYear(), date.getMonth(), MONTHLY_DUE_DAY, 0, 0, 0, 0);
+}
+
 // server/controllers/userController.ts
 var USER_SAFE_SELECT = {
   id: true,
@@ -332,8 +343,7 @@ var updateUser = async (req, res) => {
       const byCourse = new Map(subscriptions.map((s) => [s.courseId, s]));
       const activeSub = subscriptions.find((s) => s.status === "ACTIVE");
       const formule = activeSub?.formule || "presentiel";
-      const nextPayment = /* @__PURE__ */ new Date();
-      nextPayment.setMonth(nextPayment.getMonth() + 1);
+      const nextPayment = computeNextDueDate(/* @__PURE__ */ new Date(), 1);
       for (const course of courses) {
         const amount = calcMonthlyTotal([course], false, user.pays || void 0, formule);
         const existing = byCourse.get(course.id);
@@ -1081,8 +1091,7 @@ var initPayment = async (req, res) => {
         geniusPayReference: gpData.reference
       }
     });
-    const nextPayment = /* @__PURE__ */ new Date();
-    nextPayment.setMonth(nextPayment.getMonth() + 1);
+    const nextPayment = computeNextDueDate(/* @__PURE__ */ new Date(), 1);
     await prisma_default.subscription.create({
       data: { userId, courseId, amount, status: "PENDING", nextPayment }
     });
@@ -1230,8 +1239,7 @@ var handleWebhook = async (req, res) => {
             where: { userId, courseId: cId }
           });
           if (!existingSub) {
-            const np = /* @__PURE__ */ new Date();
-            np.setMonth(np.getMonth() + 1);
+            const np = computeNextDueDate(/* @__PURE__ */ new Date(), 1);
             await prisma_default.subscription.create({
               data: {
                 userId,
@@ -1285,8 +1293,7 @@ var handleWebhook = async (req, res) => {
               where: { userId: user.id, courseId: cId }
             });
             if (!existingSub) {
-              const np = /* @__PURE__ */ new Date();
-              np.setMonth(np.getMonth() + 1);
+              const np = computeNextDueDate(/* @__PURE__ */ new Date(), 1);
               await prisma_default.subscription.create({
                 data: {
                   userId: user.id,
@@ -1326,8 +1333,7 @@ var handleWebhook = async (req, res) => {
         }
         const sub = await prisma_default.subscription.findUnique({ where: { id: metadata.subscription_id } });
         if (sub) {
-          const nextPayment = new Date(sub.nextPayment);
-          nextPayment.setMonth(nextPayment.getMonth() + nbMonths);
+          const nextPayment = computeNextDueDate(/* @__PURE__ */ new Date(), nbMonths);
           await prisma_default.subscription.update({
             where: { id: metadata.subscription_id },
             data: { nextPayment, status: "ACTIVE" }
@@ -1823,8 +1829,7 @@ var confirmCashRegistration = async (req, res) => {
         });
       }
       for (const course of courses) {
-        const nextPayment = new Date(inscriptionDate);
-        nextPayment.setMonth(nextPayment.getMonth() + 1);
+        const nextPayment = computeNextDueDate(inscriptionDate, 1);
         await tx.subscription.create({
           data: {
             userId: created.id,
@@ -2139,8 +2144,7 @@ var confirmPayment = async (req, res) => {
             where: { userId: user.id, courseId: cId }
           });
           if (!existingSub) {
-            const nextPayment = /* @__PURE__ */ new Date();
-            nextPayment.setMonth(nextPayment.getMonth() + 1);
+            const nextPayment = computeNextDueDate(/* @__PURE__ */ new Date(), 1);
             await tx.subscription.create({
               data: {
                 userId: user.id,
@@ -4314,6 +4318,29 @@ var sessionRoutes_default = router13;
 import { Router as Router14 } from "express";
 
 // server/controllers/subscriptionController.ts
+async function normalizeSubscriptionDueDates() {
+  try {
+    const subs = await prisma_default.subscription.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, nextPayment: true }
+    });
+    let fixed = 0;
+    for (const s of subs) {
+      if (s.nextPayment && s.nextPayment.getDate() !== 5) {
+        await prisma_default.subscription.update({
+          where: { id: s.id },
+          data: { nextPayment: normalizeDueDay(s.nextPayment) }
+        });
+        fixed++;
+      }
+    }
+    if (fixed > 0) console.log(`\u2705 ${fixed} \xE9ch\xE9ance(s) de mensualit\xE9 normalis\xE9e(s) au 05 du mois`);
+    return fixed;
+  } catch (err) {
+    console.warn("\u26A0\uFE0F Normalisation des \xE9ch\xE9ances ignor\xE9e :", err?.message || err);
+    return 0;
+  }
+}
 var getSubscriptionsByUser = async (req, res) => {
   try {
     const { userId } = req.query;
@@ -4577,8 +4604,7 @@ var confirmCashPayment = async (req, res) => {
           createdAt: paidDate
         }
       });
-      const nextPayment = new Date(paidDate);
-      nextPayment.setMonth(nextPayment.getMonth() + stored.months);
+      const nextPayment = computeNextDueDate(paidDate, stored.months);
       await tx.subscription.update({
         where: { id: sub.id },
         data: { nextPayment }
@@ -6791,6 +6817,7 @@ async function initDatabaseDefaults() {
       console.log("\u2139\uFE0F [CourseColumns] Le lazy migration dans getAllCourses ajoutera les colonnes manquantes au premier appel");
     }
     await ensureContractNullableColumns();
+    await normalizeSubscriptionDueDates();
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "PendingRegistration" (
         "id" TEXT NOT NULL,

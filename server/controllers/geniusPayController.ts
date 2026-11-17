@@ -4,6 +4,7 @@ import prisma from '../utils/prisma';
 import { calcRegistrationTotal, METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, GENIUSPAY_ENVIRONMENT, GENIUSPAY_WEBHOOK_SECRET, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
+import { computeNextDueDate } from '../utils/dueDate';
 import { sendDirectEmail } from './notificationController';
 
 // ─── Initialisation de paiement ───────────────────────────────────────────────
@@ -81,8 +82,7 @@ export const initPayment = async (req: Request, res: Response) => {
       },
     });
 
-    const nextPayment = new Date();
-    nextPayment.setMonth(nextPayment.getMonth() + 1);
+    const nextPayment = computeNextDueDate(new Date(), 1);
 
     await prisma.subscription.create({
       data: { userId, courseId, amount, status: 'PENDING', nextPayment },
@@ -272,8 +272,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             where: { userId, courseId: cId },
           });
           if (!existingSub) {
-            const np = new Date();
-            np.setMonth(np.getMonth() + 1);
+            const np = computeNextDueDate(new Date(), 1);
             await prisma.subscription.create({
               data: {
                 userId,
@@ -333,9 +332,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
             const existingSub = await prisma.subscription.findFirst({
               where: { userId: user.id, courseId: cId },
             });
-            if (!existingSub) {
-              const np = new Date();
-              np.setMonth(np.getMonth() + 1);
+              if (!existingSub) {
+                const np = computeNextDueDate(new Date(), 1);
               await prisma.subscription.create({
                 data: {
                   userId: user.id,
@@ -378,8 +376,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
         const sub = await prisma.subscription.findUnique({ where: { id: metadata.subscription_id } });
         if (sub) {
-          const nextPayment = new Date(sub.nextPayment);
-          nextPayment.setMonth(nextPayment.getMonth() + nbMonths);
+          const nextPayment = computeNextDueDate(new Date(), nbMonths);
           await prisma.subscription.update({
             where: { id: metadata.subscription_id },
             data: { nextPayment, status: 'ACTIVE' },

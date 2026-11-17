@@ -4,6 +4,37 @@ import { METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { generateReceiptNumber } from '../utils/generators';
 import { logger } from '../utils/logger';
+import { computeNextDueDate, normalizeDueDay } from '../utils/dueDate';
+
+/**
+ * Normalisation unique (au démarrage) : ramène toutes les échéances des
+ * abonnements ACTIVE au 5 du même mois. Règle métier : mensualité payable
+ * au plus tard le 5 du mois ; au-delà, l'étudiant est "en retard".
+ * Idempotente : après une passe, toutes les dates sont déjà le 05.
+ */
+export async function normalizeSubscriptionDueDates() {
+  try {
+    const subs = await prisma.subscription.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, nextPayment: true },
+    });
+    let fixed = 0;
+    for (const s of subs) {
+      if (s.nextPayment && s.nextPayment.getDate() !== 5) {
+        await prisma.subscription.update({
+          where: { id: s.id },
+          data: { nextPayment: normalizeDueDay(s.nextPayment) },
+        });
+        fixed++;
+      }
+    }
+    if (fixed > 0) console.log(`✅ ${fixed} échéance(s) de mensualité normalisée(s) au 05 du mois`);
+    return fixed;
+  } catch (err: any) {
+    console.warn('⚠️ Normalisation des échéances ignorée :', err?.message || err);
+    return 0;
+  }
+}
 
 export const getSubscriptionsByUser = async (req: Request, res: Response) => {
   try {
@@ -312,9 +343,8 @@ export const confirmCashPayment = async (req: Request, res: Response) => {
         },
       });
 
-      // La prochaine mensualité est définie à partir de la date effective du paiement
-      const nextPayment = new Date(paidDate);
-      nextPayment.setMonth(nextPayment.getMonth() + stored.months);
+      // La prochaine mensualité est définie à partir de la date effective du paiement (échéance le 05)
+      const nextPayment = computeNextDueDate(paidDate, stored.months);
       await tx.subscription.update({
         where: { id: sub.id },
         data: { nextPayment },
