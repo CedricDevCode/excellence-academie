@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCourses, registerAndPay, getMe } from "../utils/api";
+import OtpCountdown from "./OtpCountdown";
 import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, Loader2, AlertCircle, Sparkles, Lock, Check, ClipboardList, ShieldCheck } from "lucide-react";
 import { StudentPersonalFields, StudentProgramFields } from "./StudentRegistrationFields";
 import { MODES, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora } from "../constants/student";
@@ -102,6 +103,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     paymentMethod: "",
     geniusPhone: "",
     cgu: false,
+    dateInscription: new Date().toISOString().split("T")[0],
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +111,9 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const [otpStep, setOtpStep] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpEmail, setOtpEmail] = useState("");
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
 
   const update = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
@@ -160,11 +164,14 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
             mode: form.mode,
             coursParticuliers: form.coursParticuliers,
             dateNaissance: form.dateNaissance,
+            ...(embedded ? { dateInscription: form.dateInscription } : {}),
           }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Erreur lors de l'inscription");
         setOtpEmail(data.otpEmail || "");
+        setOtpExpiresAt(typeof data.expiresAt === 'number' ? data.expiresAt : Date.now() + 15 * 60 * 1000);
+        setOtpCode("");
         setOtpStep(true);
         setSubmitting(false);
         return;
@@ -207,6 +214,27 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await payWithMethod();
+  };
+
+  const resendOtp = async () => {
+    setError(null);
+    setOtpResending(true);
+    try {
+      const res = await fetch('/api/auth/resend-cash-registration-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur lors du renvoi du code");
+      setOtpCode("");
+      setOtpExpiresAt(typeof data.expiresAt === 'number' ? data.expiresAt : Date.now() + 15 * 60 * 1000);
+      setError(null);
+    } catch (err: any) {
+      setError(err?.message || "Erreur lors du renvoi du code");
+    } finally {
+      setOtpResending(false);
+    }
   };
 
   const verifyOtp = async () => {
@@ -317,6 +345,21 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       {step === 1 && (
         <div className="space-y-5">
           <StudentPersonalFields form={form as any} onChange={update as any} />
+          {embedded && (
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="reg-date-inscription">Date d'inscription *</label>
+              <input
+                id="reg-date-inscription"
+                type="date"
+                required
+                value={form.dateInscription}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={e => update("dateInscription", e.target.value)}
+                className="w-full px-4 py-3 bg-surface-50/60 border border-surface-300 rounded text-sm text-surface-900 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all"
+              />
+              <p className="text-[11px] text-surface-400 mt-1">Date effective de l'inscription (comptabilisée pour les revenus et la prochaine mensualité).</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -457,26 +500,34 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
 
       {step === 4 && otpStep && (
         <div className="space-y-5">
-          <div className="flex items-center gap-2 mb-6">
-            <Lock size={20} className="text-[#c97e00]" />
-            <h2 className="text-xl font-black text-gray-900">Confirmation par code OTP</h2>
+          <div className="flex items-center gap-2 mb-2">
+            <Lock size={20} className="text-primary-600" />
+            <h2 className="text-lg font-black text-surface-900">Confirmation par code OTP</h2>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded p-4 text-sm text-blue-800">
             Un code de confirmation a été envoyé à <strong>{otpEmail || "l'adresse de l'établissement"}</strong>. Veuillez le saisir ci-dessous pour finaliser l'inscription.
           </div>
+          <div className="flex items-center justify-between gap-3 px-1">
+            <OtpCountdown expiresAt={otpExpiresAt} />
+            <button type="button" onClick={resendOtp} disabled={otpResending}
+              className="text-xs font-bold text-primary-800 hover:text-primary-900 hover:underline disabled:opacity-50 disabled:no-underline transition-colors">
+              {otpResending ? 'Envoi en cours…' : 'Renvoyer le code'}
+            </button>
+          </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Code OTP</label>
-            <input type="text" value={otpCode} onChange={e => setOtpCode(e.target.value)}
+            <label className="block text-sm font-semibold text-surface-600 mb-1" htmlFor="otp-input">Code OTP</label>
+            <input id="otp-input" type="text" inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={e => setOtpCode(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); verifyOtp(); } }}
               placeholder="Entrez le code reçu par email"
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors text-center text-lg tracking-widest"
-              maxLength={8} />
+              className="w-full px-4 py-3 border-2 border-surface-300 rounded text-sm focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-colors text-center text-lg tracking-widest font-black tabular-nums"
+              maxLength={8} autoFocus />
           </div>
           <button type="button" onClick={verifyOtp} disabled={otpLoading}
-            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#c97e00] hover:bg-[#6b4500] text-white font-bold text-sm rounded transition-all shadow-md hover:shadow-lg disabled:opacity-50">
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded transition-all shadow-md hover:shadow-lg disabled:opacity-50">
             {otpLoading ? <><Loader2 size={16} className="animate-spin" /> Vérification...</> : <><CheckCircle size={16} /> Confirmer l'inscription</>}
           </button>
           <button type="button" onClick={() => { setOtpStep(false); setOtpCode(""); setError(null); }}
-            className="w-full text-center text-sm text-gray-500 hover:text-gray-700 underline">
+            className="w-full text-center text-sm text-surface-500 hover:text-surface-700 underline">
             Retour au paiement
           </button>
         </div>

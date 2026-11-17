@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Users, Search, Plus, Edit, Trash2, Loader2, Mail, Send, X, CheckCircle,
   ChevronDown, ChevronRight, Filter, Download, Phone, MapPin, GraduationCap,
-  Clock, Calendar, Save
+  Clock, Calendar, Save, Banknote
 } from "lucide-react";
 import {
   fetchUsers, createUser, updateUser, deleteUser, registerStudent, registerAndPay,
-  sendBulkNotification, fetchCourses, fetchPaymentsByUser, fetchSubscriptionsByUser
+  sendBulkNotification, fetchCourses, fetchPaymentsByUser, fetchSubscriptionsByUser,
+  initCashPayment, confirmCashPayment, resendCashPaymentOtp
 } from "../../utils/api";
+import OtpCountdown from "../OtpCountdown";
 import { useToast } from "../Toast";
 import LoadingSpinner from "./LoadingSpinner";
 import StudentRegistrationForm from "../StudentRegistrationForm";
@@ -45,6 +47,93 @@ function StudentsView() {
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsTab, setPaymentsTab] = useState<'paid' | 'unpaid' | 'upcoming'>('paid');
   const { toast, confirm } = useToast();
+
+  // Encaissement espèces (admin, OTP requis)
+  const [cashPaySub, setCashPaySub] = useState<any>(null);
+  const [cashPayMonths, setCashPayMonths] = useState(1);
+  const [cashPayPaidAt, setCashPayPaidAt] = useState(() => new Date().toISOString().split('T')[0]);
+  const [cashPayAmount, setCashPayAmount] = useState(0);
+  const [cashPayOtpSent, setCashPayOtpSent] = useState(false);
+  const [cashPayOtp, setCashPayOtp] = useState("");
+  const [cashPayExpiresAt, setCashPayExpiresAt] = useState(0);
+  const [cashPayLoading, setCashPayLoading] = useState(false);
+  const [cashPayResending, setCashPayResending] = useState(false);
+  const [cashPayError, setCashPayError] = useState<string | null>(null);
+
+  const openCashPay = (sub: any) => {
+    setCashPaySub(sub);
+    setCashPayMonths(1);
+    setCashPayPaidAt(new Date().toISOString().split('T')[0]);
+    setCashPayAmount(Number(sub.amount || 0));
+    setCashPayOtpSent(false);
+    setCashPayOtp("");
+    setCashPayExpiresAt(0);
+    setCashPayError(null);
+  };
+
+  const closeCashPay = () => {
+    setCashPaySub(null);
+    setCashPayOtpSent(false);
+    setCashPayOtp("");
+    setCashPayError(null);
+  };
+
+  const startCashPay = async () => {
+    if (!cashPaySub) return;
+    setCashPayError(null);
+    setCashPayLoading(true);
+    try {
+      const res = await initCashPayment({ subscriptionId: cashPaySub.id, months: cashPayMonths, paidAt: cashPayPaidAt });
+      setCashPayAmount(Number(res?.amount ?? Number(cashPaySub.amount || 0) * cashPayMonths));
+      setCashPayExpiresAt(typeof res?.expiresAt === 'number' ? res.expiresAt : Date.now() + 15 * 60 * 1000);
+      setCashPayOtp("");
+      setCashPayOtpSent(true);
+    } catch (err: any) {
+      setCashPayError(err?.message || "Erreur lors de l'initialisation de l'encaissement");
+    } finally {
+      setCashPayLoading(false);
+    }
+  };
+
+  const resendCashPayOtp = async () => {
+    if (!cashPaySub) return;
+    setCashPayError(null);
+    setCashPayResending(true);
+    try {
+      const res = await resendCashPaymentOtp({ subscriptionId: cashPaySub.id });
+      setCashPayExpiresAt(typeof res?.expiresAt === 'number' ? res.expiresAt : Date.now() + 15 * 60 * 1000);
+      setCashPayOtp("");
+    } catch (err: any) {
+      setCashPayError(err?.message || "Erreur lors du renvoi du code");
+    } finally {
+      setCashPayResending(false);
+    }
+  };
+
+  const confirmCashPay = async () => {
+    if (!cashPaySub) return;
+    if (!cashPayOtp || cashPayOtp.length < 4) { setCashPayError("Veuillez entrer le code OTP reçu par email."); return; }
+    setCashPayError(null);
+    setCashPayLoading(true);
+    try {
+      const res = await confirmCashPayment({ subscriptionId: cashPaySub.id, otp: cashPayOtp });
+      toast('success', 'Encaissement enregistré — prochaine mensualité mise à jour');
+      closeCashPay();
+      // Rafraîchir les données du modal de paiement
+      if (paymentsStudent) {
+        const [payments, subscriptions] = await Promise.all([
+          fetchPaymentsByUser(paymentsStudent.id),
+          fetchSubscriptionsByUser(paymentsStudent.id),
+        ]);
+        setStudentPayments(payments);
+        setStudentSubscriptions(subscriptions);
+      }
+    } catch (err: any) {
+      setCashPayError(err?.message || "Erreur lors de la confirmation");
+    } finally {
+      setCashPayLoading(false);
+    }
+  };
 
   const loadUsers = () => {
     setLoading(true);
@@ -866,6 +955,15 @@ function StudentsView() {
                                     <span>{nextDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                                   </div>
                                 </div>
+                                {!sub.coursParticuliers && (
+                                  <button
+                                    onClick={() => openCashPay(sub)}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded bg-primary-600 text-white text-[11px] font-bold hover:bg-primary-700 transition-colors shrink-0"
+                                    title="Enregistrer un encaissement en espèces"
+                                  >
+                                    <Banknote size={14} /> Encaisser
+                                  </button>
+                                )}
                               </div>
                             );
                           })}
@@ -881,6 +979,92 @@ function StudentsView() {
                 className="px-5 py-2.5 text-gray-600 font-semibold text-sm hover:text-gray-800 rounded-lg hover:bg-gray-200 transition-colors">
                 Fermer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cash Payment Modal (admin, OTP requis) */}
+      {cashPaySub && (
+        <div className="fixed inset-0 bg-surface-900/60 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4 modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeCashPay(); }}>
+          <div className="bg-white rounded w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[92vh] modal-content" role="dialog" aria-modal="true" aria-label="Encaissement en espèces">
+            <div className="p-5 bg-gradient-to-r from-primary-700 via-[#c97e00] to-primary-800 text-white flex items-center gap-3 shrink-0">
+              <div className="w-11 h-11 rounded bg-white/15 flex items-center justify-center shrink-0"><Banknote size={22} /></div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-base leading-tight">Encaissement en espèces</h3>
+                <p className="text-amber-100/90 text-[11px] mt-0.5 truncate">{paymentsStudent?.name || 'Étudiant'} — {cashPaySub.course?.title || 'Formation'}</p>
+              </div>
+              <button onClick={closeCashPay} className="text-amber-100 hover:text-white bg-white/10 hover:bg-white/20 rounded p-2 transition-colors shrink-0" aria-label="Fermer"><X size={17} /></button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto">
+              {cashPayError && (
+                <div className="bg-red-50 border border-red-200 rounded p-3 text-xs text-red-700 flex items-start gap-2">
+                  <X size={14} className="shrink-0 mt-0.5" /> <span>{cashPayError}</span>
+                </div>
+              )}
+
+              {!cashPayOtpSent ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="cash-months">Mensualités</label>
+                      <select id="cash-months" value={cashPayMonths} onChange={e => { const m = Number(e.target.value); setCashPayMonths(m); setCashPayAmount(Number(cashPaySub.amount || 0) * m); }} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                          <option key={m} value={m}>{m} mois{m > 1 ? '' : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="cash-paidat">Date de paiement *</label>
+                      <input id="cash-paidat" type="date" value={cashPayPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCashPayPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
+                    </div>
+                  </div>
+
+                  <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-surface-500">Montant à encaisser</span>
+                    <span className="text-2xl font-black text-primary-800 tabular-nums">{Number(cashPayAmount || 0).toLocaleString('fr-FR')} <span className="text-sm">FCFA</span></span>
+                  </div>
+                  <p className="text-[11px] text-surface-400">La prochaine mensualité sera définie à partir de cette date de paiement (+{cashPayMonths} mois).</p>
+
+                  <button type="button" onClick={startCashPay} disabled={cashPayLoading}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded transition-all shadow-sm hover:shadow-md disabled:opacity-60">
+                    {cashPayLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {cashPayLoading ? 'Envoi du code…' : 'Envoyer le code OTP'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded p-4 text-xs text-blue-800">
+                    Un code à 6 chiffres a été envoyé à la boîte mail de l'établissement. La prochaine mensualité sera recalculée à partir du <strong>{new Date(cashPayPaidAt).toLocaleDateString('fr-FR')}</strong>.
+                  </div>
+                  <div className="flex items-center justify-between gap-3 px-1">
+                    <OtpCountdown expiresAt={cashPayExpiresAt} />
+                    <button type="button" onClick={resendCashPayOtp} disabled={cashPayResending}
+                      className="text-xs font-bold text-primary-800 hover:text-primary-900 hover:underline disabled:opacity-50 transition-colors">
+                      {cashPayResending ? 'Envoi…' : 'Renvoyer le code'}
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="cash-otp">Code OTP</label>
+                    <input id="cash-otp" type="text" inputMode="numeric" autoComplete="one-time-code" value={cashPayOtp} onChange={e => setCashPayOtp(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); confirmCashPay(); } }}
+                      placeholder="Code reçu par email" maxLength={8} autoFocus
+                      className="w-full px-4 py-3 border-2 border-surface-300 rounded text-center text-lg tracking-widest font-black tabular-nums focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => { setCashPayOtpSent(false); setCashPayOtp(""); setCashPayError(null); }}
+                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded text-xs font-semibold hover:bg-surface-100 transition-colors">
+                      Retour
+                    </button>
+                    <button type="button" onClick={confirmCashPay} disabled={cashPayLoading}
+                      className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded transition-all disabled:opacity-60">
+                      {cashPayLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                      {cashPayLoading ? 'Confirmation…' : "Confirmer l'encaissement"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

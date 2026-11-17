@@ -262,6 +262,47 @@ export const fetchSubscriptionsByUser = async (userId: string): Promise<Subscrip
   return res.json();
 };
 
+// Encaissements espèces (admin) — OTP exigé
+export const initCashPayment = async (data: { subscriptionId: string; months: number; paidAt?: string }) => {
+  const res = await authFetch(`${API_BASE_URL}/subscriptions/cash/init`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || "Erreur lors de l'initialisation de l'encaissement");
+  return body;
+};
+
+export const resendCashPaymentOtp = async (data: { subscriptionId: string }) => {
+  const res = await authFetch(`${API_BASE_URL}/subscriptions/cash/resend`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || 'Erreur lors du renvoi du code');
+  return body;
+};
+
+export const confirmCashPayment = async (data: { subscriptionId: string; otp: string }) => {
+  const res = await authFetch(`${API_BASE_URL}/subscriptions/cash/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || 'Erreur lors de la confirmation');
+  return body;
+};
+
+export const resendCashRegistrationOtp = async (data: { email: string }) => {
+  const res = await authFetch(`${API_BASE_URL}/auth/resend-cash-registration-otp`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || 'Erreur lors du renvoi du code');
+  return body;
+};
+
 export const fetchMyPayments = async () => {
   const res = await authFetch(`${API_BASE_URL}/payments/my-payments`);
   if (!res.ok) throw new Error('Failed to fetch payments');

@@ -1652,16 +1652,56 @@ var register = async (req, res) => {
     res.status(500).json({ error: "Erreur lors de la cr\xE9ation du compte" });
   }
 };
+var OTP_TTL_MS = 15 * 60 * 1e3;
 var cashOtpStore = /* @__PURE__ */ new Map();
 var CASH_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || "ea@exacademie.com";
+function buildOtpEmail(otp, cleanEmail) {
+  return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
+    <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
+    <p>Bonjour,</p>
+    <p>Une inscription par paiement en esp\xE8ces a \xE9t\xE9 initi\xE9e pour <strong>${cleanEmail}</strong> et attend votre confirmation :</p>
+    <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
+    <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demand\xE9 cette inscription, ignorez cet email.</p>
+  </div>`;
+}
+async function sendOtpMail(to, cleanEmail, otp) {
+  const nodemailer2 = await import("nodemailer").catch(() => null);
+  if (!nodemailer2) return false;
+  try {
+    const transporter2 = nodemailer2.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: true,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    await transporter2.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject: "Code de confirmation - Excellence Acad\xE9mie",
+      html: buildOtpEmail(otp, cleanEmail)
+    });
+    return true;
+  } catch (err) {
+    logger_default.error("Cash OTP email delivery failed", "auth", err);
+    return false;
+  }
+}
 var registerCash = async (req, res) => {
   try {
-    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance } = req.body;
+    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance, dateInscription } = req.body;
     if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
       return res.status(400).json({ error: "Email, mot de passe et au moins un concours sont requis" });
     }
     if (typeof password !== "string" || password.length < 8) {
       return res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caract\xE8res" });
+    }
+    let parsedDateInscription = null;
+    if (dateInscription) {
+      const parsed = new Date(dateInscription);
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({ error: "Date d'inscription invalide" });
+      }
+      parsedDateInscription = parsed;
     }
     const cleanEmail = email.trim().toLowerCase();
     const existing = await prisma_default.user.findUnique({ where: { email: cleanEmail } });
@@ -1683,44 +1723,39 @@ var registerCash = async (req, res) => {
       courseIds,
       mode,
       coursParticuliers,
-      dateNaissance
+      dateNaissance,
+      dateInscription: parsedDateInscription ? parsedDateInscription.toISOString() : null
     };
-    cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + 15 * 60 * 1e3 });
-    const nodemailer2 = await import("nodemailer").catch(() => null);
-    if (!nodemailer2) {
+    cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + OTP_TTL_MS });
+    const otpSent = await sendOtpMail(CASH_OTP_EMAIL, cleanEmail, otp);
+    if (!otpSent) {
       cashOtpStore.delete(cleanEmail);
-      logger_default.error("Cash OTP: nodemailer indisponible", "auth");
-      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. R\xE9essayez plus tard." });
-    }
-    try {
-      const transporter2 = nodemailer2.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 465,
-        secure: true,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-      });
-      await transporter2.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: CASH_OTP_EMAIL,
-        subject: "Code de confirmation - Excellence Acad\xE9mie",
-        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
-          <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
-          <p>Bonjour,</p>
-          <p>Une inscription par paiement en esp\xE8ces a \xE9t\xE9 initi\xE9e pour <strong>${cleanEmail}</strong> et attend votre confirmation :</p>
-          <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
-          <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demand\xE9 cette inscription, ignorez cet email.</p>
-        </div>`
-      });
-    } catch (err) {
-      cashOtpStore.delete(cleanEmail);
-      logger_default.error("Cash OTP email delivery failed", "auth", err);
       return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. R\xE9essayez plus tard." });
     }
     logger_default.info(`Cash OTP email \u2192 ${CASH_OTP_EMAIL} (inscription: ${cleanEmail})`, "auth");
-    res.status(200).json({ message: "Code OTP envoy\xE9 par email", email: cleanEmail, otpEmail: CASH_OTP_EMAIL });
+    res.status(200).json({ message: "Code OTP envoy\xE9 par email", email: cleanEmail, otpEmail: CASH_OTP_EMAIL, expiresAt: Date.now() + OTP_TTL_MS, expiresInSeconds: Math.floor(OTP_TTL_MS / 1e3) });
   } catch (error) {
     logger_default.error("Cash registration error", "auth", error);
     res.status(500).json({ error: "Erreur lors de l'inscription" });
+  }
+};
+var resendCashRegistrationOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email requis" });
+    const cleanEmail = String(email).trim().toLowerCase();
+    const stored = cashOtpStore.get(cleanEmail);
+    if (!stored) return res.status(400).json({ error: "Aucune inscription en attente. Veuillez recommencer." });
+    const otp = String(Math.floor(1e5 + Math.random() * 9e5));
+    const expiresAt = Date.now() + OTP_TTL_MS;
+    cashOtpStore.set(cleanEmail, { ...stored, otp, expiresAt });
+    const sent = await sendOtpMail(CASH_OTP_EMAIL, cleanEmail, otp);
+    if (!sent) return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. R\xE9essayez plus tard." });
+    logger_default.info(`Cash OTP renvoy\xE9 \u2192 ${CASH_OTP_EMAIL} (inscription: ${cleanEmail})`, "auth");
+    res.status(200).json({ message: "Code OTP renvoy\xE9 par email", expiresAt, expiresInSeconds: Math.floor(OTP_TTL_MS / 1e3) });
+  } catch (error) {
+    logger_default.error("Resend cash OTP error", "auth", error);
+    res.status(500).json({ error: "Erreur lors du renvoi du code" });
   }
 };
 var confirmCashRegistration = async (req, res) => {
@@ -1736,6 +1771,7 @@ var confirmCashRegistration = async (req, res) => {
     }
     if (stored.otp !== otp) return res.status(400).json({ error: "Code OTP incorrect" });
     const d = stored.data;
+    const inscriptionDate = d.dateInscription ? new Date(d.dateInscription) : /* @__PURE__ */ new Date();
     const courses = await prisma_default.course.findMany({ where: { id: { in: d.courseIds } } });
     const cParticuliers = d.coursParticuliers === true || d.coursParticuliers === "true";
     const cMode = d.mode || "presentiel";
@@ -1754,7 +1790,8 @@ var confirmCashRegistration = async (req, res) => {
           ville: d.ville,
           role: "STUDENT",
           isActive: true,
-          matricule
+          matricule,
+          createdAt: inscriptionDate
         }
       });
       let regPaymentId = null;
@@ -1766,7 +1803,8 @@ var confirmCashRegistration = async (req, res) => {
             amount: regPrice,
             status: "SUCCESS",
             type: "REGISTRATION",
-            receiptNumber: generateReceiptNumber()
+            receiptNumber: generateReceiptNumber(),
+            createdAt: inscriptionDate
           }
         });
         regPaymentId = regPayment.id;
@@ -1779,12 +1817,13 @@ var confirmCashRegistration = async (req, res) => {
             amount: monthly,
             status: "SUCCESS",
             type: "MONTHLY",
-            receiptNumber: generateReceiptNumber()
+            receiptNumber: generateReceiptNumber(),
+            createdAt: inscriptionDate
           }
         });
       }
       for (const course of courses) {
-        const nextPayment = /* @__PURE__ */ new Date();
+        const nextPayment = new Date(inscriptionDate);
         nextPayment.setMonth(nextPayment.getMonth() + 1);
         await tx.subscription.create({
           data: {
@@ -2051,8 +2090,8 @@ var confirmPayment = async (req, res) => {
       pendingPlainPasswords.delete(pendingToken);
       const courseIdList = Array.isArray(pending.courseIds) ? pending.courseIds : [];
       const pendingCourses = await prisma_default.course.findMany({ where: { id: { in: courseIdList } } });
-      const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.ville);
-      const monthlyAmt = pending.monthlyAmount && pending.monthlyAmount > 0 ? pending.monthlyAmount : calcMonthlyTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.mode || "presentiel");
+      const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays ?? void 0, pending.ville ?? void 0);
+      const monthlyAmt = pending.monthlyAmount && pending.monthlyAmount > 0 ? pending.monthlyAmount : calcMonthlyTotal(pendingCourses, pending.coursParticuliers, pending.pays ?? void 0, pending.mode || "presentiel");
       const totalAmount = inscriptionAmount + monthlyAmt;
       const result = await prisma_default.$transaction(async (tx) => {
         let user = await tx.user.findUnique({ where: { email: pending.email } });
@@ -2493,6 +2532,7 @@ router3.post("/logout", logout);
 router3.post("/register", registerLimiter, validateBody(registerSchema), register);
 router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
 router3.post("/register-cash", cashRegisterLimiter, registerCash);
+router3.post("/resend-cash-registration-otp", cashRegisterLimiter, resendCashRegistrationOtp);
 router3.post("/confirm-cash-registration", confirmCashRegistration);
 router3.post("/forgot-password", loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
 router3.post("/reset-password", validateBody(resetPasswordSchema), resetPassword);
@@ -4407,6 +4447,151 @@ var paySubscription = async (req, res) => {
     res.status(500).json({ error: "Erreur lors du paiement de la mensualit\xE9" });
   }
 };
+var CASH_PAYMENT_OTP_TTL_MS = 15 * 60 * 1e3;
+var cashPaymentOtpStore = /* @__PURE__ */ new Map();
+var CASH_PAYMENT_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || "ea@exacademie.com";
+function buildCashPaymentOtpEmail(otp, studentName, courseTitle, amount) {
+  return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
+    <h2 style="color:#c97e00;text-align:center">Encaissement en esp\xE8ces</h2>
+    <p>Bonjour,</p>
+    <p>Un encaissement en esp\xE8ces est en attente de confirmation pour <strong>${studentName}</strong> (${courseTitle}) \u2014 montant : <strong>${amount.toLocaleString("fr-FR")} FCFA</strong> :</p>
+    <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
+    <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas effectu\xE9 cette op\xE9ration, ignorez cet email.</p>
+  </div>`;
+}
+async function sendCashPaymentOtpMail(to, otp, studentName, courseTitle, amount) {
+  const nodemailer2 = await import("nodemailer").catch(() => null);
+  if (!nodemailer2) return false;
+  try {
+    const transporter2 = nodemailer2.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: true,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    await transporter2.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject: "Code de confirmation - Encaissement esp\xE8ces",
+      html: buildCashPaymentOtpEmail(otp, studentName, courseTitle, amount)
+    });
+    return true;
+  } catch (err) {
+    logger.error("Cash payment OTP email delivery failed", "subscriptions", err);
+    return false;
+  }
+}
+async function loadActiveSubscription(subscriptionId) {
+  return prisma_default.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { course: true, user: true }
+  });
+}
+var initCashPayment = async (req, res) => {
+  try {
+    const { subscriptionId, months, paidAt } = req.body || {};
+    if (!subscriptionId) return res.status(400).json({ error: "subscriptionId requis" });
+    const nbMonths = Math.max(1, Math.min(24, parseInt(String(months), 10) || 1));
+    const paidDate = paidAt ? new Date(paidAt) : /* @__PURE__ */ new Date();
+    if (isNaN(paidDate.getTime())) return res.status(400).json({ error: "Date de paiement invalide" });
+    if (paidDate.getTime() > Date.now() + 24 * 60 * 60 * 1e3) return res.status(400).json({ error: "La date de paiement ne peut pas \xEAtre dans le futur" });
+    const sub = await loadActiveSubscription(String(subscriptionId));
+    if (!sub) return res.status(404).json({ error: "Abonnement introuvable" });
+    if (sub.status !== "ACTIVE") return res.status(400).json({ error: "Cet abonnement n'est pas actif" });
+    if (sub.coursParticuliers) return res.status(400).json({ error: "Les cours particuliers n'ont pas de mensualit\xE9" });
+    const amount = Number(sub.amount || 0) * nbMonths;
+    const otp = String(Math.floor(1e5 + Math.random() * 9e5));
+    const expiresAt = Date.now() + CASH_PAYMENT_OTP_TTL_MS;
+    cashPaymentOtpStore.set(String(req.user.id), {
+      subscriptionId: sub.id,
+      months: nbMonths,
+      paidAt: paidDate.toISOString(),
+      amount,
+      otp,
+      expiresAt
+    });
+    const studentName = sub.user.name || sub.user.email;
+    const sent = await sendCashPaymentOtpMail(CASH_PAYMENT_OTP_EMAIL, otp, studentName, sub.course?.title || "\u2014", amount);
+    if (!sent) {
+      cashPaymentOtpStore.delete(String(req.user.id));
+      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. R\xE9essayez plus tard." });
+    }
+    logger.info(`Cash payment OTP \u2192 ${CASH_PAYMENT_OTP_EMAIL} (student: ${sub.user.email}, course: ${sub.course?.title}, amount: ${amount})`, "subscriptions");
+    res.status(200).json({ ok: true, amount, months: nbMonths, paidAt: paidDate.toISOString(), otpEmail: CASH_PAYMENT_OTP_EMAIL, expiresAt, expiresInSeconds: Math.floor(CASH_PAYMENT_OTP_TTL_MS / 1e3) });
+  } catch (error) {
+    logger.error("Init cash payment error", "subscriptions", error);
+    res.status(500).json({ error: "Erreur lors de l'encaissement esp\xE8ces" });
+  }
+};
+var resendCashPaymentOtp = async (req, res) => {
+  try {
+    const { subscriptionId } = req.body || {};
+    const stored = cashPaymentOtpStore.get(String(req.user.id));
+    if (!stored || stored.subscriptionId !== String(subscriptionId)) {
+      return res.status(400).json({ error: "Aucun encaissement en attente. Veuillez recommencer." });
+    }
+    const sub = await loadActiveSubscription(stored.subscriptionId);
+    if (!sub) {
+      cashPaymentOtpStore.delete(String(req.user.id));
+      return res.status(404).json({ error: "Abonnement introuvable" });
+    }
+    const otp = String(Math.floor(1e5 + Math.random() * 9e5));
+    const expiresAt = Date.now() + CASH_PAYMENT_OTP_TTL_MS;
+    cashPaymentOtpStore.set(String(req.user.id), { ...stored, otp, expiresAt });
+    const studentName = sub.user.name || sub.user.email;
+    const sent = await sendCashPaymentOtpMail(CASH_PAYMENT_OTP_EMAIL, otp, studentName, sub.course?.title || "\u2014", stored.amount);
+    if (!sent) return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. R\xE9essayez plus tard." });
+    res.status(200).json({ ok: true, expiresAt, expiresInSeconds: Math.floor(CASH_PAYMENT_OTP_TTL_MS / 1e3) });
+  } catch (error) {
+    logger.error("Resend cash payment OTP error", "subscriptions", error);
+    res.status(500).json({ error: "Erreur lors du renvoi du code" });
+  }
+};
+var confirmCashPayment = async (req, res) => {
+  try {
+    const { subscriptionId, otp } = req.body || {};
+    if (!subscriptionId || !otp) return res.status(400).json({ error: "subscriptionId et code OTP requis" });
+    const stored = cashPaymentOtpStore.get(String(req.user.id));
+    if (!stored) return res.status(400).json({ error: "Aucun encaissement en attente. Veuillez recommencer." });
+    if (stored.subscriptionId !== String(subscriptionId)) return res.status(400).json({ error: "Encaissement en attente incoh\xE9rent. Veuillez recommencer." });
+    if (stored.expiresAt < Date.now()) {
+      cashPaymentOtpStore.delete(String(req.user.id));
+      return res.status(400).json({ error: "Le code OTP a expir\xE9. Veuillez recommencer." });
+    }
+    if (stored.otp !== String(otp).trim()) return res.status(400).json({ error: "Code OTP incorrect" });
+    const paidDate = new Date(stored.paidAt);
+    const result = await prisma_default.$transaction(async (tx) => {
+      const sub = await tx.subscription.findUnique({
+        where: { id: stored.subscriptionId },
+        include: { course: true, user: true }
+      });
+      if (!sub || sub.status !== "ACTIVE") throw new Error("Abonnement introuvable ou inactif");
+      const payment = await tx.payment.create({
+        data: {
+          userId: sub.userId,
+          courseId: sub.courseId,
+          amount: stored.amount,
+          status: "SUCCESS",
+          type: "MONTHLY",
+          receiptNumber: generateReceiptNumber(),
+          createdAt: paidDate
+        }
+      });
+      const nextPayment = new Date(paidDate);
+      nextPayment.setMonth(nextPayment.getMonth() + stored.months);
+      await tx.subscription.update({
+        where: { id: sub.id },
+        data: { nextPayment }
+      });
+      return { payment, nextPayment };
+    });
+    cashPaymentOtpStore.delete(String(req.user.id));
+    res.status(201).json({ ok: true, amount: stored.amount, months: stored.months, paidAt: paidDate.toISOString(), nextPayment: result.nextPayment.toISOString(), receiptNumber: result.payment.receiptNumber });
+  } catch (error) {
+    logger.error("Confirm cash payment error", "subscriptions", error);
+    res.status(500).json({ error: "Erreur lors de la confirmation" });
+  }
+};
 
 // server/routes/subscriptionRoutes.ts
 var router14 = Router14();
@@ -4415,6 +4600,9 @@ router14.get("/by-user", requireRole(["ADMIN", "ACCOUNTANT"]), getSubscriptionsB
 router14.get("/my-subscriptions", getMySubscriptions);
 router14.get("/overdue", requireRole(["ADMIN", "ACCOUNTANT", "STUDENT"]), getOverdueItems);
 router14.post("/pay", requireRole(["STUDENT"]), paySubscription);
+router14.post("/cash/init", requireRole(["ADMIN"]), initCashPayment);
+router14.post("/cash/resend", requireRole(["ADMIN"]), resendCashPaymentOtp);
+router14.post("/cash/confirm", requireRole(["ADMIN"]), confirmCashPayment);
 var subscriptionRoutes_default = router14;
 
 // server/routes/contractRoutes.ts

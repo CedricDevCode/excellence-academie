@@ -210,20 +210,61 @@ export const register = async (req: Request, res: Response) => {
 };
 
 // ─── Inscription + Paiement Espèces (OTP) ────────────────────────────────────
+const OTP_TTL_MS = 15 * 60 * 1000;
 const cashOtpStore = new Map<string, { data: any; otp: string; expiresAt: number }>();
 
 // Destinataire par défaut du code de confirmation (mail de l'administration).
 const CASH_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || 'ea@exacademie.com';
 
+function buildOtpEmail(otp: string, cleanEmail: string): string {
+  return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
+    <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
+    <p>Bonjour,</p>
+    <p>Une inscription par paiement en espèces a été initiée pour <strong>${cleanEmail}</strong> et attend votre confirmation :</p>
+    <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
+    <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demandé cette inscription, ignorez cet email.</p>
+  </div>`;
+}
+
+async function sendOtpMail(to: string, cleanEmail: string, otp: string) {
+  const nodemailer = await import('nodemailer').catch(() => null);
+  if (!nodemailer) return false;
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 465,
+      secure: true, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject: 'Code de confirmation - Excellence Académie',
+      html: buildOtpEmail(otp, cleanEmail),
+    });
+    return true;
+  } catch (err: any) {
+    logger.error('Cash OTP email delivery failed', 'auth', err);
+    return false;
+  }
+}
+
 export const registerCash = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance } = req.body;
+    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance, dateInscription } = req.body;
 
     if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
       return res.status(400).json({ error: 'Email, mot de passe et au moins un concours sont requis' });
     }
     if (typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+    // Date d'inscription facultative (par défaut : maintenant)
+    let parsedDateInscription: Date | null = null;
+    if (dateInscription) {
+      const parsed = new Date(dateInscription);
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({ error: "Date d'inscription invalide" });
+      }
+      parsedDateInscription = parsed;
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -239,45 +280,47 @@ export const registerCash = async (req: Request, res: Response) => {
     const regData = {
       email: cleanEmail, passwordHash, password, name, nom, prenom, telephone, pays, ville,
       courseIds, mode, coursParticuliers, dateNaissance,
+      dateInscription: parsedDateInscription ? parsedDateInscription.toISOString() : null,
     };
 
-    cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + 15 * 60 * 1000 });
+    cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + OTP_TTL_MS });
 
-    const nodemailer = await import('nodemailer').catch(() => null);
-    if (!nodemailer) {
+    const otpSent = await sendOtpMail(CASH_OTP_EMAIL, cleanEmail, otp);
+    if (!otpSent) {
       cashOtpStore.delete(cleanEmail);
-      logger.error('Cash OTP: nodemailer indisponible', 'auth');
-      return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. Réessayez plus tard." });
-    }
-
-    try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 465,
-        secure: true, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to: CASH_OTP_EMAIL,
-        subject: 'Code de confirmation - Excellence Académie',
-        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:20px">
-          <h2 style="color:#c97e00;text-align:center">Code de confirmation</h2>
-          <p>Bonjour,</p>
-          <p>Une inscription par paiement en espèces a été initiée pour <strong>${cleanEmail}</strong> et attend votre confirmation :</p>
-          <div style="text-align:center;margin:30px 0"><span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#c97e00;background:#f5f5f5;padding:15px 30px;border-radius:8px">${otp}</span></div>
-          <p style="color:#666;font-size:12px">Ce code expire dans 15 minutes. Si vous n'avez pas demandé cette inscription, ignorez cet email.</p>
-        </div>`
-      });
-    } catch (err: any) {
-      cashOtpStore.delete(cleanEmail);
-      logger.error('Cash OTP email delivery failed', 'auth', err);
       return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. Réessayez plus tard." });
     }
 
     logger.info(`Cash OTP email → ${CASH_OTP_EMAIL} (inscription: ${cleanEmail})`, 'auth');
-    res.status(200).json({ message: 'Code OTP envoyé par email', email: cleanEmail, otpEmail: CASH_OTP_EMAIL });
+    res.status(200).json({ message: 'Code OTP envoyé par email', email: cleanEmail, otpEmail: CASH_OTP_EMAIL, expiresAt: Date.now() + OTP_TTL_MS, expiresInSeconds: Math.floor(OTP_TTL_MS / 1000) });
   } catch (error: any) {
     logger.error('Cash registration error', 'auth', error);
     res.status(500).json({ error: 'Erreur lors de l\'inscription' });
+  }
+};
+
+// Renvoi du code OTP pour une inscription espèces en attente
+export const resendCashRegistrationOtp = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requis' });
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const stored = cashOtpStore.get(cleanEmail);
+    if (!stored) return res.status(400).json({ error: 'Aucune inscription en attente. Veuillez recommencer.' });
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + OTP_TTL_MS;
+    cashOtpStore.set(cleanEmail, { ...stored, otp, expiresAt });
+
+    const sent = await sendOtpMail(CASH_OTP_EMAIL, cleanEmail, otp);
+    if (!sent) return res.status(500).json({ error: "Impossible d'envoyer le code de confirmation par email. Réessayez plus tard." });
+
+    logger.info(`Cash OTP renvoyé → ${CASH_OTP_EMAIL} (inscription: ${cleanEmail})`, 'auth');
+    res.status(200).json({ message: 'Code OTP renvoyé par email', expiresAt, expiresInSeconds: Math.floor(OTP_TTL_MS / 1000) });
+  } catch (error: any) {
+    logger.error('Resend cash OTP error', 'auth', error);
+    res.status(500).json({ error: 'Erreur lors du renvoi du code' });
   }
 };
 
@@ -295,6 +338,10 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
     const d = stored.data;
     // Ne PAS supprimer l'OTP ici : on le conserve jusqu'à la fin de la transaction.
     // En cas d'échec, l'admin peut réessayer avec le même code (fenêtre de 15 min).
+
+    // Date d'inscription : celle choisie par l'admin (défaut : maintenant).
+    // Elle fixe la date de création du compte, des paiements et la prochaine mensualité.
+    const inscriptionDate = d.dateInscription ? new Date(d.dateInscription) : new Date();
 
     const courses = await prisma.course.findMany({ where: { id: { in: d.courseIds } } });
     const cParticuliers = d.coursParticuliers === true || d.coursParticuliers === 'true';
@@ -314,7 +361,7 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
         data: {
           email: cleanEmail, password: d.passwordHash, name: d.name,
           telephone: d.telephone, pays: d.pays, ville: d.ville,
-          role: 'STUDENT', isActive: true, matricule,
+          role: 'STUDENT', isActive: true, matricule, createdAt: inscriptionDate,
         },
       });
 
@@ -329,6 +376,7 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
             status: 'SUCCESS',
             type: 'REGISTRATION',
             receiptNumber: generateReceiptNumber(),
+            createdAt: inscriptionDate,
           },
         });
         regPaymentId = regPayment.id;
@@ -344,13 +392,15 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
             status: 'SUCCESS',
             type: 'MONTHLY',
             receiptNumber: generateReceiptNumber(),
+            createdAt: inscriptionDate,
           },
         });
       }
 
       // Un abonnement par concours, avec la mensualité propre à chaque concours
       for (const course of courses) {
-        const nextPayment = new Date();
+        // La prochaine mensualité est définie à partir de la date d'inscription
+        const nextPayment = new Date(inscriptionDate);
         nextPayment.setMonth(nextPayment.getMonth() + 1);
         await tx.subscription.create({
           data: {
@@ -685,10 +735,10 @@ export const confirmPayment = async (req: Request, res: Response) => {
 
       const courseIdList: string[] = Array.isArray(pending.courseIds) ? pending.courseIds : [];
       const pendingCourses = await prisma.course.findMany({ where: { id: { in: courseIdList } } });
-      const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.ville);
+      const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays ?? undefined, pending.ville ?? undefined);
       const monthlyAmt = pending.monthlyAmount && pending.monthlyAmount > 0
         ? pending.monthlyAmount
-        : calcMonthlyTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.mode || 'presentiel');
+        : calcMonthlyTotal(pendingCourses, pending.coursParticuliers, pending.pays ?? undefined, pending.mode || 'presentiel');
       const totalAmount = inscriptionAmount + monthlyAmt;
 
       // Transaction atomique : utilisateur + paiement + abonnements
