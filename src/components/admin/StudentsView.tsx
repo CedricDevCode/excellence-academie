@@ -36,7 +36,7 @@ function StudentsView() {
   const [courses, setCourses] = useState<any[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ nom: '', prenom: '', email: '', telephone: '', ville: '', isActive: true });
+  const [editForm, setEditForm] = useState({ nom: '', prenom: '', email: '', telephone: '', ville: '', isActive: true, courseIds: [] as string[] });
 
   const [showPaymentsModal, setShowPaymentsModal] = useState(false);
   const [paymentsStudent, setPaymentsStudent] = useState<any>(null);
@@ -61,6 +61,7 @@ function StudentsView() {
   const getStudentCourses = (u: any) => {
     const list = new Map<string, string>();
     u.subscriptions?.forEach((s: any) => {
+      if (s.status === 'CANCELLED') return;
       if (s.course?.id && s.course?.title) list.set(s.course.id, s.course.title);
       else if (s.courseId) list.set(s.courseId, s.course?.title || s.courseId);
     });
@@ -233,6 +234,7 @@ function StudentsView() {
       telephone: student.telephone || '',
       ville: student.ville || '',
       isActive: student.isActive !== false,
+      courseIds: getStudentCourses(student).map((c: any) => c.id),
     });
     setShowEditModal(true);
   };
@@ -242,14 +244,15 @@ function StudentsView() {
     if (!editingStudent) return;
     setSubmitting(true);
     try {
-      const updated = await updateUser(editingStudent.id, {
+      await updateUser(editingStudent.id, {
         prenom: editForm.prenom,
         nom: editForm.nom,
         email: editForm.email,
         telephone: editForm.telephone,
         ville: editForm.ville,
+        courseIds: editForm.courseIds,
       });
-      setUsers(users.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+      loadUsers();
       setShowEditModal(false);
       setEditingStudent(null);
       toast('success', 'Étudiant modifié avec succès');
@@ -905,6 +908,34 @@ function StudentsView() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ville</label>
                 <input value={editForm.ville} onChange={e => setEditForm({ ...editForm, ville: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Formation(s)</label>
+                <div className="max-h-40 overflow-y-auto border-2 border-gray-200 rounded p-2 space-y-1">
+                  {courses.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic px-1">Aucune formation disponible</p>
+                  ) : (
+                    courses.map((c: any) => (
+                      <label key={c.id} className="flex items-center gap-2 px-1 py-1 text-sm cursor-pointer hover:bg-gray-50 rounded">
+                        <input
+                          type="checkbox"
+                          checked={editForm.courseIds.includes(c.id)}
+                          onChange={e => setEditForm(f => ({
+                            ...f,
+                            courseIds: e.target.checked
+                              ? [...f.courseIds, c.id]
+                              : f.courseIds.filter(id => id !== c.id),
+                          }))}
+                          className="accent-[#c97e00]"
+                        />
+                        <span className="text-gray-700">{c.title}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {editForm.courseIds.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">Sélectionnez au moins une formation pour cet étudiant.</p>
+                )}
               </div>
               </div>
               <div className="p-6 pt-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">

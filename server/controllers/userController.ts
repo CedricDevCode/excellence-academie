@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import prisma from '../utils/prisma';
+import { calcMonthlyTotal } from '../constants';
 
 // Champs sûrs à exposer pour un utilisateur (exclut le mot de passe)
 const USER_SAFE_SELECT = {
@@ -27,7 +28,7 @@ const USER_SAFE_SELECT = {
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, parseInt((req.query.page as string) || '1'));
-    const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || '50')));
+    const limit = Math.min(1000, Math.max(1, parseInt((req.query.limit as string) || '50')));
     const skip = (page - 1) * limit;
     const search = (req.query.search as string)?.trim();
     const role = req.query.role as string | undefined;
@@ -156,7 +157,7 @@ export const createUser = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate, studentIds } = req.body;
+    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate, studentIds, courseIds } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID utilisateur requis' });
@@ -199,6 +200,51 @@ export const updateUser = async (req: Request, res: Response) => {
         await prisma.parentStudent.createMany({
           data: studentIds.map((sid: string) => ({ parentId: id, studentId: sid })),
           skipDuplicates: true,
+        });
+      }
+    }
+
+    // Met à jour les formations d'un étudiant : ajoute les abonnements manquants,
+    // réactive ceux qui avaient été annulés et annule ceux retirés de la sélection.
+    // Permet de corriger les étudiants inscrits sans formation.
+    if (Array.isArray(courseIds) && user.role === 'STUDENT') {
+      const courses = await prisma.course.findMany({ where: { id: { in: courseIds } } });
+      const subscriptions = await prisma.subscription.findMany({ where: { userId: id } });
+      const byCourse = new Map(subscriptions.map(s => [s.courseId, s]));
+      const activeSub = subscriptions.find(s => s.status === 'ACTIVE');
+      const formule = activeSub?.formule || 'presentiel';
+      const nextPayment = new Date();
+      nextPayment.setMonth(nextPayment.getMonth() + 1);
+
+      for (const course of courses) {
+        const amount = calcMonthlyTotal([course], false, user.pays || undefined, formule);
+        const existing = byCourse.get(course.id);
+        if (!existing) {
+          await prisma.subscription.create({
+            data: {
+              userId: id,
+              courseId: course.id,
+              amount,
+              status: 'ACTIVE',
+              nextPayment,
+              formule,
+              coursParticuliers: false,
+            },
+          });
+        } else if (existing.status !== 'ACTIVE') {
+          await prisma.subscription.update({
+            where: { id: existing.id },
+            data: { status: 'ACTIVE', amount, nextPayment },
+          });
+        }
+      }
+
+      const keep = new Set(courses.map(c => c.id));
+      const toCancel = subscriptions.filter(s => !keep.has(s.courseId) && s.status !== 'CANCELLED');
+      if (toCancel.length > 0) {
+        await prisma.subscription.updateMany({
+          where: { id: { in: toCancel.map(s => s.id) } },
+          data: { status: 'CANCELLED' },
         });
       }
     }
