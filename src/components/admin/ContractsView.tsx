@@ -25,16 +25,16 @@ export default function ContractsView() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-black text-gray-900 flex items-center gap-2">
-            <FileText size={18} className="text-[#c97e00]" /> Contrats signés
+            <FileText size={18} className="text-[#c97e00]" /> Contrats
           </h2>
-          <p className="text-gray-500 text-sm mt-1">{contracts.length} contrat(s) signé(s)</p>
+          <p className="text-gray-500 text-sm mt-1">{contracts.filter((c: any) => c.signatureData).length} signé(s) / {contracts.length} au total</p>
         </div>
       </div>
 
       {contracts.length === 0 ? (
         <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
           <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-400 text-sm">Aucun contrat signé pour le moment</p>
+          <p className="text-gray-400 text-sm">Aucun contrat pour le moment</p>
         </div>
       ) : (
         <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
@@ -56,14 +56,17 @@ export default function ContractsView() {
                     <td className="py-3 px-4 text-sm text-gray-700">{c.user?.telephone || "—"}</td>
                     <td className="py-3 px-4 text-sm text-gray-700">{c.user?.pays || "—"}</td>
                     <td className="py-3 px-4 text-sm text-gray-500">
-                      {new Date(c.signedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                      {c.signatureData
+                        ? new Date(c.signedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                        : <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">En attente</span>}
                     </td>
                     <td className="py-3 px-4">
                       <button
-                        onClick={() => setSelectedContract(selectedContract?.id === c.id ? null : c)}
-                        className="px-3 py-1.5 bg-[#c97e00] text-white rounded-lg text-xs font-semibold hover:bg-[#6b4500] whitespace-nowrap"
+                        onClick={() => c.signatureData && setSelectedContract(selectedContract?.id === c.id ? null : c)}
+                        disabled={!c.signatureData}
+                        className="px-3 py-1.5 bg-[#c97e00] text-white rounded-lg text-xs font-semibold hover:bg-[#6b4500] whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        {selectedContract?.id === c.id ? 'Masquer' : 'Voir le contrat'}
+                        {!c.signatureData ? 'Non signé' : selectedContract?.id === c.id ? 'Masquer' : 'Voir le contrat'}
                       </button>
                     </td>
                   </tr>

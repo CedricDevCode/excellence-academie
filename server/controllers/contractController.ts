@@ -13,19 +13,25 @@ export const signContract = async (req: Request, res: Response) => {
     }
 
     const existing = await prisma.contract.findFirst({ where: { userId } });
-    if (existing) {
+    if (existing?.signatureData) {
       return res.status(400).json({ error: 'Vous avez déjà signé le contrat' });
     }
 
-    const contract = await prisma.contract.create({
-      data: {
-        userId,
-        paymentId: paymentId || null,
-        signatureData,
-        ipAddress: req.ip || '',
-        userAgent: req.headers['user-agent'] || '',
-      },
-    });
+    const signatureFields = {
+      signatureData,
+      ipAddress: req.ip || '',
+      userAgent: req.headers['user-agent'] || '',
+      signedAt: new Date(),
+    };
+
+    const contract = existing
+      ? await prisma.contract.update({
+        where: { id: existing.id },
+        data: { ...signatureFields, paymentId: paymentId || existing.paymentId },
+      })
+      : await prisma.contract.create({
+        data: { userId, paymentId: paymentId || null, ...signatureFields },
+      });
 
     // Send in-app notifications
     try {
@@ -99,6 +105,12 @@ export const getSignedPdf = async (req: Request, res: Response) => {
 
     if (!contract) {
       return res.status(404).json({ error: 'Contrat introuvable' });
+    }
+
+    // Seul le titulaire ou un membre du personnel peut télécharger le PDF signé
+    const staffRoles = ['ADMIN', 'ACCOUNTANT', 'SECRETARY'];
+    if (contract.userId !== req.user.id && !staffRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Accès refusé à ce contrat' });
     }
 
     if (!contract.signatureData) {

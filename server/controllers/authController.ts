@@ -318,8 +318,9 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
       });
 
       // Frais d'inscription → comptabilisés dans les revenus
+      let regPaymentId: string | null = null;
       if (regPrice > 0) {
-        await tx.payment.create({
+        const regPayment = await tx.payment.create({
           data: {
             userId: created.id,
             courseId: paymentCourseId,
@@ -330,6 +331,7 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
             description: `Frais d'inscription (espèces) - ${new Date().toLocaleDateString('fr-FR')}`,
           },
         });
+        regPaymentId = regPayment.id;
       }
 
       // 1ère mensualité → comptabilisée dans les revenus
@@ -363,6 +365,10 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
           },
         });
       }
+
+      // L'étape de signature du contrat a été retirée de l'inscription :
+      // on crée un contrat en attente, que l'étudiant signera depuis son tableau de bord.
+      await tx.contract.create({ data: { userId: created.id, paymentId: regPaymentId } });
 
       return created;
     });
@@ -710,6 +716,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
         const existingPayment = await tx.payment.findFirst({
           where: { geniusPayReference: reference },
         });
+        let paymentId: string | null = existingPayment?.id ?? null;
 
         if (!existingPayment) {
           const payment = await tx.payment.create({
@@ -720,8 +727,16 @@ export const confirmPayment = async (req: Request, res: Response) => {
               geniusPayReference: reference,
             },
           });
+          paymentId = payment.id;
           const receiptNumber = generateReceiptNumber();
           await tx.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
+        }
+
+        // L'étape de signature du contrat a été retirée de l'inscription :
+        // on crée un contrat en attente, que l'étudiant signera depuis son tableau de bord.
+        const existingContract = await tx.contract.findFirst({ where: { userId: user.id } });
+        if (!existingContract && user.role === 'STUDENT') {
+          await tx.contract.create({ data: { userId: user.id, paymentId } });
         }
 
         for (const cId of courseIdList) {

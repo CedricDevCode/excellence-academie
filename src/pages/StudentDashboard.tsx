@@ -1016,7 +1016,8 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
     }
   };
 
-  const signedPdfUrl = contract ? getSignedContractPdfUrl(contract.id) : undefined;
+  const isSigned = Boolean(contract?.signatureData);
+  const signedPdfUrl = isSigned ? getSignedContractPdfUrl(contract.id) : undefined;
 
   return (
     <div className="space-y-6">
@@ -1034,12 +1035,12 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
         </div>
       )}
 
-      {contract ? (
+      {isSigned ? (
         <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 bg-green-50">
             <div className="flex items-center gap-2">
               <CheckCircle size={18} className="text-green-600" />
-              <span className="font-bold text-green-800">Contrat signé le {new Date(contract.signedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span>
+              <span className="font-bold text-green-800">Contrat signé le {contract.signedAt ? new Date(contract.signedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "—"}</span>
             </div>
           </div>
           <div className="p-6">
@@ -1137,7 +1138,6 @@ export default function StudentDashboard() {
   const [overdueItems, setOverdueItems] = useState<any[]>([]);
   const [notifs, setNotifs] = useState<any[]>([]);
   const [contract, setContract] = useState<any>(null);
-  const [contractLoading, setContractLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -1210,19 +1210,6 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (user) {
-      const pendingSignature = sessionStorage.getItem('pending_contract_signature');
-      const pendingEmail = sessionStorage.getItem('pending_contract_email');
-      if (pendingSignature && pendingEmail === user.email) {
-        setContractLoading(true);
-        signContract({ signatureData: pendingSignature })
-          .then(() => {
-            sessionStorage.removeItem('pending_contract_signature');
-            sessionStorage.removeItem('pending_contract_email');
-            loadData();
-          })
-          .catch(() => {})
-          .finally(() => setContractLoading(false));
-      }
       fetchMyContract().then(setContract).catch(() => {});
     }
   }, [user]);

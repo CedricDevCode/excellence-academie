@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCourses, registerAndPay, getMe } from "../utils/api";
-import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, FileText, Loader2, AlertCircle, Sparkles, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, Loader2, AlertCircle, Sparkles, Lock } from "lucide-react";
 import { StudentPersonalFields, StudentProgramFields } from "./StudentRegistrationFields";
 import { MODES, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora } from "../constants/student";
 import { paymentMethods } from "../utils/payment";
-import ContractView from "./ContractView";
 
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -52,7 +51,6 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     geniusPhone: "",
     cgu: false,
   });
-  const [signature, setSignature] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -63,7 +61,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
 
   const update = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
 
-  const steps = ["Infos personnelles", "Formation", "Récapitulatif", "Contrat", "Paiement"];
+  const steps = ["Infos personnelles", "Formation", "Récapitulatif", "Paiement"];
 
   const validateStep = (s: number): boolean => {
     if (s === 1) {
@@ -79,9 +77,6 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       if (form.courseIds.length === 0) { setError("Veuillez sélectionner au moins un concours."); return false; }
       if (!isDiaspora(form.pays) && !form.mode) { setError("Veuillez choisir un mode de formation."); return false; }
     }
-    if (s === 4) {
-      if (!signature) { setError("Veuillez signer le contrat avant de continuer."); return false; }
-    }
     return true;
   };
 
@@ -95,11 +90,6 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     if (!form.paymentMethod) { setError("Veuillez choisir un moyen de paiement."); return; }
     if (form.paymentMethod !== "especes" && !form.geniusPhone) { setError("Veuillez entrer votre numéro de téléphone pour le paiement."); return; }
     if (!embedded && !form.cgu) { setError("Vous devez accepter les conditions générales."); return; }
-
-    if (signature) {
-      sessionStorage.setItem('pending_contract_signature', signature);
-      sessionStorage.setItem('pending_contract_email', form.email);
-    }
 
     setSubmitting(true);
     try {
@@ -229,7 +219,11 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   }));
 
   const handleMethodSelect = (methodId: string) => {
-    update("paymentMethod", methodId);
+    setForm(f => ({
+      ...f,
+      paymentMethod: methodId,
+      geniusPhone: f.geniusPhone || f.telephone || "",
+    }));
     setError(null);
   };
 
@@ -337,13 +331,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         </div>
       )}
 
-      {step === 4 && (
-        <div className="space-y-5">
-          <ContractView onSign={setSignature} signatureData={signature} studentName={`${form.prenom} ${form.nom}`.trim()} />
-        </div>
-      )}
-
-      {step === 5 && !otpStep && (
+      {step === 4 && !otpStep && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 mb-6">
             <CreditCard size={20} className="text-[#c97e00]" />
@@ -421,7 +409,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         </div>
       )}
 
-      {step === 5 && otpStep && (
+      {step === 4 && otpStep && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 mb-6">
             <Lock size={20} className="text-[#c97e00]" />
@@ -472,11 +460,6 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         ) : step === 3 ? (
           <button type="button" onClick={() => { setError(null); setStep(4); }}
             className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#c97e00] hover:bg-[#6b4500] text-white font-bold text-xs sm:text-sm rounded transition-all shadow-md hover:shadow-lg">
-            <FileText size={14} /> Voir le contrat <ArrowRight size={14} />
-          </button>
-        ) : step === 4 ? (
-          <button type="button" onClick={goNextStep}
-            className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs sm:text-sm rounded transition-all shadow-md hover:shadow-lg">
             Procéder au paiement <ArrowRight size={14} />
           </button>
         ) : (

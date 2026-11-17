@@ -275,8 +275,8 @@ model Contract {
   userId        String
   user          User     @relation(fields: [userId], references: [id])
   paymentId     String?
-  signatureData String
-  signedAt      DateTime @default(now())
+  signatureData String?
+  signedAt      DateTime?
   ipAddress     String?
   userAgent     String?
   createdAt     DateTime @default(now())
