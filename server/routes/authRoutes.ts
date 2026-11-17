@@ -22,10 +22,12 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true, // Ne compte que les échecs
 });
 
-/** 5 inscriptions par IP par heure */
+/** Inscriptions : limite par défaut généreuse car plusieurs étudiants s'inscrivent
+ *  souvent depuis la même adresse (établissement, cybercafé, réseau partagé).
+ *  Configurable via REGISTER_RATE_MAX / REGISTER_RATE_WINDOW_MS. */
 const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
+  windowMs: Number(process.env.REGISTER_RATE_WINDOW_MS) || 60 * 60 * 1000,
+  max: Number(process.env.REGISTER_RATE_MAX) || 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -33,14 +35,26 @@ const registerLimiter = rateLimit({
   },
 });
 
-/** 3 tentatives d'initiation de paiement par IP par heure */
-const paymentInitLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 3,
+/** Inscriptions en espèces : réalisées par le personnel pour plusieurs étudiants
+ *  d'affilée, donc limite nettement plus élevée que l'inscription publique. */
+const cashRegisterLimiter = rateLimit({
+  windowMs: Number(process.env.REGISTER_RATE_WINDOW_MS) || 60 * 60 * 1000,
+  max: Number(process.env.CASH_REGISTER_RATE_MAX) || 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: 'Trop de tentatives de paiement. Veuillez réessayer dans une heure.',
+    error: "Trop d'inscriptions en espèces depuis cette adresse. Veuillez réessayer dans une heure.",
+  },
+});
+
+/** Initiations de paiement : une même adresse peut inscrire plusieurs étudiants. */
+const paymentInitLimiter = rateLimit({
+  windowMs: Number(process.env.REGISTER_RATE_WINDOW_MS) || 60 * 60 * 1000,
+  max: Number(process.env.PAYMENT_INIT_RATE_MAX) || 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Trop de tentatives de paiement depuis cette adresse. Veuillez réessayer dans une heure.',
   },
 });
 
@@ -49,7 +63,7 @@ router.post('/login', loginLimiter, validateBody(loginSchema), login);
 router.post('/logout', logout);
 router.post('/register', registerLimiter, validateBody(registerSchema), register);
 router.post('/register-and-pay', registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
-router.post('/register-cash', registerLimiter, registerCash);
+router.post('/register-cash', cashRegisterLimiter, registerCash);
 router.post('/confirm-cash-registration', confirmCashRegistration);
 router.post('/forgot-password', loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validateBody(resetPasswordSchema), resetPassword);

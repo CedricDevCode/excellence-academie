@@ -148,7 +148,7 @@ if (!process.env.JWT_SECRET) {
 // ─── Rate Limiting global ─────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 400, // 400 requêtes par fenêtre (un catalogue complet génère beaucoup d'appels)
+  max: Number(process.env.GLOBAL_RATE_MAX) || 1500, // inscriptions groupées + navigation catalogue
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes. Réessayez dans 15 minutes.' },
