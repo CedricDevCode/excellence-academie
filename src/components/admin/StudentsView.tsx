@@ -12,6 +12,7 @@ import {
 } from "../../utils/api";
 import OtpCountdown from "../OtpCountdown";
 import { useToast } from "../Toast";
+import ConfirmDialog from "../ui/ConfirmDialog";
 import LoadingSpinner from "./LoadingSpinner";
 import StudentRegistrationForm from "../StudentRegistrationForm";
 import { calcRegistrationTotal, calcMonthlyTotal, PAYS, VILLES, isDiaspora } from "../../constants/student";
@@ -47,7 +48,12 @@ function StudentsView() {
   const [studentSubscriptions, setStudentSubscriptions] = useState<any[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsTab, setPaymentsTab] = useState<'paid' | 'unpaid' | 'upcoming'>('paid');
-  const { toast, confirm } = useToast();
+  const { toast } = useToast();
+
+  // Suppression étudiant : modale de confirmation premium
+  const [studentToDelete, setStudentToDelete] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Encaissement espèces (admin, OTP requis)
   const [cashPaySub, setCashPaySub] = useState<any>(null);
@@ -482,15 +488,24 @@ function StudentsView() {
     }
   };
 
-  const handleDeleteStudent = async (student: any) => {
-    const confirmed = await confirm(`Supprimer ${student.name || student.email} ?`);
-    if (!confirmed) return;
+  const handleDeleteStudent = (student: any) => {
+    setDeleteError(null);
+    setStudentToDelete(student);
+  };
+
+  const confirmDeleteStudent = async () => {
+    if (!studentToDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
     try {
-      await deleteUser(student.id);
-      setUsers(users.filter(u => u.id !== student.id));
+      await deleteUser(studentToDelete.id);
+      setUsers(users.filter(u => u.id !== studentToDelete.id));
+      setStudentToDelete(null);
       toast('success', 'Étudiant supprimé');
     } catch (err: any) {
-      toast('error', err?.message || 'Erreur lors de la suppression');
+      setDeleteError(err?.message || 'Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1277,20 +1292,27 @@ function StudentsView() {
                     <input id="completion-paidat" type="date" value={completionPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
                   </div>
 
-                  <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 space-y-1.5">
-                    <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-surface-500">Frais d'inscription</span>
-                      <span className="font-bold text-surface-900 tabular-nums">{completionRegPrice.toLocaleString('fr-FR')} FCFA</span>
+                  {selectedCompletionCourses.length > 0 ? (
+                    <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 space-y-1.5">
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-surface-500">Frais d'inscription</span>
+                        <span className="font-bold text-surface-900 tabular-nums">{completionRegPrice.toLocaleString('fr-FR')} FCFA</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-surface-500">1ère mensualité</span>
+                        <span className="font-bold text-surface-900 tabular-nums">{completionMonthly.toLocaleString('fr-FR')} FCFA</span>
+                      </div>
+                      <div className="border-t border-primary-200/70 pt-1.5 flex items-center justify-between gap-3">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-surface-500">Total à encaisser</span>
+                        <span className="text-xl font-black text-primary-800 tabular-nums">{completionAmount.toLocaleString('fr-FR')} <span className="text-xs">FCFA</span></span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-surface-500">1ère mensualité</span>
-                      <span className="font-bold text-surface-900 tabular-nums">{completionMonthly.toLocaleString('fr-FR')} FCFA</span>
+                  ) : (
+                    <div className="rounded border border-dashed border-surface-300 bg-surface-50/60 p-4 text-center">
+                      <p className="text-xs font-semibold text-surface-500">Sélectionnez au moins une formation</p>
+                      <p className="text-[11px] text-surface-400 mt-0.5">Les montants seront calculés automatiquement</p>
                     </div>
-                    <div className="border-t border-primary-200/70 pt-1.5 flex items-center justify-between gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-surface-500">Total à encaisser</span>
-                      <span className="text-xl font-black text-primary-800 tabular-nums">{completionAmount.toLocaleString('fr-FR')} <span className="text-xs">FCFA</span></span>
-                    </div>
-                  </div>
+                  )}
 
                   <button type="button" onClick={startCompletion} disabled={completionLoading || completionCourseIds.length === 0}
                     className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded transition-all shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
@@ -1334,6 +1356,45 @@ function StudentsView() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!studentToDelete}
+        title="Supprimer cet étudiant ?"
+        description="Cette action est définitive et irréversible."
+        confirmLabel="Supprimer"
+        cancelLabel="Garder l'étudiant"
+        loading={deleting}
+        error={deleteError}
+        icon={<Trash2 size={30} strokeWidth={2.2} />}
+        onConfirm={confirmDeleteStudent}
+        onCancel={() => { if (!deleting) { setStudentToDelete(null); setDeleteError(null); } }}
+      >
+        {studentToDelete && (
+          <div className="space-y-3">
+            {/* Identité de l'étudiant */}
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-rose-100 bg-rose-50/50">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-800 text-white flex items-center justify-center text-base font-black shrink-0">
+                {((studentToDelete.name?.[0] || '?') + (studentToDelete.name?.split(' ')[1]?.[0] || '')).toUpperCase().slice(0, 2)}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-surface-900 truncate">{studentToDelete.name || 'Sans nom'}</p>
+                <p className="text-xs text-surface-500 truncate">{studentToDelete.email}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {studentToDelete.matricule && <span className="text-[10px] font-mono text-surface-400">Matr. {studentToDelete.matricule}</span>}
+                  {studentToDelete.ville && <span className="text-[10px] text-surface-400 flex items-center gap-0.5"><MapPin size={9} />{studentToDelete.ville}</span>}
+                </div>
+              </div>
+            </div>
+            {/* Conséquences */}
+            <ul className="text-[11px] text-surface-500 space-y-1 pl-1">
+              <li className="flex items-start gap-1.5"><span className="text-rose-500 font-black leading-none mt-0.5">•</span> Le compte, les paiements, les abonnements et les contrats seront supprimés</li>
+              <li className="flex items-start gap-1.5"><span className="text-rose-500 font-black leading-none mt-0.5">•</span> L'étudiant ne pourra plus se connecter à son espace</li>
+              <li className="flex items-start gap-1.5"><span className="text-rose-500 font-black leading-none mt-0.5">•</span> Les reçus et historiques associés seront perdus</li>
+            </ul>
+          </div>
+        )}
+      </ConfirmDialog>
 
       {/* Edit Student Modal */}
       {showEditModal && editingStudent && (

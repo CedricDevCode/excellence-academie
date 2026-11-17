@@ -30,7 +30,7 @@ import { useToast } from "../Toast";
 import LoadingSpinner from "./LoadingSpinner";
 import { CATEGORY_COLORS, DEFAULT_CATEGORY_COLOR } from "./helpers";
 
-// ─── Formations & Concours View ───────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Formations & Concours View Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function FormationsView() {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,10 +47,10 @@ function FormationsView() {
     // Zone 1: Abidjan
     registrationFee: '45000',
     monthlyFee: '30000',
-    // Zone 2: Intérieur CI (toutes les villes sauf Abidjan)
+    // Zone 2: IntÃƒÂ©rieur CI (toutes les villes sauf Abidjan)
     registrationFeeInterieur: '35000',
     monthlyFeeInterieur: '25000',
-    // Zone 3: Diaspora (hors Côte d'Ivoire)
+    // Zone 3: Diaspora (hors CÃƒÂ´te d'Ivoire)
     registrationFeeDiaspora: '100000',
     monthlyFeeDiaspora: '35000',
     // Mode-specific monthly fees
@@ -73,10 +73,10 @@ function FormationsView() {
   const CATEGORY_PRESETS = [
     'Concours Juridiques & Judiciaires',
     'Administration Publique',
-    'Sécurité & Force Publique',
-    'Technologies & Métiers Numériques',
-    'Santé & Paramédical',
-    'Éducation & Enseignement',
+    'SÃƒÂ©curitÃƒÂ© & Force Publique',
+    'Technologies & MÃƒÂ©tiers NumÃƒÂ©riques',
+    'SantÃƒÂ© & ParamÃƒÂ©dical',
+    'Ãƒâ€°ducation & Enseignement',
     'Finances & Gestion',
   ];
 
@@ -105,7 +105,7 @@ function FormationsView() {
   // Compute categories: prefer DB categories, fallback to presets + course categories
   const availableCategories = useMemo(() => {
     if (dbCategories.length > 0) return dbCategories.map((c: any) => c.name);
-    const fromCourses = courses.map(c => c.category || 'Général').filter(Boolean);
+    const fromCourses = courses.map(c => c.category || 'GÃƒÂ©nÃƒÂ©ral').filter(Boolean);
     const combined = Array.from(new Set([...CATEGORY_PRESETS, ...fromCourses]));
     return combined;
   }, [courses, dbCategories]);
@@ -119,7 +119,7 @@ function FormationsView() {
   // Filtered courses
   const filteredCourses = useMemo(() => {
     return courses.filter(c => {
-      const matchesCategory = selectedCategory === 'ALL' || (c.category || 'Général') === selectedCategory;
+      const matchesCategory = selectedCategory === 'ALL' || (c.category || 'GÃƒÂ©nÃƒÂ©ral') === selectedCategory;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch = !q ||
         (c.title || '').toLowerCase().includes(q) ||
@@ -197,7 +197,7 @@ function FormationsView() {
       return;
     }
     if (!form.hasPresentiel && !form.hasOnline) {
-      toast('error', 'Veuillez cocher au moins un mode de formation (Présentiel ou En ligne)');
+      toast('error', 'Veuillez cocher au moins un mode de formation (PrÃƒÂ©sentiel ou En ligne)');
       return;
     }
 
@@ -211,7 +211,7 @@ function FormationsView() {
     const mFeeBoth = Number(form.monthlyFeeBoth) || 35000;
 
     const finalCategory = isCustomCategory
-      ? (customCategory.trim() || 'Général')
+      ? (customCategory.trim() || 'GÃƒÂ©nÃƒÂ©ral')
       : form.category;
 
     setSubmitting(true);
@@ -235,10 +235,10 @@ function FormationsView() {
 
       if (form.id) {
         await updateCourse(form.id, payload);
-        toast('success', 'Formation modifiée avec succès');
+        toast('success', 'Formation modifiÃƒÂ©e avec succÃƒÂ¨s');
       } else {
         await createCourse(payload);
-        toast('success', 'Nouvelle formation ajoutée avec succès');
+        toast('success', 'Nouvelle formation ajoutÃƒÂ©e avec succÃƒÂ¨s');
       }
 
       await loadCourses();
@@ -256,7 +256,7 @@ function FormationsView() {
     setDeleting(true);
     try {
       await deleteCourse(courseToDelete.id);
-      toast('success', `La formation "${courseToDelete.title}" a été supprimée`);
+      toast('success', `La formation "${courseToDelete.title}" a ÃƒÂ©tÃƒÂ© supprimÃƒÂ©e`);
       setCourseToDelete(null);
       await loadCourses();
     } catch (err: any) {
@@ -269,7 +269,7 @@ function FormationsView() {
 
   if (loading) return <LoadingSpinner />;
 
-  // ─── Modal / Full-page form view ──────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Modal / Full-page form view Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   if (showForm) {
     return (
       <div className="space-y-6 pb-12 animate-fadeIn">
@@ -279,9 +279,9 @@ function FormationsView() {
             <button
               onClick={() => setShowForm(false)}
               className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors font-bold text-base"
-              title="Retour à la liste"
+              title="Retour ÃƒÂ  la liste"
             >
-              ←
+              Ã¢â€ Â
             </button>
             <div className="flex items-center gap-3">
               <span className="p-3 rounded-xl bg-linear-to-br from-[#c97e00] to-amber-600 text-white shadow-md">
@@ -289,10 +289,10 @@ function FormationsView() {
               </span>
               <div>
                 <h2 className="text-xl font-black text-gray-900">
-                  {form.id ? 'Modifier la formation / concours' : 'Créer une nouvelle formation'}
+                  {form.id ? 'Modifier la formation / concours' : 'CrÃƒÂ©er une nouvelle formation'}
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Configurez le programme, les modes et les tarifs officiels par zone géographique
+                  Configurez le programme, les modes et les tarifs officiels par zone gÃƒÂ©ographique
                 </p>
               </div>
             </div>
@@ -312,7 +312,7 @@ function FormationsView() {
               className="flex items-center gap-2 bg-[#c97e00] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#7a4b00] transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer"
             >
               {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              <span>{form.id ? 'Mettre à jour' : 'Enregistrer la formation'}</span>
+              <span>{form.id ? 'Mettre ÃƒÂ  jour' : 'Enregistrer la formation'}</span>
             </button>
           </div>
         </div>
@@ -325,7 +325,7 @@ function FormationsView() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
               <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
                 <BookOpen size={18} className="text-[#c97e00]" />
-                <h3 className="font-black text-gray-900 text-sm uppercase tracking-wide">Informations Générales</h3>
+                <h3 className="font-black text-gray-900 text-sm uppercase tracking-wide">Informations GÃƒÂ©nÃƒÂ©rales</h3>
               </div>
 
               {/* Titre */}
@@ -343,10 +343,10 @@ function FormationsView() {
                 />
               </div>
 
-              {/* Catégorie */}
+              {/* CatÃƒÂ©gorie */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                  Catégorie de la formation *
+                  CatÃƒÂ©gorie de la formation *
                 </label>
                 <select
                   value={isCustomCategory ? 'CUSTOM' : form.category}
@@ -363,7 +363,7 @@ function FormationsView() {
                   {formCategoryOptions.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
-                  <option value="CUSTOM">+ Autre catégorie personnalisée...</option>
+                  <option value="CUSTOM">+ Autre catÃƒÂ©gorie personnalisÃƒÂ©e...</option>
                 </select>
 
                 {isCustomCategory && (
@@ -373,7 +373,7 @@ function FormationsView() {
                       required
                       value={customCategory}
                       onChange={e => setCustomCategory(e.target.value)}
-                      placeholder="Nom de la nouvelle catégorie..."
+                      placeholder="Nom de la nouvelle catÃƒÂ©gorie..."
                       className="w-full px-4 py-2.5 border-2 border-[#c97e00]/40 rounded-lg text-sm focus:border-[#c97e00] focus:outline-none bg-amber-50/30"
                     />
                   </div>
@@ -383,7 +383,7 @@ function FormationsView() {
               {/* Modes */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-                  Modes de formation proposés *
+                  Modes de formation proposÃƒÂ©s *
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <label className={`flex items-center gap-3 p-3.5 border-2 rounded-lg cursor-pointer transition-all ${form.hasPresentiel ? "border-[#c97e00] bg-amber-50/50 shadow-xs" : "border-gray-200 bg-white hover:border-gray-300"}`}>
@@ -394,7 +394,7 @@ function FormationsView() {
                       className="w-4 h-4 accent-[#c97e00] rounded"
                     />
                     <div>
-                      <div className="text-xs font-bold text-gray-900">🏛️ Présentiel</div>
+                      <div className="text-xs font-bold text-gray-900">Ã°Å¸Ââ€ºÃ¯Â¸Â PrÃƒÂ©sentiel</div>
                       <div className="text-[10px] text-gray-500">En centre / salle</div>
                     </div>
                   </label>
@@ -407,7 +407,7 @@ function FormationsView() {
                       className="w-4 h-4 accent-accent-600 rounded"
                     />
                     <div>
-                      <div className="text-xs font-bold text-gray-900">🌐 En Ligne</div>
+                      <div className="text-xs font-bold text-gray-900">Ã°Å¸Å’Â En Ligne</div>
                       <div className="text-[10px] text-gray-500">Visio / Google Meet</div>
                     </div>
                   </label>
@@ -423,21 +423,21 @@ function FormationsView() {
                   rows={6}
                   value={form.description}
                   onChange={e => setForm({ ...form, description: e.target.value })}
-                  placeholder="Détails du programme, conditions d'accès, matières enseignées, durée, débouchés..."
+                  placeholder="DÃƒÂ©tails du programme, conditions d'accÃƒÂ¨s, matiÃƒÂ¨res enseignÃƒÂ©es, durÃƒÂ©e, dÃƒÂ©bouchÃƒÂ©s..."
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm focus:border-[#c97e00] focus:ring-2 focus:ring-[#c97e00]/20 focus:outline-none resize-none transition-all"
                 />
               </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Tarification par Zone Géographique (7 cols) */}
+          {/* RIGHT COLUMN: Tarification par Zone GÃƒÂ©ographique (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <DollarSign size={18} className="text-[#c97e00]" />
                   <h3 className="font-black text-gray-900 text-sm uppercase tracking-wide">
-                    Tarification par Zone Géographique
+                    Tarification par Zone GÃƒÂ©ographique
                   </h3>
                 </div>
                 <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
@@ -449,7 +449,7 @@ function FormationsView() {
               <div className="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4 flex items-start gap-3">
                 <Info size={18} className="text-[#c97e00] shrink-0 mt-0.5" />
                 <div className="text-xs text-amber-900 leading-relaxed">
-                  <strong>Gestion automatique des tarifs :</strong> Lorsque l'étudiant s'inscrit en ligne, le montant de son inscription et de sa mensualité est calculé directement en fonction de son pays et de sa ville sélectionnés.
+                  <strong>Gestion automatique des tarifs :</strong> Lorsque l'ÃƒÂ©tudiant s'inscrit en ligne, le montant de son inscription et de sa mensualitÃƒÂ© est calculÃƒÂ© directement en fonction de son pays et de sa ville sÃƒÂ©lectionnÃƒÂ©s.
                 </div>
               </div>
 
@@ -464,7 +464,7 @@ function FormationsView() {
                         <Building size={16} />
                       </span>
                       <div>
-                        <h4 className="font-black text-gray-900 text-sm">Zone 1 : Abidjan & Présentiel Standard</h4>
+                        <h4 className="font-black text-gray-900 text-sm">Zone 1 : Abidjan & PrÃƒÂ©sentiel Standard</h4>
                         <p className="text-[11px] text-gray-500">Ville d'Abidjan et formation standard</p>
                       </div>
                     </div>
@@ -492,12 +492,12 @@ function FormationsView() {
                           FCFA
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1">Défaut: 45 000 FCFA</p>
+                      <p className="text-[10px] text-gray-400 mt-1">DÃƒÂ©faut: 45 000 FCFA</p>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Mensualité (FCFA / mois) *
+                        MensualitÃƒÂ© (FCFA / mois) *
                       </label>
                       <div className="relative">
                         <input
@@ -513,12 +513,12 @@ function FormationsView() {
                           FCFA/m
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1">Défaut: 30 000 FCFA</p>
+                      <p className="text-[10px] text-gray-400 mt-1">DÃƒÂ©faut: 30 000 FCFA</p>
                     </div>
                   </div>
                 </div>
 
-                {/* ZONE 2 : Intérieur de la Côte d'Ivoire */}
+                {/* ZONE 2 : IntÃƒÂ©rieur de la CÃƒÂ´te d'Ivoire */}
                 <div className="border-2 border-emerald-200 bg-linear-to-r from-emerald-50/30 to-white rounded-xl p-5 relative">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2.5">
@@ -526,19 +526,19 @@ function FormationsView() {
                         <MapPin size={16} />
                       </span>
                       <div>
-                        <h4 className="font-black text-gray-900 text-sm">Zone 2 : Intérieur de la Côte d'Ivoire</h4>
-                        <p className="text-[11px] text-gray-500">Toutes les villes de CI sauf Abidjan (Bouaké, Yamoussoukro, Daloa, etc.)</p>
+                        <h4 className="font-black text-gray-900 text-sm">Zone 2 : IntÃƒÂ©rieur de la CÃƒÂ´te d'Ivoire</h4>
+                        <p className="text-[11px] text-gray-500">Toutes les villes de CI sauf Abidjan (BouakÃƒÂ©, Yamoussoukro, Daloa, etc.)</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-md">
-                      Intérieur CI
+                      IntÃƒÂ©rieur CI
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Frais d'inscription Intérieur (FCFA) *
+                        Frais d'inscription IntÃƒÂ©rieur (FCFA) *
                       </label>
                       <div className="relative">
                         <input
@@ -554,12 +554,12 @@ function FormationsView() {
                           FCFA
                         </span>
                       </div>
-                      <p className="text-[10px] text-emerald-700 mt-1">Défaut: 35 000 FCFA (tarif réduit pour l'intérieur)</p>
+                      <p className="text-[10px] text-emerald-700 mt-1">DÃƒÂ©faut: 35 000 FCFA (tarif rÃƒÂ©duit pour l'intÃƒÂ©rieur)</p>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Mensualité Intérieur (FCFA / mois) *
+                        MensualitÃƒÂ© IntÃƒÂ©rieur (FCFA / mois) *
                       </label>
                       <div className="relative">
                         <input
@@ -575,7 +575,7 @@ function FormationsView() {
                           FCFA/m
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1">Défaut: 25 000 FCFA</p>
+                      <p className="text-[10px] text-gray-400 mt-1">DÃƒÂ©faut: 25 000 FCFA</p>
                     </div>
                   </div>
                 </div>
@@ -589,7 +589,7 @@ function FormationsView() {
                       </span>
                       <div>
                         <h4 className="font-black text-gray-900 text-sm">Zone 3 : Diaspora & International (En ligne)</h4>
-                        <p className="text-[11px] text-gray-500">Candidats résidant hors de Côte d'Ivoire (France, Belgique, Canada, etc.)</p>
+                        <p className="text-[11px] text-gray-500">Candidats rÃƒÂ©sidant hors de CÃƒÂ´te d'Ivoire (France, Belgique, Canada, etc.)</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wide bg-accent-100 text-accent-800 px-2.5 py-1 rounded-md">
@@ -616,12 +616,12 @@ function FormationsView() {
                           FCFA
                         </span>
                       </div>
-                      <p className="text-[10px] text-accent-700 mt-1">Défaut: 100 000 FCFA</p>
+                      <p className="text-[10px] text-accent-700 mt-1">DÃƒÂ©faut: 100 000 FCFA</p>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Mensualité Diaspora (FCFA / mois) *
+                        MensualitÃƒÂ© Diaspora (FCFA / mois) *
                       </label>
                       <div className="relative">
                         <input
@@ -637,7 +637,7 @@ function FormationsView() {
                           FCFA/m
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1">Défaut: 35 000 FCFA</p>
+                      <p className="text-[10px] text-gray-400 mt-1">DÃƒÂ©faut: 35 000 FCFA</p>
                     </div>
                   </div>
                 </div>
@@ -652,8 +652,8 @@ function FormationsView() {
                       <Globe size={16} />
                     </span>
                     <div>
-                      <h4 className="font-black text-gray-900 text-sm">Mensualité par Mode de Formation</h4>
-                      <p className="text-[11px] text-gray-500">Tarif mensuel selon le mode choisi (en ligne, présentiel+en ligne)</p>
+                      <h4 className="font-black text-gray-900 text-sm">MensualitÃƒÂ© par Mode de Formation</h4>
+                      <p className="text-[11px] text-gray-500">Tarif mensuel selon le mode choisi (en ligne, prÃƒÂ©sentiel+en ligne)</p>
                     </div>
                   </div>
                   <span className="text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 px-2.5 py-1 rounded-md">
@@ -664,7 +664,7 @@ function FormationsView() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Mensualité En ligne (FCFA / mois)
+                      MensualitÃƒÂ© En ligne (FCFA / mois)
                     </label>
                     <div className="relative">
                       <input
@@ -680,12 +680,12 @@ function FormationsView() {
                         FCFA/m
                       </span>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1">Défaut: 25 000 FCFA</p>
+                    <p className="text-[10px] text-gray-400 mt-1">DÃƒÂ©faut: 25 000 FCFA</p>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">
-                      Mensualité Présentiel + En ligne (FCFA / mois)
+                      MensualitÃƒÂ© PrÃƒÂ©sentiel + En ligne (FCFA / mois)
                     </label>
                     <div className="relative">
                       <input
@@ -701,16 +701,16 @@ function FormationsView() {
                         FCFA/m
                       </span>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1">Défaut: 35 000 FCFA</p>
+                    <p className="text-[10px] text-gray-400 mt-1">DÃƒÂ©faut: 35 000 FCFA</p>
                   </div>
                 </div>
               </div>
 
-              {/* Résumé interactif */}
+              {/* RÃƒÂ©sumÃƒÂ© interactif */}
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-200/80">
                 <div className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-1.5">
                   <CheckCircle size={14} className="text-green-600" />
-                  <span>Aperçu de ce que paiera un étudiant lors de son inscription :</span>
+                  <span>AperÃƒÂ§u de ce que paiera un ÃƒÂ©tudiant lors de son inscription :</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                   <div className="bg-white p-2.5 rounded-lg border border-gray-200 text-center">
@@ -721,7 +721,7 @@ function FormationsView() {
                     <span className="text-[10px] text-gray-400 block mt-0.5">({form.registrationFee} F + 1er mois)</span>
                   </div>
                   <div className="bg-white p-2.5 rounded-lg border border-gray-200 text-center">
-                    <span className="text-[11px] text-emerald-700 block font-semibold">Intérieur CI</span>
+                    <span className="text-[11px] text-emerald-700 block font-semibold">IntÃƒÂ©rieur CI</span>
                     <strong className="text-gray-900 text-sm">
                       {(Number(form.registrationFeeInterieur) || 0) + (Number(form.monthlyFeeInterieur) || 0)} F
                     </strong>
@@ -737,11 +737,11 @@ function FormationsView() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mt-2">
                   <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-200 text-center">
-                    <span className="text-[11px] text-blue-700 block font-semibold">Mensualité En ligne</span>
+                    <span className="text-[11px] text-blue-700 block font-semibold">MensualitÃƒÂ© En ligne</span>
                     <strong className="text-blue-900 text-sm">{form.monthlyFeeOnline} F/mois</strong>
                   </div>
                   <div className="bg-blue-50 p-2.5 rounded-lg border border-blue-200 text-center">
-                    <span className="text-[11px] text-blue-700 block font-semibold">Mensuel Présentiel + En ligne</span>
+                    <span className="text-[11px] text-blue-700 block font-semibold">Mensuel PrÃƒÂ©sentiel + En ligne</span>
                     <strong className="text-blue-900 text-sm">{form.monthlyFeeBoth} F/mois</strong>
                   </div>
                 </div>
@@ -762,7 +762,7 @@ function FormationsView() {
                   className="flex items-center gap-2 bg-[#c97e00] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#7a4b00] transition-all shadow-md disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>{form.id ? 'Mettre à jour' : 'Enregistrer la formation'}</span>
+                  <span>{form.id ? 'Mettre ÃƒÂ  jour' : 'Enregistrer la formation'}</span>
                 </button>
               </div>
 
@@ -773,20 +773,20 @@ function FormationsView() {
 
         {/* Delete modal */}
         {courseToDelete && (
-          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-            <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl p-6">
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm modal-overlay">
+            <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl p-6 modal-content">
               <div className="flex items-center gap-3 text-red-600 mb-4">
                 <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
                   <AlertCircle size={26} />
                 </div>
                 <div>
                   <h3 className="font-black text-gray-900 text-base">Confirmer la suppression</h3>
-                  <p className="text-xs text-gray-500">Cette action est irréversible</p>
+                  <p className="text-xs text-gray-500">Cette action est irrÃƒÂ©versible</p>
                 </div>
               </div>
               <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                Êtes-vous sûr de vouloir supprimer définitivement la formation{' '}
-                <strong className="text-gray-900">« {courseToDelete.title} »</strong> ?
+                ÃƒÅ tes-vous sÃƒÂ»r de vouloir supprimer dÃƒÂ©finitivement la formation{' '}
+                <strong className="text-gray-900">Ã‚Â« {courseToDelete.title} Ã‚Â»</strong> ?
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button onClick={() => setCourseToDelete(null)} disabled={deleting}
@@ -796,7 +796,7 @@ function FormationsView() {
                 <button onClick={confirmDelete} disabled={deleting}
                   className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow-sm disabled:opacity-50">
                   {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  <span>Supprimer définitivement</span>
+                  <span>Supprimer dÃƒÂ©finitivement</span>
                 </button>
               </div>
             </div>
@@ -806,7 +806,7 @@ function FormationsView() {
     );
   }
 
-  // ─── List view ──────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ List view Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   return (
     <div className="space-y-6">
       {/* Top Banner & Header */}
@@ -819,7 +819,7 @@ function FormationsView() {
             <h2 className="text-xl font-black text-gray-900">Catalogue des Formations & Concours</h2>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Gérez les filières dispensées par Excellence Académie et leurs tarifs par zone (Abidjan, Intérieur CI, Diaspora).
+            GÃƒÂ©rez les filiÃƒÂ¨res dispensÃƒÂ©es par Excellence AcadÃƒÂ©mie et leurs tarifs par zone (Abidjan, IntÃƒÂ©rieur CI, Diaspora).
           </p>
         </div>
         <button
@@ -848,9 +848,9 @@ function FormationsView() {
             <Award size={24} />
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">CatÃƒÂ©gories</div>
             <div className="text-2xl font-black text-gray-900">
-              {new Set(courses.map(c => c.category || 'Général')).size}
+              {new Set(courses.map(c => c.category || 'GÃƒÂ©nÃƒÂ©ral')).size}
             </div>
           </div>
         </div>
@@ -860,7 +860,7 @@ function FormationsView() {
             <DollarSign size={24} />
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Mensualité Moyenne</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">MensualitÃƒÂ© Moyenne</div>
             <div className="text-2xl font-black text-primary-600">{averageMonthlyFee.toLocaleString('fr-FR')} <span className="text-xs text-gray-600">F/m</span></div>
           </div>
         </div>
@@ -870,7 +870,7 @@ function FormationsView() {
             <Users size={24} />
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inscrits Associés</div>
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Inscrits AssociÃƒÂ©s</div>
             <div className="text-2xl font-black text-gray-900">{totalStudentsEnrolled}</div>
           </div>
         </div>
@@ -885,7 +885,7 @@ function FormationsView() {
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Rechercher une formation par nom, mot-clé ou catégorie..."
+              placeholder="Rechercher une formation par nom, mot-clÃƒÂ© ou catÃƒÂ©gorie..."
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:border-[#c97e00] focus:outline-none transition-all"
             />
             {searchQuery && (
@@ -900,7 +900,7 @@ function FormationsView() {
 
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs font-bold text-gray-500">
-              {filteredCourses.length} formation{filteredCourses.length > 1 ? 's' : ''} trouvée{filteredCourses.length > 1 ? 's' : ''}
+              {filteredCourses.length} formation{filteredCourses.length > 1 ? 's' : ''} trouvÃƒÂ©e{filteredCourses.length > 1 ? 's' : ''}
             </span>
           </div>
         </div>
@@ -917,7 +917,7 @@ function FormationsView() {
             Toutes ({courses.length})
           </button>
           {availableCategories.map(cat => {
-            const count = courses.filter(c => (c.category || 'Général') === cat).length;
+            const count = courses.filter(c => (c.category || 'GÃƒÂ©nÃƒÂ©ral') === cat).length;
             if (count === 0 && selectedCategory !== cat) return null;
             return (
               <button
@@ -944,15 +944,15 @@ function FormationsView() {
           <h3 className="text-base font-bold text-gray-900 mb-1">Aucune formation correspondante</h3>
           <p className="text-sm text-gray-500 max-w-md mx-auto mb-4">
             {searchQuery || selectedCategory !== 'ALL'
-              ? 'Aucune formation ne correspond à vos critères de recherche. Essayez de réinitialiser vos filtres.'
-              : 'Aucune formation n\'est encore configurée. Ajoutez votre première formation dès maintenant.'}
+              ? 'Aucune formation ne correspond ÃƒÂ  vos critÃƒÂ¨res de recherche. Essayez de rÃƒÂ©initialiser vos filtres.'
+              : 'Aucune formation n\'est encore configurÃƒÂ©e. Ajoutez votre premiÃƒÂ¨re formation dÃƒÂ¨s maintenant.'}
           </p>
           {(searchQuery || selectedCategory !== 'ALL') ? (
             <button
               onClick={() => { setSearchQuery(''); setSelectedCategory('ALL'); }}
               className="text-xs font-bold text-[#c97e00] hover:underline cursor-pointer"
             >
-              Réinitialiser les filtres
+              RÃƒÂ©initialiser les filtres
             </button>
           ) : (
             <button
@@ -966,7 +966,7 @@ function FormationsView() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredCourses.map(c => {
-            const cat = c.category || 'Général';
+            const cat = c.category || 'GÃƒÂ©nÃƒÂ©ral';
             const style = CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR;
             const studentsCount = c._count?.subscriptions || c._count?.payments || 0;
             const regFee = c.registrationFee !== undefined && c.registrationFee !== null ? Number(c.registrationFee) : (c.price ? Number(c.price) : 45000);
@@ -1014,19 +1014,19 @@ function FormationsView() {
                   <div className="flex flex-wrap gap-1.5 mb-2.5">
                     {hasPres && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                        🏛️ Présentiel
+                        Ã°Å¸Ââ€ºÃ¯Â¸Â PrÃƒÂ©sentiel
                       </span>
                     )}
                     {hasOnl && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-accent-50 text-accent-700 border border-accent-200">
-                        🌐 En ligne
+                        Ã°Å¸Å’Â En ligne
                       </span>
                     )}
                   </div>
 
                   {/* Description */}
                   <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 mb-4">
-                    {c.description || "Aucune description détaillée renseignée."}
+                    {c.description || "Aucune description dÃƒÂ©taillÃƒÂ©e renseignÃƒÂ©e."}
                   </p>
                 </div>
 
@@ -1043,7 +1043,7 @@ function FormationsView() {
                       <div className="text-xs font-black text-gray-900">{regFee.toLocaleString('fr-FR')} F</div>
                     </div>
                     <div className="border-x border-gray-200">
-                      <div className="text-[10px] text-emerald-700 font-medium">Intérieur</div>
+                      <div className="text-[10px] text-emerald-700 font-medium">IntÃƒÂ©rieur</div>
                       <div className="text-xs font-black text-emerald-700">{regFeeInt.toLocaleString('fr-FR')} F</div>
                     </div>
                     <div>
@@ -1053,14 +1053,14 @@ function FormationsView() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <span className="text-gray-500 font-medium">Mensualité base :</span>
+                    <span className="text-gray-500 font-medium">MensualitÃƒÂ© base :</span>
                     <span className="font-black text-[#c97e00]">
                       {mFee.toLocaleString('fr-FR')} FCFA/mois
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <span className="text-gray-500 font-medium">Mensualité En ligne / Both :</span>
+                    <span className="text-gray-500 font-medium">MensualitÃƒÂ© En ligne / Both :</span>
                     <span className="font-black text-blue-600 text-[11px]">
                       {Number(c.monthlyFeeOnline || 25000).toLocaleString('fr-FR')} / {Number(c.monthlyFeeBoth || 35000).toLocaleString('fr-FR')} F
                     </span>

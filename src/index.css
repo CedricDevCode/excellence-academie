@@ -2,6 +2,31 @@
 
 /* ─── Design System Variables (Or × Côte d'Ivoire) ─── */
 @theme {
+  /* ─── Excellence Académie — Registre d'Encre & d'Or ─── */
+  /* Encre chaude (sidebar / texte) */
+  --color-ink-950: #17110a;
+  --color-ink-900: #211a12;
+  --color-ink-800: #2b2318;
+  --color-ink-700: #38301f;
+  --color-ink-600: #524838;
+
+  /* Papier cool (fond écran) + filets chauds */
+  --color-paper: #f7f8f7;
+  --color-line: #e7e4dc;
+
+  /* Or — identité de la maison */
+  --color-gold-900: #573500;
+  --color-gold-800: #7a4b00;
+  --color-gold-700: #a36200;
+  --color-gold-600: #c97e00;
+  --color-gold-500: #f5a623;
+  --color-gold-400: #fdb827;
+  --color-gold-100: #fff0c2;
+
+  /* Vert de la Côte d'Ivoire */
+  --color-ivoire-600: #187f44;
+  --color-ivoire-500: #1e9e54;
+
   /* Or / Ambre (couleur principale — logo) */
   --color-primary-50: #fff9e8;
   --color-primary-100: #fff0c2;
@@ -45,6 +70,33 @@
   --color-uda-gold: #f3ca8c;
 
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Bricolage Grotesque", "Inter", -apple-system, sans-serif;
+}
+
+/* ─── Registre d'Encre & d'Or — utilitaires ─── */
+@layer utilities {
+  .font-display { font-family: var(--font-display); }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .ea-dotted { background-image: radial-gradient(circle, var(--color-line) 1px, transparent 1px); background-size: 22px 22px; }
+  .ea-hairline { border-color: var(--color-line); }
+  .panel {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(23, 17, 10, 0.05), 0 12px 32px -12px rgba(23, 17, 10, 0.14);
+  }
+  .panel-hover { transition: box-shadow .25s ease, transform .25s ease; }
+  .panel-hover:hover { box-shadow: 0 2px 4px rgba(23,17,10,.07), 0 18px 40px -14px rgba(23,17,10,.22); transform: translateY(-2px); }
+  .ea-focus:focus-visible { outline: 2px solid var(--color-gold-600); outline-offset: 2px; }
+}
+
+@keyframes ea-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ea-rise { animation: ea-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .ea-rise, .modal-content, .modal-overlay { animation: none !important; }
 }
 
 /* ─── Custom Animations ─── */
@@ -106,6 +158,25 @@
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* ─── Modale unifiée : ouverture fluide & élégante (backdrop flouté + carte ressort) ─── */
+.modal-overlay {
+  animation: modalOverlayIn 0.25s ease-out;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+.modal-content {
+  animation: modalContentIn 0.38s cubic-bezier(0.34, 1.35, 0.64, 1);
+}
+@keyframes modalOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalContentIn {
+  0% { opacity: 0; transform: translateY(30px) scale(0.94); }
+  55% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes shimmer {

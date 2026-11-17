@@ -16,11 +16,11 @@ function getProductImg(imageUrl: string | null | undefined): string {
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'En attente',
-  PAID: 'Payée',
+  PAID: 'PayÃƒÂ©e',
   PROCESSING: 'En cours',
-  SHIPPED: 'Expédiée',
-  DELIVERED: 'Livrée',
-  CANCELLED: 'Annulée',
+  SHIPPED: 'ExpÃƒÂ©diÃƒÂ©e',
+  DELIVERED: 'LivrÃƒÂ©e',
+  CANCELLED: 'AnnulÃƒÂ©e',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -105,9 +105,9 @@ export default function MyOrders() {
             {[
               { val: 'all', label: 'Toutes' },
               { val: 'PENDING', label: 'En attente' },
-              { val: 'PAID', label: 'Payées' },
-              { val: 'SHIPPED', label: 'Expédiées' },
-              { val: 'DELIVERED', label: 'Livrées' },
+              { val: 'PAID', label: 'PayÃƒÂ©es' },
+              { val: 'SHIPPED', label: 'ExpÃƒÂ©diÃƒÂ©es' },
+              { val: 'DELIVERED', label: 'LivrÃƒÂ©es' },
             ].map(f => (
               <button key={f.val} onClick={() => setFilter(f.val)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${filter === f.val ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-600'}`}>
@@ -121,9 +121,9 @@ export default function MyOrders() {
           <div className="bg-white rounded border border-gray-100 shadow-sm p-12 text-center">
             <Package size={48} className="mx-auto text-gray-200 mb-4" />
             <h2 className="text-lg font-bold text-gray-700 mb-2">Aucune commande</h2>
-            <p className="text-gray-400 mb-6 text-sm">Vous n'avez pas encore passé de commande.</p>
+            <p className="text-gray-400 mb-6 text-sm">Vous n'avez pas encore passÃƒÂ© de commande.</p>
             <Link to="/shop" className="inline-block px-6 py-3 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-colors">
-              Découvrir la boutique
+              DÃƒÂ©couvrir la boutique
             </Link>
           </div>
         ) : (
@@ -166,7 +166,7 @@ export default function MyOrders() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900">{item.product?.title || 'Produit'}</p>
-                            <p className="text-xs text-gray-400">x{item.quantity} · {item.priceAtTime?.toLocaleString()} FCFA</p>
+                            <p className="text-xs text-gray-400">x{item.quantity} Ã‚Â· {item.priceAtTime?.toLocaleString()} FCFA</p>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-gray-900">{(item.priceAtTime * item.quantity).toLocaleString()} F</span>
@@ -181,7 +181,7 @@ export default function MyOrders() {
                       ))}
                       {order.city && (
                         <div className="text-xs text-gray-500 pt-2 border-t border-gray-50">
-                          <span className="font-medium">Livraison :</span> {order.city}{order.adresse ? `, ${order.adresse}` : ''} · {order.customerPhone}
+                          <span className="font-medium">Livraison :</span> {order.city}{order.adresse ? `, ${order.adresse}` : ''} Ã‚Â· {order.customerPhone}
                         </div>
                       )}
                     </div>
@@ -194,8 +194,8 @@ export default function MyOrders() {
       </div>
       {/* Review Modal */}
       {reviewModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 animate-fadeIn" onClick={() => !submittingReview && setReviewModal(null)}>
-          <div className="bg-white rounded shadow-2xl border border-gray-100 p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 animate-fadeIn modal-overlay" onClick={() => !submittingReview && setReviewModal(null)}>
+          <div className="bg-white rounded shadow-2xl border border-gray-100 p-6 w-full max-w-sm mx-4 modal-content" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-900">Noter ce produit</h3>
               <button onClick={() => setReviewModal(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer" aria-label="Fermer">
@@ -206,7 +206,7 @@ export default function MyOrders() {
             <div className="flex items-center justify-center gap-1 mb-4">
               {[1, 2, 3, 4, 5].map(i => (
                 <button key={i} type="button" onClick={() => setReviewRating(i)}
-                  aria-label={`${i} étoile${i > 1 ? 's' : ''}`}
+                  aria-label={`${i} ÃƒÂ©toile${i > 1 ? 's' : ''}`}
                   className={`p-1 transition-all cursor-pointer ${i <= reviewRating ? 'scale-110' : ''}`}>
                   <Star size={28} className={i <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'} />
                 </button>

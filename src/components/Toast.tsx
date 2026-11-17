@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import { CheckCircle, AlertCircle, X, XCircle, Info } from "lucide-react";
+import ConfirmDialog from "./ui/ConfirmDialog";
 
 type ToastType = "success" | "error" | "info" | "warning";
 
@@ -88,26 +89,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Confirm modal */}
-      {confirmState && (
-        <div className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <AlertCircle size={22} className="text-orange-500 shrink-0 mt-0.5" />
-              <p className="text-gray-900 font-semibold text-sm">{confirmState.message}</p>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => handleConfirm(false)}
-                className="px-4 py-2 rounded border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
-                Annuler
-              </button>
-              <button onClick={() => handleConfirm(true)}
-                className="px-4 py-2 rounded bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors">
-                Confirmer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!confirmState}
+        title="Confirmation"
+        description={confirmState?.message}
+        confirmLabel="Confirmer"
+        cancelLabel="Annuler"
+        onConfirm={() => handleConfirm(true)}
+        onCancel={() => handleConfirm(false)}
+      />
 
       <style>{`
         @keyframes slideUp {

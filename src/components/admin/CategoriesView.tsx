@@ -22,10 +22,10 @@ export default function CategoriesView() {
 
   const COLOR_PRESETS = [
     { hex: '#f5a623', label: 'Or' },
-    { hex: '#c97e00', label: 'Or foncé' },
+    { hex: '#c97e00', label: 'Or foncÃƒÂ©' },
     { hex: '#D97706', label: 'Ambre' },
     { hex: '#1e9e54', label: 'Vert' },
-    { hex: '#059669', label: 'Vert émeraude' },
+    { hex: '#059669', label: 'Vert ÃƒÂ©meraude' },
     { hex: '#DC2626', label: 'Rouge' },
     { hex: '#EA580C', label: 'Orange' },
     { hex: '#DB2777', label: 'Rose' },
@@ -39,7 +39,7 @@ export default function CategoriesView() {
       const data = await fetchCourseCategories();
       setCategories(data || []);
     } catch (err) {
-      toast('error', 'Erreur lors du chargement des catégories');
+      toast('error', 'Erreur lors du chargement des catÃƒÂ©gories');
     } finally {
       setLoading(false);
     }
@@ -77,10 +77,10 @@ export default function CategoriesView() {
       };
       if (editTarget) {
         await updateCourseCategory(editTarget.id, payload);
-        toast('success', 'Catégorie modifiée avec succès');
+        toast('success', 'CatÃƒÂ©gorie modifiÃƒÂ©e avec succÃƒÂ¨s');
       } else {
         await createCourseCategory(payload);
-        toast('success', 'Catégorie créée avec succès');
+        toast('success', 'CatÃƒÂ©gorie crÃƒÂ©ÃƒÂ©e avec succÃƒÂ¨s');
       }
       await loadCategories();
       setShowPanel(false);
@@ -96,7 +96,7 @@ export default function CategoriesView() {
     setDeleting(true);
     try {
       await deleteCourseCategory(deleteTarget.id);
-      toast('success', `Catégorie "${deleteTarget.name}" supprimée`);
+      toast('success', `CatÃƒÂ©gorie "${deleteTarget.name}" supprimÃƒÂ©e`);
       setDeleteTarget(null);
       await loadCategories();
     } catch (err: any) {
@@ -110,24 +110,24 @@ export default function CategoriesView() {
 
   return (
     <div className="flex gap-6">
-      {/* ── Main List ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Main List Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <div className={`flex-1 min-w-0 space-y-6 ${showPanel ? 'hidden xl:block' : ''}`}>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded shadow-sm border border-gray-100">
           <div>
             <div className="flex items-center gap-2">
               <span className="p-2 rounded bg-primary-50 text-[#c97e00]"><Layers size={22} /></span>
-              <h2 className="text-xl font-black text-gray-900">Catégories de Formations</h2>
+              <h2 className="text-xl font-black text-gray-900">CatÃƒÂ©gories de Formations</h2>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Organisez vos formations par catégories thématiques. Les catégories s'appliquent automatiquement au catalogue et aux formulaires d'inscription.
+              Organisez vos formations par catÃƒÂ©gories thÃƒÂ©matiques. Les catÃƒÂ©gories s'appliquent automatiquement au catalogue et aux formulaires d'inscription.
             </p>
           </div>
           <button
             onClick={openAdd}
             className="flex items-center justify-center gap-2 bg-[#c97e00] text-white px-5 py-2.5 rounded font-bold text-sm hover:bg-[#7a4b00] transition-colors shadow-sm shrink-0"
           >
-            <Plus size={18} /><span>Nouvelle catégorie</span>
+            <Plus size={18} /><span>Nouvelle catÃƒÂ©gorie</span>
           </button>
         </div>
 
@@ -136,21 +136,21 @@ export default function CategoriesView() {
           <div className="bg-white p-5 rounded border border-gray-100 shadow-sm flex items-center gap-4">
             <div className="w-12 h-12 rounded bg-primary-50 text-[#c97e00] flex items-center justify-center"><Layers size={24} /></div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Catégories</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total CatÃƒÂ©gories</div>
               <div className="text-2xl font-black text-gray-900">{categories.length}</div>
             </div>
           </div>
           <div className="bg-white p-5 rounded border border-gray-100 shadow-sm flex items-center gap-4">
             <div className="w-12 h-12 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center"><BookOpen size={24} /></div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Formations Classées</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Formations ClassÃƒÂ©es</div>
               <div className="text-2xl font-black text-gray-900">{categories.reduce((a: number, c: any) => a + (c.coursesCount || 0), 0)}</div>
             </div>
           </div>
           <div className="bg-white p-5 rounded border border-gray-100 shadow-sm flex items-center gap-4">
             <div className="w-12 h-12 rounded bg-accent-50 text-accent-700 flex items-center justify-center"><Tag size={24} /></div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Catégories Actives</div>
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">CatÃƒÂ©gories Actives</div>
               <div className="text-2xl font-black text-gray-900">{categories.filter((c: any) => (c.coursesCount || 0) > 0).length}</div>
             </div>
           </div>
@@ -162,9 +162,9 @@ export default function CategoriesView() {
             <div className="w-16 h-16 bg-primary-50 text-[#c97e00] rounded-full flex items-center justify-center mx-auto mb-3">
               <Layers size={32} />
             </div>
-            <h3 className="text-base font-bold text-gray-900 mb-1">Aucune catégorie</h3>
-            <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">Les catégories par défaut seront créées automatiquement au prochain chargement.</p>
-            <button onClick={openAdd} className="bg-[#c97e00] text-white px-4 py-2 rounded text-xs font-bold hover:bg-[#7a4b00]">Créer une catégorie</button>
+            <h3 className="text-base font-bold text-gray-900 mb-1">Aucune catÃƒÂ©gorie</h3>
+            <p className="text-sm text-gray-500 max-w-sm mx-auto mb-4">Les catÃƒÂ©gories par dÃƒÂ©faut seront crÃƒÂ©ÃƒÂ©es automatiquement au prochain chargement.</p>
+            <button onClick={openAdd} className="bg-[#c97e00] text-white px-4 py-2 rounded text-xs font-bold hover:bg-[#7a4b00]">CrÃƒÂ©er une catÃƒÂ©gorie</button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -214,7 +214,7 @@ export default function CategoriesView() {
                     <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-200" style={{ backgroundColor: cat.color || '#c97e00' }} />
                     <span className="text-[10px] text-gray-400 font-mono">{cat.color || '#c97e00'}</span>
                   </div>
-                  <span className="text-[10px] text-gray-300">Ordre : {cat.displayOrder ?? '–'}</span>
+                  <span className="text-[10px] text-gray-300">Ordre : {cat.displayOrder ?? 'Ã¢â‚¬â€œ'}</span>
                 </div>
               </div>
             ))}
@@ -222,7 +222,7 @@ export default function CategoriesView() {
         )}
       </div>
 
-      {/* ── Inline Panel ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Inline Panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {showPanel && (
         <div className="w-full xl:w-[380px] shrink-0">
           <div className="bg-white rounded overflow-hidden shadow-lg border border-gray-100 sticky top-4" style={{maxHeight: 'calc(100vh - 7rem)'}}>
@@ -231,8 +231,8 @@ export default function CategoriesView() {
               <div className="flex items-center gap-2.5">
                 <span className="p-2 rounded bg-[#c97e00] text-white shadow-sm"><Layers size={16} /></span>
                 <div>
-                  <h3 className="font-black text-gray-900 text-sm">{editTarget ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</h3>
-                  <p className="text-[11px] text-gray-400">{editTarget ? 'Mettre à jour les informations' : 'Définir une nouvelle thématique'}</p>
+                  <h3 className="font-black text-gray-900 text-sm">{editTarget ? 'Modifier la catÃƒÂ©gorie' : 'Nouvelle catÃƒÂ©gorie'}</h3>
+                  <p className="text-[11px] text-gray-400">{editTarget ? 'Mettre ÃƒÂ  jour les informations' : 'DÃƒÂ©finir une nouvelle thÃƒÂ©matique'}</p>
                 </div>
               </div>
               <button
@@ -246,7 +246,7 @@ export default function CategoriesView() {
               <div className="p-5 space-y-5">
                 {/* Nom */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Nom de la catégorie *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">Nom de la catÃƒÂ©gorie *</label>
                   <input
                     required
                     type="text"
@@ -264,7 +264,7 @@ export default function CategoriesView() {
                     rows={3}
                     value={form.description}
                     onChange={e => setForm({ ...form, description: e.target.value })}
-                    placeholder="Brève description de la catégorie..."
+                    placeholder="BrÃƒÂ¨ve description de la catÃƒÂ©gorie..."
                     className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none resize-none transition-colors"
                   />
                 </div>
@@ -314,12 +314,12 @@ export default function CategoriesView() {
                     placeholder="Ex: 1"
                     className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Les catégories s'affichent du plus petit au plus grand numéro.</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Les catÃƒÂ©gories s'affichent du plus petit au plus grand numÃƒÂ©ro.</p>
                 </div>
 
                 {/* Preview */}
                 <div className="bg-gray-50 rounded p-4">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Aperçu</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">AperÃƒÂ§u</div>
                   <div className="flex items-center gap-3">
                     <div
                       className="w-9 h-9 rounded flex items-center justify-center"
@@ -328,7 +328,7 @@ export default function CategoriesView() {
                       <Tag size={16} />
                     </div>
                     <div>
-                      <div className="font-bold text-sm text-gray-900">{form.name || 'Nom de la catégorie'}</div>
+                      <div className="font-bold text-sm text-gray-900">{form.name || 'Nom de la catÃƒÂ©gorie'}</div>
                       <div className="text-[11px] text-gray-400">{form.description || 'Aucune description'}</div>
                     </div>
                   </div>
@@ -349,7 +349,7 @@ export default function CategoriesView() {
                   className="flex items-center gap-2 bg-[#c97e00] text-white px-5 py-2.5 rounded font-bold text-sm hover:bg-[#7a4b00] transition-colors shadow-sm disabled:opacity-50"
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>{editTarget ? 'Mettre à jour' : 'Créer la catégorie'}</span>
+                  <span>{editTarget ? 'Mettre ÃƒÂ  jour' : 'CrÃƒÂ©er la catÃƒÂ©gorie'}</span>
                 </button>
               </div>
             </form>
@@ -359,21 +359,21 @@ export default function CategoriesView() {
 
       {/* Delete confirm modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded w-full max-w-md p-6 shadow-2xl">
+<div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm modal-overlay">
+          <div className="bg-white rounded w-full max-w-md p-6 shadow-2xl modal-content">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
                 <AlertCircle size={26} className="text-red-500" />
               </div>
               <div>
-                <h3 className="font-black text-gray-900 text-base">Supprimer la catégorie ?</h3>
-                <p className="text-xs text-gray-500">Les formations associées seront déplacées vers « Général »</p>
+                <h3 className="font-black text-gray-900 text-base">Supprimer la catÃƒÂ©gorie ?</h3>
+                <p className="text-xs text-gray-500">Les formations associÃƒÂ©es seront dÃƒÂ©placÃƒÂ©es vers Ã‚Â« GÃƒÂ©nÃƒÂ©ral Ã‚Â»</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-6">
-              Supprimer définitivement <strong className="text-gray-900">« {deleteTarget.name} »</strong> ?{' '}
+              Supprimer dÃƒÂ©finitivement <strong className="text-gray-900">Ã‚Â« {deleteTarget.name} Ã‚Â»</strong> ?{' '}
               {(deleteTarget.coursesCount || 0) > 0 && (
-                <span className="text-amber-600 font-semibold">{deleteTarget.coursesCount} formation(s) seront recatégorisées.</span>
+                <span className="text-amber-600 font-semibold">{deleteTarget.coursesCount} formation(s) seront recatÃƒÂ©gorisÃƒÂ©es.</span>
               )}
             </p>
             <div className="flex justify-end gap-3">
