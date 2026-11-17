@@ -1,10 +1,16 @@
 export function generateTempPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
   const specials = '@#%&*!';
+  // crypto.getRandomValues : mot de passe temporaire imprévisible
+  const rand = (max: number) => {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % max;
+  };
   let pwd = '';
-  for (let i = 0; i < 10; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
-  pwd += specials.charAt(Math.floor(Math.random() * specials.length));
-  pwd += String(Math.floor(Math.random() * 100));
+  for (let i = 0; i < 10; i++) pwd += chars.charAt(rand(chars.length));
+  pwd += specials.charAt(rand(specials.length));
+  pwd += String(rand(100));
   return pwd;
 }
 

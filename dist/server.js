@@ -59,6 +59,106 @@ import { fileURLToPath as fileURLToPath2 } from "url";
 
 // server/controllers/userController.ts
 import bcrypt from "bcrypt";
+
+// server/constants.ts
+var COUNTRY_TO_ISO2 = {
+  "C\xF4te d'Ivoire": "CI",
+  "France": "FR",
+  "Belgique": "BE",
+  "Canada": "CA",
+  "S\xE9n\xE9gal": "SN",
+  "Mali": "ML",
+  "Burkina Faso": "BF",
+  "B\xE9nin": "BJ",
+  "Togo": "TG",
+  "Cameroun": "CM",
+  "Gabon": "GA",
+  "Congo": "CG",
+  "RDC": "CD",
+  "Guin\xE9e": "GN",
+  "Niger": "NE"
+};
+function isDiaspora(pays) {
+  if (!pays) return false;
+  const p = pays.trim().toLowerCase();
+  return p !== "c\xF4te d'ivoire" && p !== "cote d'ivoire";
+}
+function isAbidjan(ville) {
+  if (!ville) return false;
+  return ville.trim().toLowerCase().startsWith("abidjan");
+}
+var COURS_PARTICULIERS_FEE = 2e5;
+var DEFAULT_REGISTRATION_FEE = 45e3;
+var DEFAULT_REGISTRATION_FEE_INTERIEUR = 35e3;
+var DEFAULT_REGISTRATION_FEE_DIASPORA = 1e5;
+var DEFAULT_MONTHLY_FEE = 3e4;
+function courseRegistrationFee(course, pays, ville) {
+  if (!course) return DEFAULT_REGISTRATION_FEE;
+  if (pays && isDiaspora(pays)) {
+    const diasFee = Number(course.registrationFeeDiaspora);
+    if (diasFee > 0) return diasFee;
+    return DEFAULT_REGISTRATION_FEE_DIASPORA;
+  }
+  if (ville && !isAbidjan(ville)) {
+    const intFee = Number(course.registrationFeeInterieur);
+    if (intFee > 0) return intFee;
+    return DEFAULT_REGISTRATION_FEE_INTERIEUR;
+  }
+  const reg = Number(course.registrationFee);
+  if (reg > 0) return reg;
+  const price = Number(course.price);
+  if (price > 0) return price;
+  return DEFAULT_REGISTRATION_FEE;
+}
+function courseMonthlyFee(course, pays, mode) {
+  if (!course) return DEFAULT_MONTHLY_FEE;
+  if (pays && isDiaspora(pays)) {
+    const diasFee = Number(course.monthlyFeeDiaspora);
+    if (diasFee > 0) return diasFee;
+    return 35e3;
+  }
+  if (mode === "en_ligne") {
+    const onlineFee = Number(course.monthlyFeeOnline);
+    if (onlineFee > 0) return onlineFee;
+    return 25e3;
+  }
+  if (mode === "les_deux") {
+    const bothFee = Number(course.monthlyFeeBoth);
+    if (bothFee > 0) return bothFee;
+    return 35e3;
+  }
+  const monthly = Number(course.monthlyFee);
+  if (monthly > 0) return monthly;
+  return DEFAULT_MONTHLY_FEE;
+}
+function calcRegistrationTotal(courses, coursParticuliers, pays, ville) {
+  if (coursParticuliers) return COURS_PARTICULIERS_FEE;
+  if (!Array.isArray(courses) || courses.length === 0) {
+    if (pays && isDiaspora(pays)) return DEFAULT_REGISTRATION_FEE_DIASPORA;
+    if (ville && !isAbidjan(ville)) return DEFAULT_REGISTRATION_FEE_INTERIEUR;
+    return DEFAULT_REGISTRATION_FEE;
+  }
+  return courses.reduce((sum, c) => sum + courseRegistrationFee(c, pays, ville), 0);
+}
+function calcMonthlyTotal(courses, coursParticuliers, pays, mode) {
+  if (coursParticuliers) return 0;
+  if (!Array.isArray(courses) || courses.length === 0) return DEFAULT_MONTHLY_FEE;
+  return courses.reduce((sum, c) => sum + courseMonthlyFee(c, pays, mode), 0);
+}
+var METHOD_TO_GP = {
+  wave: "wave",
+  orange: "orange_money",
+  mtn: "mtn_money",
+  moov: "moov_money",
+  card: "card",
+  WAVE: "wave",
+  ORANGE_MONEY: "orange_money",
+  MTN_MOMO: "mtn_money",
+  MOOV: "moov_money",
+  CARTE: "card"
+};
+
+// server/controllers/userController.ts
 var USER_SAFE_SELECT = {
   id: true,
   email: true,
@@ -78,7 +178,7 @@ var USER_SAFE_SELECT = {
 var getUsers = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || "1"));
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || "50")));
+    const limit = Math.min(1e3, Math.max(1, parseInt(req.query.limit || "50")));
     const skip = (page - 1) * limit;
     const search = req.query.search?.trim();
     const role = req.query.role;
@@ -188,7 +288,7 @@ var createUser = async (req, res) => {
 var updateUser = async (req, res) => {
   try {
     const id = req.params.id;
-    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate, studentIds } = req.body;
+    const { email, password, name, prenom, nom, role, telephone, pays, ville, isActive, image, hourlyRate, studentIds, courseIds } = req.body;
     if (!id) {
       return res.status(400).json({ error: "ID utilisateur requis" });
     }
@@ -223,6 +323,45 @@ var updateUser = async (req, res) => {
         await prisma_default.parentStudent.createMany({
           data: studentIds.map((sid) => ({ parentId: id, studentId: sid })),
           skipDuplicates: true
+        });
+      }
+    }
+    if (Array.isArray(courseIds) && user.role === "STUDENT") {
+      const courses = await prisma_default.course.findMany({ where: { id: { in: courseIds } } });
+      const subscriptions = await prisma_default.subscription.findMany({ where: { userId: id } });
+      const byCourse = new Map(subscriptions.map((s) => [s.courseId, s]));
+      const activeSub = subscriptions.find((s) => s.status === "ACTIVE");
+      const formule = activeSub?.formule || "presentiel";
+      const nextPayment = /* @__PURE__ */ new Date();
+      nextPayment.setMonth(nextPayment.getMonth() + 1);
+      for (const course of courses) {
+        const amount = calcMonthlyTotal([course], false, user.pays || void 0, formule);
+        const existing = byCourse.get(course.id);
+        if (!existing) {
+          await prisma_default.subscription.create({
+            data: {
+              userId: id,
+              courseId: course.id,
+              amount,
+              status: "ACTIVE",
+              nextPayment,
+              formule,
+              coursParticuliers: false
+            }
+          });
+        } else if (existing.status !== "ACTIVE") {
+          await prisma_default.subscription.update({
+            where: { id: existing.id },
+            data: { status: "ACTIVE", amount, nextPayment }
+          });
+        }
+      }
+      const keep = new Set(courses.map((c) => c.id));
+      const toCancel = subscriptions.filter((s) => !keep.has(s.courseId) && s.status !== "CANCELLED");
+      if (toCancel.length > 0) {
+        await prisma_default.subscription.updateMany({
+          where: { id: { in: toCancel.map((s) => s.id) } },
+          data: { status: "CANCELLED" }
         });
       }
     }
@@ -413,104 +552,6 @@ var userRoutes_default = router;
 // server/routes/paymentRoutes.ts
 import { Router as Router2 } from "express";
 import rateLimit from "express-rate-limit";
-
-// server/constants.ts
-var COUNTRY_TO_ISO2 = {
-  "C\xF4te d'Ivoire": "CI",
-  "France": "FR",
-  "Belgique": "BE",
-  "Canada": "CA",
-  "S\xE9n\xE9gal": "SN",
-  "Mali": "ML",
-  "Burkina Faso": "BF",
-  "B\xE9nin": "BJ",
-  "Togo": "TG",
-  "Cameroun": "CM",
-  "Gabon": "GA",
-  "Congo": "CG",
-  "RDC": "CD",
-  "Guin\xE9e": "GN",
-  "Niger": "NE"
-};
-function isDiaspora(pays) {
-  if (!pays) return false;
-  const p = pays.trim().toLowerCase();
-  return p !== "c\xF4te d'ivoire" && p !== "cote d'ivoire";
-}
-function isAbidjan(ville) {
-  if (!ville) return false;
-  return ville.trim().toLowerCase().startsWith("abidjan");
-}
-var COURS_PARTICULIERS_FEE = 2e5;
-var DEFAULT_REGISTRATION_FEE = 45e3;
-var DEFAULT_REGISTRATION_FEE_INTERIEUR = 35e3;
-var DEFAULT_REGISTRATION_FEE_DIASPORA = 1e5;
-var DEFAULT_MONTHLY_FEE = 3e4;
-function courseRegistrationFee(course, pays, ville) {
-  if (!course) return DEFAULT_REGISTRATION_FEE;
-  if (pays && isDiaspora(pays)) {
-    const diasFee = Number(course.registrationFeeDiaspora);
-    if (diasFee > 0) return diasFee;
-    return DEFAULT_REGISTRATION_FEE_DIASPORA;
-  }
-  if (ville && !isAbidjan(ville)) {
-    const intFee = Number(course.registrationFeeInterieur);
-    if (intFee > 0) return intFee;
-    return DEFAULT_REGISTRATION_FEE_INTERIEUR;
-  }
-  const reg = Number(course.registrationFee);
-  if (reg > 0) return reg;
-  const price = Number(course.price);
-  if (price > 0) return price;
-  return DEFAULT_REGISTRATION_FEE;
-}
-function courseMonthlyFee(course, pays, mode) {
-  if (!course) return DEFAULT_MONTHLY_FEE;
-  if (pays && isDiaspora(pays)) {
-    const diasFee = Number(course.monthlyFeeDiaspora);
-    if (diasFee > 0) return diasFee;
-    return 35e3;
-  }
-  if (mode === "en_ligne") {
-    const onlineFee = Number(course.monthlyFeeOnline);
-    if (onlineFee > 0) return onlineFee;
-    return 25e3;
-  }
-  if (mode === "les_deux") {
-    const bothFee = Number(course.monthlyFeeBoth);
-    if (bothFee > 0) return bothFee;
-    return 35e3;
-  }
-  const monthly = Number(course.monthlyFee);
-  if (monthly > 0) return monthly;
-  return DEFAULT_MONTHLY_FEE;
-}
-function calcRegistrationTotal(courses, coursParticuliers, pays, ville) {
-  if (coursParticuliers) return COURS_PARTICULIERS_FEE;
-  if (!Array.isArray(courses) || courses.length === 0) {
-    if (pays && isDiaspora(pays)) return DEFAULT_REGISTRATION_FEE_DIASPORA;
-    if (ville && !isAbidjan(ville)) return DEFAULT_REGISTRATION_FEE_INTERIEUR;
-    return DEFAULT_REGISTRATION_FEE;
-  }
-  return courses.reduce((sum, c) => sum + courseRegistrationFee(c, pays, ville), 0);
-}
-function calcMonthlyTotal(courses, coursParticuliers, pays, mode) {
-  if (coursParticuliers) return 0;
-  if (!Array.isArray(courses) || courses.length === 0) return DEFAULT_MONTHLY_FEE;
-  return courses.reduce((sum, c) => sum + courseMonthlyFee(c, pays, mode), 0);
-}
-var METHOD_TO_GP = {
-  wave: "wave",
-  orange: "orange_money",
-  mtn: "mtn_money",
-  moov: "moov_money",
-  card: "card",
-  WAVE: "wave",
-  ORANGE_MONEY: "orange_money",
-  MTN_MOMO: "mtn_money",
-  MOOV: "moov_money",
-  CARTE: "card"
-};
 
 // server/utils/geniuspay.ts
 var GENIUSPAY_API_BASE = process.env.GENIUSPAY_API_BASE || "https://geniuspay.ci/api/v1/merchant";
@@ -1358,6 +1399,7 @@ import rateLimit2 from "express-rate-limit";
 
 // server/controllers/authController.ts
 import bcrypt2 from "bcrypt";
+import crypto3 from "crypto";
 
 // server/utils/jwt.ts
 import jwt2 from "jsonwebtoken";
@@ -1434,10 +1476,14 @@ var logger_default = logger;
 
 // server/controllers/authController.ts
 var passwordResetTokens = /* @__PURE__ */ new Map();
+var pendingPlainPasswords = /* @__PURE__ */ new Map();
 function cleanupExpiredTokens() {
   const now = Date.now();
   for (const [token, data] of passwordResetTokens) {
     if (data.expiresAt < now) passwordResetTokens.delete(token);
+  }
+  for (const [token, data] of pendingPlainPasswords) {
+    if (data.expiresAt < now) pendingPlainPasswords.delete(token);
   }
 }
 setInterval(cleanupExpiredTokens, 60 * 60 * 1e3);
@@ -1450,7 +1496,7 @@ function maskEmail(email) {
   return `${maskedLocal}@${maskedDomain}.${tld.join(".")}`;
 }
 async function sendWelcomeEmail(params) {
-  const { email, prenom, nom, matricule, totalAmount, inscriptionAmount, monthlyAmount, courses, paymentMethod, reference } = params;
+  const { email, prenom, nom, matricule, totalAmount, inscriptionAmount, monthlyAmount, courses, paymentMethod, reference, password } = params;
   const nodemailer2 = await import("nodemailer").catch(() => null);
   if (!nodemailer2) return;
   try {
@@ -1489,7 +1535,7 @@ async function sendWelcomeEmail(params) {
             <h3 style="margin:0 0 10px;color:#0369a1;font-size:16px">\u{1F511} Vos identifiants de connexion</h3>
             <table style="width:100%;border-collapse:collapse">
               <tr><td style="padding:4px 8px;color:#666;width:120px">Email</td><td style="padding:4px 8px;font-weight:bold">${email}</td></tr>
-              <tr><td style="padding:4px 8px;color:#666">Mot de passe</td><td style="padding:4px 8px;font-weight:bold">(celui que vous avez choisi lors de l'inscription)</td></tr>
+              <tr><td style="padding:4px 8px;color:#666">Mot de passe</td><td style="padding:4px 8px;font-weight:bold">${password || "(celui que vous avez choisi lors de l'inscription)"}</td></tr>
               ${matricule ? `<tr><td style="padding:4px 8px;color:#666">Matricule</td><td style="padding:4px 8px;font-weight:bold;color:#c97e00">${matricule}</td></tr>` : ""}
             </table>
           </div>
@@ -1613,6 +1659,7 @@ var registerCash = async (req, res) => {
     const regData = {
       email: cleanEmail,
       passwordHash,
+      password,
       name,
       nom,
       prenom,
@@ -1676,64 +1723,76 @@ var confirmCashRegistration = async (req, res) => {
     if (stored.otp !== otp) return res.status(400).json({ error: "Code OTP incorrect" });
     const d = stored.data;
     cashOtpStore.delete(cleanEmail);
-    const user = await prisma_default.user.create({
-      data: {
-        email: d.cleanEmail || cleanEmail,
-        password: d.passwordHash,
-        name: d.name,
-        telephone: d.telephone,
-        pays: d.pays,
-        ville: d.ville,
-        role: "STUDENT",
-        isActive: true,
-        matricule: await generateMatricule()
-      }
-    });
-    const regPrice = calcRegistrationTotal(d.pays, d.ville, d.coursParticuliers);
-    const monthly = calcMonthlyTotal(d.pays, d.ville, d.mode, d.coursParticuliers);
-    await prisma_default.payment.create({
-      data: {
-        userId: user.id,
-        amount: regPrice,
-        method: "ESPECES",
-        status: "SUCCESS",
-        type: "REGISTRATION",
-        reference: await generateReceiptNumber(),
-        description: `Frais d'inscription (esp\xE8ces) - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
-      }
-    });
-    for (const cid of d.courseIds) {
-      const nextMonth = /* @__PURE__ */ new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      await prisma_default.subscription.create({
+    const courses = await prisma_default.course.findMany({ where: { id: { in: d.courseIds } } });
+    const cParticuliers = d.coursParticuliers === true || d.coursParticuliers === "true";
+    const cMode = d.mode || "presentiel";
+    const regPrice = calcRegistrationTotal(courses, cParticuliers, d.pays, d.ville);
+    const monthly = calcMonthlyTotal(courses, cParticuliers, d.pays, cMode);
+    const paymentCourseId = courses.length === 1 ? courses[0].id : null;
+    const matricule = await generateMatricule();
+    const user = await prisma_default.$transaction(async (tx) => {
+      const created = await tx.user.create({
         data: {
-          userId: user.id,
-          courseId: cid,
-          status: "ACTIVE",
-          startDate: /* @__PURE__ */ new Date(),
-          endDate: nextMonth,
-          monthlyAmount: monthly
+          email: cleanEmail,
+          password: d.passwordHash,
+          name: d.name,
+          telephone: d.telephone,
+          pays: d.pays,
+          ville: d.ville,
+          role: "STUDENT",
+          isActive: true,
+          matricule
         }
       });
-    }
-    await prisma_default.payment.create({
-      data: {
-        userId: user.id,
-        amount: monthly,
-        method: "ESPECES",
-        status: "SUCCESS",
-        type: "MONTHLY",
-        reference: await generateReceiptNumber(),
-        description: `Mensualit\xE9 - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
+      let regPaymentId = null;
+      if (regPrice > 0) {
+        const regPayment = await tx.payment.create({
+          data: {
+            userId: created.id,
+            courseId: paymentCourseId,
+            amount: regPrice,
+            status: "SUCCESS",
+            type: "REGISTRATION",
+            receiptNumber: generateReceiptNumber(),
+            description: `Frais d'inscription (esp\xE8ces) - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
+          }
+        });
+        regPaymentId = regPayment.id;
       }
+      if (monthly > 0) {
+        await tx.payment.create({
+          data: {
+            userId: created.id,
+            courseId: paymentCourseId,
+            amount: monthly,
+            status: "SUCCESS",
+            type: "MONTHLY",
+            receiptNumber: generateReceiptNumber(),
+            description: `Mensualit\xE9 - ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")}`
+          }
+        });
+      }
+      for (const course of courses) {
+        const nextPayment = /* @__PURE__ */ new Date();
+        nextPayment.setMonth(nextPayment.getMonth() + 1);
+        await tx.subscription.create({
+          data: {
+            userId: created.id,
+            courseId: course.id,
+            amount: calcMonthlyTotal([course], cParticuliers, d.pays, cMode),
+            status: "ACTIVE",
+            nextPayment,
+            formule: cMode,
+            coursParticuliers: cParticuliers
+          }
+        });
+      }
+      await tx.contract.create({ data: { userId: created.id, paymentId: regPaymentId } });
+      return created;
     });
-    const jwt3 = await import("jsonwebtoken");
-    const token = jwt3.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "30d" });
-    setAuthCookie(res, token);
     try {
       await sendNotification(user.id, "Inscription confirm\xE9e", `Bienvenue ! Votre inscription a \xE9t\xE9 confirm\xE9e. Matricule: ${user.matricule}`);
       await sendNotificationToRole("ADMIN", "Nouvel \xE9tudiant inscrit (esp\xE8ces)", `${user.name || user.email} - ${user.matricule}`);
-      const validCourses = await prisma_default.course.findMany({ where: { id: { in: d.courseIds } } });
       await sendWelcomeEmail({
         email: cleanEmail,
         prenom: d.prenom,
@@ -1742,8 +1801,9 @@ var confirmCashRegistration = async (req, res) => {
         totalAmount: regPrice + monthly,
         inscriptionAmount: regPrice,
         monthlyAmount: monthly,
-        courses: validCourses.map((c) => c.title),
-        paymentMethod: "ESPECES"
+        courses: courses.map((c) => c.title),
+        paymentMethod: "ESPECES",
+        password: d.password
       });
     } catch {
     }
@@ -1814,6 +1874,7 @@ var registerAndPay = async (req, res) => {
         expiresAt
       }
     });
+    pendingPlainPasswords.set(pending.token, { password, expiresAt: expiresAt.getTime() });
     const courseTitles = courses.map((c) => c.title).join(", ");
     const label = cParticuliers ? "Cours particuliers" : `Inscription (${effectiveMode})`;
     const geniusPayBody = {
@@ -1974,6 +2035,8 @@ var confirmPayment = async (req, res) => {
         await prisma_default.pendingRegistration.delete({ where: { id: pending.id } });
         return res.status(400).json({ error: "Session d'inscription expir\xE9e. Veuillez recommencer." });
       }
+      const storedCredentials = pendingPlainPasswords.get(pendingToken);
+      pendingPlainPasswords.delete(pendingToken);
       const courseIdList = Array.isArray(pending.courseIds) ? pending.courseIds : [];
       const pendingCourses = await prisma_default.course.findMany({ where: { id: { in: courseIdList } } });
       const inscriptionAmount = calcRegistrationTotal(pendingCourses, pending.coursParticuliers, pending.pays, pending.ville);
@@ -2002,6 +2065,7 @@ var confirmPayment = async (req, res) => {
         const existingPayment = await tx.payment.findFirst({
           where: { geniusPayReference: reference }
         });
+        let paymentId = existingPayment?.id ?? null;
         if (!existingPayment) {
           const payment = await tx.payment.create({
             data: {
@@ -2011,8 +2075,13 @@ var confirmPayment = async (req, res) => {
               geniusPayReference: reference
             }
           });
+          paymentId = payment.id;
           const receiptNumber = generateReceiptNumber();
           await tx.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
+        }
+        const existingContract = await tx.contract.findFirst({ where: { userId: user.id } });
+        if (!existingContract && user.role === "STUDENT") {
+          await tx.contract.create({ data: { userId: user.id, paymentId } });
         }
         for (const cId of courseIdList) {
           const existingSub = await tx.subscription.findFirst({
@@ -2038,6 +2107,19 @@ var confirmPayment = async (req, res) => {
         });
         return user;
       });
+      let passwordToSend = storedCredentials?.password;
+      if (!passwordToSend && result.role === "STUDENT") {
+        try {
+          const tempPassword = crypto3.randomBytes(8).toString("base64url").slice(0, 10);
+          await prisma_default.user.update({
+            where: { id: result.id },
+            data: { password: await bcrypt2.hash(tempPassword, 12) }
+          });
+          passwordToSend = tempPassword;
+        } catch (err) {
+          logger_default.error("Temp password generation failed", "auth", err);
+        }
+      }
       try {
         await sendNotification(
           result.id,
@@ -2059,7 +2141,8 @@ var confirmPayment = async (req, res) => {
           monthlyAmount: monthlyAmt,
           courses: pendingCourses.map((c) => c.title),
           paymentMethod: gpData.payment_method || "unknown",
-          reference
+          reference,
+          password: passwordToSend
         });
       } catch (err) {
         console.error("Notification error on payment confirmation:", err);
@@ -2190,7 +2273,7 @@ var getMe = async (req, res) => {
 
 // server/controllers/passwordResetController.ts
 import bcrypt3 from "bcrypt";
-import crypto3 from "crypto";
+import crypto4 from "crypto";
 var passwordResetTokens2 = /* @__PURE__ */ new Map();
 function cleanupExpiredTokens2() {
   const now = Date.now();
@@ -2224,7 +2307,7 @@ var forgotPassword = async (req, res) => {
     if (!user) {
       return res.json({ message: "Si cet email est inscrit, vous recevrez un lien de r\xE9initialisation." });
     }
-    const token = crypto3.randomBytes(32).toString("hex");
+    const token = crypto4.randomBytes(32).toString("hex");
     const expiresAt = Date.now() + 60 * 60 * 1e3;
     passwordResetTokens2.set(token, { userId: user.id, expiresAt });
     const frontendUrl2 = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -2367,28 +2450,37 @@ var loginLimiter = rateLimit2({
   // Ne compte que les échecs
 });
 var registerLimiter = rateLimit2({
-  windowMs: 60 * 60 * 1e3,
-  max: 5,
+  windowMs: Number(process.env.REGISTER_RATE_WINDOW_MS) || 60 * 60 * 1e3,
+  max: Number(process.env.REGISTER_RATE_MAX) || 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     error: "Trop d'inscriptions depuis cette adresse. Veuillez r\xE9essayer dans une heure."
   }
 });
-var paymentInitLimiter = rateLimit2({
-  windowMs: 60 * 60 * 1e3,
-  max: 3,
+var cashRegisterLimiter = rateLimit2({
+  windowMs: Number(process.env.REGISTER_RATE_WINDOW_MS) || 60 * 60 * 1e3,
+  max: Number(process.env.CASH_REGISTER_RATE_MAX) || 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
-    error: "Trop de tentatives de paiement. Veuillez r\xE9essayer dans une heure."
+    error: "Trop d'inscriptions en esp\xE8ces depuis cette adresse. Veuillez r\xE9essayer dans une heure."
+  }
+});
+var paymentInitLimiter = rateLimit2({
+  windowMs: Number(process.env.REGISTER_RATE_WINDOW_MS) || 60 * 60 * 1e3,
+  max: Number(process.env.PAYMENT_INIT_RATE_MAX) || 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Trop de tentatives de paiement depuis cette adresse. Veuillez r\xE9essayer dans une heure."
   }
 });
 router3.post("/login", loginLimiter, validateBody(loginSchema), login);
 router3.post("/logout", logout);
 router3.post("/register", registerLimiter, validateBody(registerSchema), register);
 router3.post("/register-and-pay", registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
-router3.post("/register-cash", registerLimiter, registerCash);
+router3.post("/register-cash", cashRegisterLimiter, registerCash);
 router3.post("/confirm-cash-registration", confirmCashRegistration);
 router3.post("/forgot-password", loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
 router3.post("/reset-password", validateBody(resetPasswordSchema), resetPassword);
@@ -2557,14 +2649,14 @@ var getExpenseSummary = async (req, res) => {
 // server/routes/expenseRoutes.ts
 import multer2 from "multer";
 import path3 from "path";
-import crypto4 from "crypto";
+import crypto5 from "crypto";
 var router5 = Router5();
 router5.use(authenticateToken);
 var storage = multer2.diskStorage({
   destination: (_req, _file, cb) => cb(null, path3.join(process.cwd(), "uploads")),
   filename: (_req, file, cb) => {
     const ext = path3.extname(file.originalname);
-    cb(null, `expense-${crypto4.randomUUID()}${ext}`);
+    cb(null, `expense-${crypto5.randomUUID()}${ext}`);
   }
 });
 var upload2 = multer2({
@@ -2839,7 +2931,7 @@ import multer3 from "multer";
 import rateLimit3 from "express-rate-limit";
 import path4 from "path";
 import fs3 from "fs";
-import crypto5 from "crypto";
+import crypto6 from "crypto";
 import { fileURLToPath as fileURLToPath3 } from "url";
 
 // server/controllers/testimonialController.ts
@@ -3000,7 +3092,7 @@ var upload3 = multer3({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
     filename: (_req, file, cb) => {
       const ext = path4.extname(file.originalname);
-      cb(null, `${crypto5.randomUUID()}${ext}`);
+      cb(null, `${crypto6.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 5 * 1024 * 1024 }
@@ -3488,7 +3580,7 @@ import multer4 from "multer";
 import rateLimit4 from "express-rate-limit";
 
 // server/controllers/sessionController.ts
-import crypto6 from "crypto";
+import crypto7 from "crypto";
 import fs4 from "fs";
 import path5 from "path";
 var SESSION_FILES_DIR = path5.join(process.cwd(), "uploads", "session-files");
@@ -3566,7 +3658,7 @@ var createSession = async (req, res) => {
       return res.status(400).json({ error: "L'heure de fin doit \xEAtre apr\xE8s l'heure de d\xE9but" });
     }
     const { weekStart, weekEnd, weekLabel } = getWeekInfo(date);
-    const id = crypto6.randomUUID();
+    const id = crypto7.randomUUID();
     const now = /* @__PURE__ */ new Date();
     const courseIdVal = courseId || null;
     const typeVal = type || "PRESENTIEL";
@@ -3822,7 +3914,7 @@ var uploadSessionFile = async (req, res) => {
     if (!rows.length) {
       return res.status(404).json({ error: "S\xE9ance introuvable" });
     }
-    const fileId = crypto6.randomUUID();
+    const fileId = crypto7.randomUUID();
     const ext = path5.extname(file.originalname).toLowerCase();
     const diskFilename = `${fileId}${ext}`;
     const diskPath = path5.join(SESSION_FILES_DIR, diskFilename);
@@ -3988,7 +4080,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
         currency: "XOF",
         description,
         metadata: { teacher_id: teacher.id, type: "salary" },
-        idempotency_key: crypto6.randomUUID()
+        idempotency_key: crypto7.randomUUID()
       }),
       signal: AbortSignal.timeout(15e3)
     });
@@ -4001,7 +4093,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
     if (env === "sandbox") {
       return {
         success: true,
-        reference: `SANDBOX-${crypto6.randomUUID().slice(0, 8)}`,
+        reference: `SANDBOX-${crypto7.randomUUID().slice(0, 8)}`,
         error: `\u26A0\uFE0F Mode sandbox : paiement simul\xE9. ${apiMsg}`
       };
     }
@@ -4011,7 +4103,7 @@ async function processGeniusPayPayout(teacher, amount, description, phone) {
     if (env === "sandbox") {
       return {
         success: true,
-        reference: `SANDBOX-${crypto6.randomUUID().slice(0, 8)}`,
+        reference: `SANDBOX-${crypto7.randomUUID().slice(0, 8)}`,
         error: "\u26A0\uFE0F Mode sandbox : paiement simul\xE9 (API non disponible)"
       };
     }
@@ -4371,17 +4463,20 @@ var signContract = async (req, res) => {
       return res.status(400).json({ error: "La signature est requise" });
     }
     const existing = await prisma_default.contract.findFirst({ where: { userId } });
-    if (existing) {
+    if (existing?.signatureData) {
       return res.status(400).json({ error: "Vous avez d\xE9j\xE0 sign\xE9 le contrat" });
     }
-    const contract = await prisma_default.contract.create({
-      data: {
-        userId,
-        paymentId: paymentId || null,
-        signatureData,
-        ipAddress: req.ip || "",
-        userAgent: req.headers["user-agent"] || ""
-      }
+    const signatureFields = {
+      signatureData,
+      ipAddress: req.ip || "",
+      userAgent: req.headers["user-agent"] || "",
+      signedAt: /* @__PURE__ */ new Date()
+    };
+    const contract = existing ? await prisma_default.contract.update({
+      where: { id: existing.id },
+      data: { ...signatureFields, paymentId: paymentId || existing.paymentId }
+    }) : await prisma_default.contract.create({
+      data: { userId, paymentId: paymentId || null, ...signatureFields }
     });
     try {
       const student = await prisma_default.user.findUnique({ where: { id: userId }, select: { name: true } });
@@ -4448,6 +4543,10 @@ var getSignedPdf = async (req, res) => {
     });
     if (!contract) {
       return res.status(404).json({ error: "Contrat introuvable" });
+    }
+    const staffRoles = ["ADMIN", "ACCOUNTANT", "SECRETARY"];
+    if (contract.userId !== req.user.id && !staffRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Acc\xE8s refus\xE9 \xE0 ce contrat" });
     }
     if (!contract.signatureData) {
       return res.status(400).json({ error: "Aucune signature trouv\xE9e pour ce contrat" });
@@ -5142,7 +5241,7 @@ import { Router as Router18 } from "express";
 import multer7 from "multer";
 import path8 from "path";
 import fs6 from "fs";
-import crypto7 from "crypto";
+import crypto8 from "crypto";
 import { fileURLToPath as fileURLToPath5 } from "url";
 
 // server/controllers/blogController.ts
@@ -5479,7 +5578,7 @@ var upload6 = multer7({
     destination: (_req, _file, cb) => cb(null, blogUploadsDir),
     filename: (_req, file, cb) => {
       const ext = path8.extname(file.originalname);
-      cb(null, `${crypto7.randomUUID()}${ext}`);
+      cb(null, `${crypto8.randomUUID()}${ext}`);
     }
   }),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -6132,6 +6231,28 @@ import path10 from "path";
 import fs8 from "fs";
 import { fileURLToPath as fileURLToPath7 } from "url";
 var __dirname7 = path10.dirname(fileURLToPath7(import.meta.url));
+async function ensureContractNullableColumns() {
+  try {
+    const cols = await prisma.$queryRaw`
+      SELECT column_name::text AS column_name, is_nullable
+      FROM information_schema.columns
+      WHERE table_name = 'Contract' AND table_schema = 'public'
+        AND column_name IN ('signatureData', 'signedAt')
+    `;
+    if (!cols.length) return;
+    const notNullable = cols.filter((c) => c.is_nullable === "NO").map((c) => c.column_name);
+    for (const name of notNullable) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Contract" ALTER COLUMN "${name}" DROP NOT NULL`);
+      console.log(`  Colonne Contract."${name}" rendue nullable`);
+    }
+    if (notNullable.includes("signedAt")) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Contract" ALTER COLUMN "signedAt" DROP DEFAULT`).catch(() => {
+      });
+    }
+  } catch (err) {
+    console.error("ContractColumns migration error:", err?.message || err);
+  }
+}
 async function ensureCourseColumns() {
   const tableCheck = await prisma.$queryRaw`
     SELECT EXISTS (
@@ -6220,8 +6341,8 @@ if (!process.env.JWT_SECRET) {
 var globalLimiter = rateLimit6({
   windowMs: 15 * 60 * 1e3,
   // 15 minutes
-  max: 400,
-  // 400 requêtes par fenêtre (un catalogue complet génère beaucoup d'appels)
+  max: Number(process.env.GLOBAL_RATE_MAX) || 1500,
+  // inscriptions groupées + navigation catalogue
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de requ\xEAtes. R\xE9essayez dans 15 minutes." }
@@ -6416,11 +6537,17 @@ var candidateDistPaths = [
 var distPath = candidateDistPaths.find((p) => fs8.existsSync(p)) || candidateDistPaths[0];
 app.use(express.static(distPath, {
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith(".js")) res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-    if (filePath.endsWith(".css")) res.setHeader("Content-Type", "text/css; charset=utf-8");
-    if (filePath.endsWith(".json")) res.setHeader("Content-Type", "application/json; charset=utf-8");
-    if (filePath.endsWith(".wasm")) res.setHeader("Content-Type", "application/wasm");
-    if (filePath.endsWith(".svg")) res.setHeader("Content-Type", "image/svg+xml");
+    const normalized = filePath.split(path10.sep).join("/");
+    if (/\.js$/.test(normalized)) res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+    if (/\.css$/.test(normalized)) res.setHeader("Content-Type", "text/css; charset=utf-8");
+    if (/\.json$/.test(normalized)) res.setHeader("Content-Type", "application/json; charset=utf-8");
+    if (/\.wasm$/.test(normalized)) res.setHeader("Content-Type", "application/wasm");
+    if (/\.svg$/.test(normalized)) res.setHeader("Content-Type", "image/svg+xml");
+    if (/\/assets\/.+\-[A-Za-z0-9_-]{8,}\./.test(normalized)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (/(index\.html|sw\.js|manifest\.json)$/.test(normalized)) {
+      res.setHeader("Cache-Control", "no-cache, must-revalidate");
+    }
   }
 }));
 var publicDocPath = path10.resolve(projectRoot, "public", "doc");
@@ -6435,12 +6562,17 @@ if (fs8.existsSync(serverUploads)) {
 }
 app.use("/uploads", express.static(path10.join(__dirname7, "uploads")));
 app.use("/media", mediaRoutes_default);
+var STATIC_FILE_PATTERN = /\.(js|mjs|css|map|json|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|eot|mp4|webm|pdf|txt|xml|wasm|webmanifest)$/i;
 app.use((req, res, next) => {
   if (req.method !== "GET") return next();
   if (req.path.startsWith("/api/")) return next();
-  if (req.path.match(/\.(js|css|json|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|ico|wasm)$/)) return next();
+  if (STATIC_FILE_PATTERN.test(req.path)) {
+    res.status(404).type("text/plain").send("Not found");
+    return;
+  }
   const indexPath = path10.join(distPath, "index.html");
   if (fs8.existsSync(indexPath)) {
+    res.setHeader("Cache-Control", "no-cache, must-revalidate");
     return res.sendFile(indexPath);
   }
   next();
@@ -6458,6 +6590,7 @@ async function initDatabaseDefaults() {
       console.error("\u26A0\uFE0F [CourseColumns] \xC9chec de la migration initiale:", e?.message || e);
       console.log("\u2139\uFE0F [CourseColumns] Le lazy migration dans getAllCourses ajoutera les colonnes manquantes au premier appel");
     }
+    await ensureContractNullableColumns();
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "PendingRegistration" (
         "id" TEXT NOT NULL,

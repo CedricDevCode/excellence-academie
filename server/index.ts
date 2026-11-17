@@ -423,11 +423,19 @@ const distPath = candidateDistPaths.find(p => fs.existsSync(p)) || candidateDist
 
 app.use(express.static(distPath, {
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-    if (filePath.endsWith('.css')) res.setHeader('Content-Type', 'text/css; charset=utf-8');
-    if (filePath.endsWith('.json')) res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    if (filePath.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
-    if (filePath.endsWith('.svg')) res.setHeader('Content-Type', 'image/svg+xml');
+    const normalized = filePath.split(path.sep).join('/');
+    if (/\.js$/.test(normalized)) res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    if (/\.css$/.test(normalized)) res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    if (/\.json$/.test(normalized)) res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    if (/\.wasm$/.test(normalized)) res.setHeader('Content-Type', 'application/wasm');
+    if (/\.svg$/.test(normalized)) res.setHeader('Content-Type', 'image/svg+xml');
+    // Assets fingerprintés Vite (hash dans le nom) → cache immuable
+    if (/\/assets\/.+\-[A-Za-z0-9_-]{8,}\./.test(normalized)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/(index\.html|sw\.js|manifest\.json)$/.test(normalized)) {
+      // Jamais de cache pour le point d'entrée et le service worker
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
   }
 }));
 // Servir aussi le dossier public/doc (contrat PDF)
@@ -449,12 +457,21 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/media', mediaRoutes);
 
 // ─── Fallback SPA ─────────────────────────────────────────────────────────────
+// IMPORTANT : un fichier statique manquant ne doit JAMAIS renvoyer index.html
+// (sinon le navigateur refuse le module .js → "Failed to fetch dynamically
+// imported module" après chaque déploiement). On répond 404 franc.
+const STATIC_FILE_PATTERN = /\.(js|mjs|css|map|json|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|eot|mp4|webm|pdf|txt|xml|wasm|webmanifest)$/i;
+
 app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api/')) return next();
-  if (req.path.match(/\.(js|css|json|png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|eot|ico|wasm)$/)) return next();
+  if (STATIC_FILE_PATTERN.test(req.path)) {
+    res.status(404).type('text/plain').send('Not found');
+    return;
+  }
   const indexPath = path.join(distPath, 'index.html');
   if (fs.existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     return res.sendFile(indexPath);
   }
   next();

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Users, Search, Plus, Edit, Trash2, Loader2, Mail, Send, X, CheckCircle,
   ChevronDown, ChevronRight, Filter, Download, Phone, MapPin, GraduationCap,
-  Clock, Calendar
+  Clock, Calendar, Save
 } from "lucide-react";
 import {
   fetchUsers, createUser, updateUser, deleteUser, registerStudent, registerAndPay,
@@ -11,7 +11,7 @@ import {
 import { useToast } from "../Toast";
 import LoadingSpinner from "./LoadingSpinner";
 import StudentRegistrationForm from "../StudentRegistrationForm";
-import { calcRegistrationPrice } from "../../constants/student";
+import { calcRegistrationPrice, PAYS, VILLES } from "../../constants/student";
 
 import { generateTempPassword } from "./helpers";
 
@@ -36,7 +36,7 @@ function StudentsView() {
   const [courses, setCourses] = useState<any[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ nom: '', prenom: '', email: '', telephone: '', ville: '', isActive: true, courseIds: [] as string[] });
+  const [editForm, setEditForm] = useState({ nom: '', prenom: '', email: '', telephone: '', ville: '', pays: '', isActive: true, courseIds: [] as string[] });
 
   const [showPaymentsModal, setShowPaymentsModal] = useState(false);
   const [paymentsStudent, setPaymentsStudent] = useState<any>(null);
@@ -233,6 +233,7 @@ function StudentsView() {
       email: student.email || '',
       telephone: student.telephone || '',
       ville: student.ville || '',
+      pays: student.pays || '',
       isActive: student.isActive !== false,
       courseIds: getStudentCourses(student).map((c: any) => c.id),
     });
@@ -250,6 +251,7 @@ function StudentsView() {
         email: editForm.email,
         telephone: editForm.telephone,
         ville: editForm.ville,
+        pays: editForm.pays,
         courseIds: editForm.courseIds,
       });
       loadUsers();
@@ -602,17 +604,24 @@ function StudentsView() {
         )}
 
         {showAddPanel && (
-          <aside className="bg-white rounded shadow-sm border border-gray-100 p-6 xl:min-h-[600px]">
-            <div className="flex items-start justify-between gap-3 mb-6">
-              <div>
-                <h3 className="font-black text-gray-900 text-lg">Inscrire un étudiant</h3>
-                <p className="text-gray-500 text-sm">Suivez les étapes pour compléter l'inscription.</p>
+          <aside className="bg-white rounded shadow-sm border border-surface-200 overflow-hidden xl:min-h-[600px]">
+            <div className="flex items-start justify-between gap-3 p-6 pb-5 bg-gradient-to-r from-primary-700 via-[#c97e00] to-primary-800 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded bg-white/15 flex items-center justify-center shrink-0">
+                  <GraduationCap size={22} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg leading-tight">Inscrire un étudiant</h3>
+                  <p className="text-amber-100/90 text-xs mt-0.5">Inscription assistée en 4 étapes</p>
+                </div>
               </div>
-              <button onClick={() => setShowAddPanel(false)} className="text-gray-400 hover:text-gray-600 transition-colors shrink-0">
-                Fermer
+              <button onClick={() => setShowAddPanel(false)} className="text-amber-100 hover:text-white bg-white/10 hover:bg-white/20 transition-colors shrink-0 rounded p-2" aria-label="Fermer">
+                <X size={18} />
               </button>
             </div>
-            <StudentRegistrationForm embedded onSuccess={() => { setShowAddPanel(false); loadUsers(); toast('success', 'Étudiant inscrit avec succès !'); }} />
+            <div className="p-6">
+              <StudentRegistrationForm embedded onSuccess={() => { setShowAddPanel(false); loadUsers(); toast('success', 'Étudiant inscrit avec succès !'); }} />
+            </div>
           </aside>
         )}
       </div>
@@ -879,69 +888,113 @@ function StudentsView() {
 
       {/* Edit Student Modal */}
       {showEditModal && editingStudent && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 modal-overlay">
-          <div className="bg-white rounded w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-              <h3 className="font-black text-gray-900 text-lg">Modifier l'étudiant</h3>
-              <button onClick={() => { setShowEditModal(false); setEditingStudent(null); }} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        <div className="fixed inset-0 bg-surface-900/60 backdrop-blur-[2px] z-50 flex items-center justify-center p-4 modal-overlay" onClick={() => { setShowEditModal(false); setEditingStudent(null); }}>
+          <div className="bg-white rounded w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh] modal-content" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Modifier l'étudiant">
+            {/* Header avec identité */}
+            <div className="p-5 border-b border-primary-800/40 shrink-0 bg-gradient-to-r from-primary-700 via-[#c97e00] to-primary-800 text-white flex items-center gap-4">
+              <div className="w-14 h-14 rounded bg-white/15 flex items-center justify-center text-lg font-black shrink-0">
+                {(((editForm.prenom?.[0] || editingStudent.name?.[0] || '?') + (editForm.nom?.[0] || editingStudent.name?.split(' ')[1]?.[0] || '')).toUpperCase())}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-lg leading-tight">Modifier l'étudiant</h3>
+                <p className="text-amber-100/90 text-xs mt-0.5 truncate">
+                  {editingStudent.matricule ? <span className="font-mono">Matr. {editingStudent.matricule}</span> : editingStudent.email}
+                </p>
+              </div>
+              <button onClick={() => { setShowEditModal(false); setEditingStudent(null); }} className="text-amber-100 hover:text-white bg-white/10 hover:bg-white/20 rounded p-2 transition-colors shrink-0" aria-label="Fermer"><X size={18} /></button>
             </div>
             <form onSubmit={handleEditSubmit} className="flex flex-col h-full overflow-hidden">
-              <div className="p-6 space-y-4 overflow-y-auto flex-1">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                {/* Identité */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Prénom</label>
-                  <input value={editForm.prenom} onChange={e => setEditForm({ ...editForm, prenom: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2 flex items-center gap-1.5"><GraduationCap size={11} /> Identité</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-prenom">Prénom</label>
+                      <input id="edit-prenom" value={editForm.prenom} onChange={e => setEditForm({ ...editForm, prenom: e.target.value })} autoComplete="given-name" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-nom">Nom</label>
+                      <input id="edit-nom" value={editForm.nom} onChange={e => setEditForm({ ...editForm, nom: e.target.value })} autoComplete="family-name" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Contact */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Nom</label>
-                  <input value={editForm.nom} onChange={e => setEditForm({ ...editForm, nom: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2 flex items-center gap-1.5"><Mail size={11} /> Contact</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-email">Email</label>
+                      <input id="edit-email" type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} autoComplete="email" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-telephone">Téléphone (WhatsApp)</label>
+                      <input id="edit-telephone" type="tel" value={editForm.telephone} onChange={e => setEditForm({ ...editForm, telephone: e.target.value })} autoComplete="tel" placeholder="07 XX XX XX XX" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
-                <input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Téléphone</label>
-                <input value={editForm.telephone} onChange={e => setEditForm({ ...editForm, telephone: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Ville</label>
-                <input value={editForm.ville} onChange={e => setEditForm({ ...editForm, ville: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Formation(s)</label>
-                <div className="max-h-40 overflow-y-auto border-2 border-gray-200 rounded p-2 space-y-1">
-                  {courses.length === 0 ? (
-                    <p className="text-xs text-gray-400 italic px-1">Aucune formation disponible</p>
-                  ) : (
-                    courses.map((c: any) => (
-                      <label key={c.id} className="flex items-center gap-2 px-1 py-1 text-sm cursor-pointer hover:bg-gray-50 rounded">
-                        <input
-                          type="checkbox"
-                          checked={editForm.courseIds.includes(c.id)}
-                          onChange={e => setEditForm(f => ({
-                            ...f,
-                            courseIds: e.target.checked
-                              ? [...f.courseIds, c.id]
-                              : f.courseIds.filter(id => id !== c.id),
-                          }))}
-                          className="accent-[#c97e00]"
-                        />
-                        <span className="text-gray-700">{c.title}</span>
-                      </label>
-                    ))
+
+                {/* Localisation */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2 flex items-center gap-1.5"><MapPin size={11} /> Localisation</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-pays">Pays</label>
+                      <select id="edit-pays" value={editForm.pays} onChange={e => setEditForm({ ...editForm, pays: e.target.value })} className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all">
+                        <option value="">—</option>
+                        {PAYS.map(p => <option key={p} value={p}>{p}</option>)}
+                        {editForm.pays && !PAYS.includes(editForm.pays) && <option value={editForm.pays}>{editForm.pays}</option>}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-ville">Ville / Centre</label>
+                      <input id="edit-ville" list="edit-villes-list" value={editForm.ville} onChange={e => setEditForm({ ...editForm, ville: e.target.value })} placeholder="Ex: Abidjan" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                      <datalist id="edit-villes-list">
+                        {VILLES.map(v => <option key={v} value={v} />)}
+                      </datalist>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Formations */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2 flex items-center gap-1.5"><GraduationCap size={11} /> Formations</p>
+                  <div className="max-h-44 overflow-y-auto border border-surface-300 rounded p-2 space-y-0.5 bg-surface-50/40">
+                    {courses.length === 0 ? (
+                      <p className="text-xs text-surface-400 italic px-1 py-1">Aucune formation disponible</p>
+                    ) : (
+                      courses.map((c: any) => {
+                        const checked = editForm.courseIds.includes(c.id);
+                        return (
+                          <label key={c.id} className={`flex items-center gap-2.5 px-2 py-1.5 text-sm cursor-pointer rounded transition-colors ${checked ? 'bg-primary-50' : 'hover:bg-surface-100'}`}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={e => setEditForm(f => ({
+                                ...f,
+                                courseIds: e.target.checked
+                                  ? [...f.courseIds, c.id]
+                                  : f.courseIds.filter(id => id !== c.id),
+                              }))}
+                              className="accent-[#c97e00] w-4 h-4"
+                            />
+                            <span className={checked ? 'text-surface-900 font-medium' : 'text-surface-600'}>{c.title}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  {editForm.courseIds.length === 0 && (
+                    <p className="text-xs text-amber-700 mt-1.5">Sélectionnez au moins une formation pour cet étudiant.</p>
                   )}
                 </div>
-                {editForm.courseIds.length === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">Sélectionnez au moins une formation pour cet étudiant.</p>
-                )}
               </div>
-              </div>
-              <div className="p-6 pt-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
-                <button type="button" onClick={() => { setShowEditModal(false); setEditingStudent(null); }} className="px-4 py-2 text-gray-600 font-semibold text-sm">Annuler</button>
-                <button type="submit" disabled={submitting} className="bg-[#c97e00] text-white px-6 py-2 rounded font-bold text-sm hover:bg-[#6b4500] disabled:opacity-50">
-                  {submitting ? '...' : 'Enregistrer'}
+              <div className="p-5 border-t border-surface-200 shrink-0 flex items-center justify-end gap-3 bg-surface-50/70">
+                <button type="button" onClick={() => { setShowEditModal(false); setEditingStudent(null); }} className="px-5 py-2.5 text-surface-500 hover:text-surface-800 font-semibold text-sm rounded hover:bg-surface-100 transition-colors">Annuler</button>
+                <button type="submit" disabled={submitting} className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded font-bold text-sm hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md">
+                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {submitting ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
               </div>
             </form>

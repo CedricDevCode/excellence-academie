@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchCourses, registerAndPay, getMe } from "../utils/api";
-import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, Loader2, AlertCircle, Sparkles, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, User, BookOpen, Loader2, AlertCircle, Sparkles, Lock, Check, ClipboardList, ShieldCheck } from "lucide-react";
 import { StudentPersonalFields, StudentProgramFields } from "./StudentRegistrationFields";
 import { MODES, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora } from "../constants/student";
 import { paymentMethods } from "../utils/payment";
@@ -12,6 +12,58 @@ function validateEmail(email: string) {
 
 function validatePhone(phone: string) {
   return /^[0-9+\s\-/()]{8,}$/.test(phone);
+}
+
+const STEPS = [
+  { n: 1, label: "Informations", icon: <User size={15} /> },
+  { n: 2, label: "Formation", icon: <BookOpen size={15} /> },
+  { n: 3, label: "Récapitulatif", icon: <ClipboardList size={15} /> },
+  { n: 4, label: "Paiement", icon: <CreditCard size={15} /> },
+];
+
+function Stepper({ step }: { step: number }) {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center">
+        {STEPS.map((s, i) => {
+          const done = step > s.n;
+          const current = step === s.n;
+          return (
+            <div key={s.n} className={`flex items-center ${i < STEPS.length - 1 ? "flex-1" : ""}`}>
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`w-9 h-9 rounded flex items-center justify-center border-2 transition-all duration-200 ${
+                    done
+                      ? "bg-primary-600 border-primary-600 text-white"
+                      : current
+                      ? "bg-white border-primary-600 text-primary-700 shadow-[0_0_0_4px_rgba(201,126,0,0.15)]"
+                      : "bg-surface-50 border-surface-200 text-surface-400"
+                  }`}
+                >
+                  {done ? <Check size={16} strokeWidth={3} /> : s.icon}
+                </div>
+                <span
+                  className={`hidden sm:block text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${
+                    current ? "text-primary-800" : done ? "text-surface-700" : "text-surface-400"
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div className="flex-1 h-0.5 mx-2 sm:mx-3 rounded-full bg-surface-200 overflow-hidden translate-y-0 sm:-translate-y-2.5">
+                  <div
+                    className="h-full bg-primary-600 transition-all duration-500"
+                    style={{ width: step > s.n ? "100%" : "0%" }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export interface StudentRegistrationFormProps {
@@ -60,8 +112,6 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const [otpLoading, setOtpLoading] = useState(false);
 
   const update = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
-
-  const steps = ["Infos personnelles", "Formation", "Récapitulatif", "Paiement"];
 
   const validateStep = (s: number): boolean => {
     if (s === 1) {
@@ -229,6 +279,8 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      <Stepper step={step} />
+
       {/* Banner if already logged in */}
       {loggedInUser && (
         <div className="mb-6 p-4 rounded-xl bg-linear-to-r from-amber-50 to-orange-50 border-2 border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
@@ -264,24 +316,16 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
 
       {step === 1 && (
         <div className="space-y-5">
-          <div className="flex items-center gap-2 mb-6">
-            <User size={20} className="text-[#c97e00]" />
-            <h2 className="text-xl font-black text-gray-900">Informations personnelles</h2>
-          </div>
           <StudentPersonalFields form={form as any} onChange={update as any} />
         </div>
       )}
 
       {step === 2 && (
         <div className="space-y-5">
-          <div className="flex items-center gap-2 mb-6">
-            <BookOpen size={20} className="text-[#c97e00]" />
-            <h2 className="text-xl font-black text-gray-900">Choix de la formation</h2>
-          </div>
           {loadingCourses ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 size={24} className="animate-spin text-[#c97e00]" />
-              <span className="ml-2 text-gray-500 text-sm">Chargement des formations...</span>
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Loader2 size={28} className="animate-spin text-[#c97e00]" />
+              <span className="text-surface-400 text-sm font-medium">Chargement des formations…</span>
             </div>
           ) : (
             <StudentProgramFields form={form as any} courses={courses} onChange={update as any} />
@@ -290,119 +334,121 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       )}
 
       {step === 3 && (
-        <div className="space-y-5">
-          <div className="flex items-center gap-2 mb-6">
-            <BookOpen size={20} className="text-[#c97e00]" />
-            <h2 className="text-xl font-black text-gray-900">Récapitulatif de votre inscription</h2>
-          </div>
-          <div className="bg-gray-50 rounded p-6 text-left space-y-3">
-            {[
-              { label: "Nom complet", val: `${form.prenom} ${form.nom}` },
-              { label: "Email", val: form.email },
-              { label: "Téléphone", val: form.telephone },
-              { label: "Pays", val: form.pays },
-              { label: "Ville", val: form.ville },
-              { label: "Concours", val: selectedCourses.map((c) => c.title).join(", ") || "—" },
-              ...(form.mode ? [{ label: "Mode", val: MODES.find(m => m.id === form.mode)?.name || form.mode }] : []),
-              ...(form.coursParticuliers ? [{ label: "Cours particuliers", val: "Oui (forfait unique)" }] : []),
-            ].map((item, i) => (
-              <div key={i} className="flex items-start justify-between text-sm">
-                <span className="text-gray-500 font-medium">{item.label}</span>
-                <span className="text-gray-900 font-bold text-right ml-4">{item.val || "—"}</span>
-              </div>
-            ))}
-            <div className="border-t border-gray-200 pt-3 space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Frais d'inscription</span>
-                <span className="font-bold text-gray-900">{formatPrice(inscPrice)} FCFA</span>
-              </div>
-              {!form.coursParticuliers && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Mensualité (1er mois inclus)</span>
-                  <span className="font-bold text-gray-900">{formatPrice(monthlyAmount)} FCFA</span>
+        <div className="space-y-4">
+          <div className="rounded border border-surface-300 overflow-hidden">
+            <div className="px-5 py-3 bg-surface-50 border-b border-surface-200 flex items-center gap-2">
+              <ClipboardList size={16} className="text-primary-700" />
+              <span className="text-xs font-black uppercase tracking-wider text-surface-600">Vos informations</span>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+              {[
+                { label: "Nom complet", val: `${form.prenom} ${form.nom}` },
+                { label: "Email", val: form.email },
+                { label: "Téléphone", val: form.telephone },
+                { label: "Pays", val: form.pays },
+                { label: "Ville / Centre", val: form.ville },
+                { label: "Concours", val: selectedCourses.map((c) => c.title).join(", ") || "—" },
+                ...(form.mode ? [{ label: "Mode", val: MODES.find(m => m.id === form.mode)?.name || form.mode }] : []),
+                ...(form.coursParticuliers ? [{ label: "Formule", val: "Cours particuliers (forfait)" }] : []),
+              ].map((item, i) => (
+                <div key={i} className="min-w-0">
+                  <dt className="text-[10px] font-bold uppercase tracking-wider text-surface-400">{item.label}</dt>
+                  <dd className="text-sm text-surface-900 font-semibold mt-0.5 break-words">{item.val || "—"}</dd>
                 </div>
-              )}
-              <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                <span className="font-black text-gray-900">Total à payer aujourd'hui</span>
-                <span className="font-black text-2xl text-[#c97e00]">{formatPrice(totalAmount)} FCFA</span>
-              </div>
+              ))}
             </div>
           </div>
+
+          <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-5">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-surface-500">Frais d'inscription</span>
+              <span className="font-bold text-surface-900 tabular-nums">{formatPrice(inscPrice)} FCFA</span>
+            </div>
+            {!form.coursParticuliers && (
+              <div className="flex items-center justify-between gap-3 text-sm mt-2">
+                <span className="text-surface-500">1ère mensualité</span>
+                <span className="font-bold text-surface-900 tabular-nums">{formatPrice(monthlyAmount)} FCFA</span>
+              </div>
+            )}
+            <div className="border-t border-primary-200/70 my-3" />
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-black text-surface-900">Total à payer</span>
+              <span className="font-black text-2xl text-primary-800 tabular-nums">{formatPrice(totalAmount)} FCFA</span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-surface-400 text-center">Vérifiez vos informations — vous pourrez modifier l'inscription en contactant le secrétariat.</p>
         </div>
       )}
 
       {step === 4 && !otpStep && (
         <div className="space-y-5">
-          <div className="flex items-center gap-2 mb-6">
-            <CreditCard size={20} className="text-[#c97e00]" />
-            <h2 className="text-xl font-black text-gray-900">Paiement de l'inscription</h2>
-          </div>
-          <div className="bg-primary-50 border-2 border-primary-200 rounded sm:rounded p-3 sm:p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-bold text-gray-900">Frais d'inscription</div>
-                <div className="text-gray-500 text-sm">{selectedCourses.map((c) => c.title).join(", ") || "Concours"}</div>
-                {form.coursParticuliers && <div className="text-gray-500 text-xs">Cours particuliers (forfait unique)</div>}
-              </div>
-              <div className="font-black text-lg text-gray-900">{formatPrice(inscPrice)} FCFA</div>
+          {/* Total */}
+          <div className="rounded bg-surface-900 text-white p-5 flex items-center justify-between gap-4 shadow-lg">
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary-300">Total à régler</div>
+              <div className="text-xs text-surface-300 mt-1 truncate">{selectedCourses.map((c) => c.title).join(", ") || "Inscription"}{form.coursParticuliers ? " · Forfait particulier" : ""}</div>
             </div>
-            {!form.coursParticuliers && (
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-gray-900 text-sm">1ère mensualité</div>
-                </div>
-                <div className="font-black text-gray-900">{formatPrice(monthlyAmount)} FCFA</div>
-              </div>
-            )}
-            <div className="flex items-center justify-between pt-2 border-t border-primary-200">
-              <span className="font-black text-gray-900">Total</span>
-              <span className="font-black text-xl sm:text-2xl text-[#c97e00]">{formatPrice(totalAmount)} FCFA</span>
-            </div>
+            <div className="text-2xl sm:text-3xl font-black tabular-nums whitespace-nowrap text-primary-300">{formatPrice(totalAmount)} <span className="text-xs font-bold text-surface-300">FCFA</span></div>
           </div>
+
+          {/* Moyen de paiement */}
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-4">Choisissez votre moyen de paiement</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-2">Moyen de paiement</p>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {localMethods.map(p => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => handleMethodSelect(p.id)}
-                  className={`flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-6 border-2 rounded sm:rounded transition-all cursor-pointer hover:shadow-lg hover:border-[#c97e00]
-                    ${form.paymentMethod === p.id ? "border-[#c97e00] bg-primary-50 shadow-md" : "border-gray-200 bg-white"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded transition-all duration-150 ${
+                    form.paymentMethod === p.id
+                      ? "border-primary-600 bg-primary-50 shadow-[0_0_0_3px_rgba(201,126,0,0.15)]"
+                      : "border-surface-300 bg-white hover:border-primary-300 hover:shadow-sm"
+                  }`}
                 >
                   {p.image ? (
-                    <img src={p.image} alt={p.name} className="h-8 sm:h-14 w-auto object-contain" />
+                    <img src={p.image} alt={p.name} className="h-8 sm:h-9 w-auto object-contain" />
                   ) : (
-                    <div className="h-10 w-10 sm:h-14 sm:w-14 rounded-lg sm:rounded bg-surface-50 flex items-center justify-center text-lg sm:text-2xl">💳</div>
+                    <div className="h-8 sm:h-9 flex items-center text-2xl text-surface-400"><CreditCard size={22} /></div>
                   )}
-                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">{p.name}</span>
+                  <span className="font-semibold text-surface-700 text-[10px] leading-tight text-center">{p.name}</span>
                 </button>
               ))}
             </div>
           </div>
           {form.paymentMethod && form.paymentMethod !== "especes" && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Numéro de téléphone pour le paiement</label>
-              <input type="tel" value={form.geniusPhone} onChange={e => update("geniusPhone", e.target.value)}
-                placeholder="Ex: 07 01 02 03 04"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors" />
+              <label className="text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5 block" htmlFor="reg-geniusphone">Numéro de téléphone pour le paiement</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none"><CreditCard size={17} /></span>
+                <input
+                  id="reg-geniusphone"
+                  type="tel"
+                  value={form.geniusPhone}
+                  onChange={e => update("geniusPhone", e.target.value)}
+                  placeholder="Ex: 07 01 02 03 04"
+                  autoComplete="tel"
+                  className="w-full pl-11 pr-4 py-3 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+              </div>
             </div>
           )}
           {form.paymentMethod === "especes" && (
-            <div className="bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-800">
-              Un code de confirmation sera envoyé par email à l'adresse de l'établissement. Vous devrez le saisir pour finaliser l'inscription.
+            <div className="bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-800 flex items-start gap-2.5">
+              <ShieldCheck size={16} className="shrink-0 mt-0.5" />
+              <span>Un code de confirmation sera envoyé par email à l'adresse de l'établissement. Vous devrez le saisir pour finaliser l'inscription.</span>
             </div>
           )}
-          <div className="bg-green-50 border-2 border-green-200 rounded p-4 text-sm text-green-800 flex items-center gap-2">
-            <span>🔒</span>
-            <span><strong>Paiement sécurisé</strong> via GeniusPay.</span>
+          <div className="flex items-center gap-2.5 text-xs text-accent-900 bg-accent-50 border border-accent-200 rounded px-4 py-3">
+            <ShieldCheck size={16} className="shrink-0" />
+            <span><strong>Paiement 100% sécurisé</strong> — transactions chiffrées via GeniusPay.</span>
           </div>
           {!embedded && (
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 cursor-pointer select-none group">
               <input type="checkbox" checked={form.cgu} onChange={e => update("cgu", e.target.checked)}
-                className="mt-1 accent-[#c97e00]" />
-              <span className="text-sm text-gray-600">
-                J'accepte les <a href="/cgu" className="text-[#c97e00] hover:underline" target="_blank">conditions générales d'utilisation</a> et je confirme que les informations fournies sont exactes.
+                className="mt-0.5 accent-[#c97e00] w-4 h-4 shrink-0" />
+              <span className="text-xs text-surface-500 leading-relaxed group-hover:text-surface-700 transition-colors">
+                J'accepte les <a href="/cgu" className="text-primary-700 font-semibold hover:underline" target="_blank">conditions générales d'utilisation</a> et je confirme que les informations fournies sont exactes.
               </span>
             </label>
           )}
@@ -455,7 +501,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         {step < 3 ? (
           <button type="button" onClick={goNextStep}
             className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 bg-[#c97e00] hover:bg-[#6b4500] text-white font-bold text-xs sm:text-sm rounded transition-all shadow-md hover:shadow-lg">
-            Suivant <ArrowRight size={14} />
+            Continuer <ArrowRight size={14} />
           </button>
         ) : step === 3 ? (
           <button type="button" onClick={() => { setError(null); setStep(4); }}
@@ -465,7 +511,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         ) : (
           <button type="submit" disabled={submitting}
             className="flex items-center gap-2 px-5 sm:px-8 py-2.5 sm:py-3 bg-primary-600 hover:bg-primary-700 text-white font-bold sm:font-black text-sm sm:text-base rounded transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
-            {submitting ? <Loader2 size={18} className="animate-spin" /> : "💳"}
+            {submitting ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
             {submitting ? "Paiement en cours..." : "Payer maintenant"} <ArrowRight size={16} />
           </button>
         )}
