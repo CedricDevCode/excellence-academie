@@ -75,6 +75,7 @@ export default function BlogEditor() {
   const [courseId, setCourseId] = useState("");
   const [tags, setTags] = useState("");
   const [published, setPublished] = useState(true);
+  const [audience, setAudience] = useState<'MEMBERS' | 'PUBLIC'>('MEMBERS');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!id);
 
@@ -104,6 +105,7 @@ export default function BlogEditor() {
       setCourseId(post.courseId || "");
       setTags(post.tags?.map((t: any) => t.tag.name).join(", ") || "");
       setPublished(post.published);
+      setAudience(post.audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS');
       if (post.titleStyle) {
         try { setTitleStyle({ ...DEFAULT_TITLE_STYLE, ...JSON.parse(post.titleStyle) }); } catch {}
       }
@@ -127,6 +129,7 @@ export default function BlogEditor() {
         tags: tags.split(",").map(t => t.trim()).filter(Boolean),
         published,
         titleStyle: JSON.stringify(titleStyle),
+        audience,
       };
       if (id) {
         await updateBlogPost(id, data);
@@ -275,6 +278,14 @@ export default function BlogEditor() {
                   <input type="file" accept="image/*" className="hidden" onChange={handleUploadCover} disabled={coverUploading} />
                 </label>
               )}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Visibilité</label>
+              <select value={audience} onChange={e => setAudience(e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none">
+                <option value="MEMBERS">Membres uniquement</option>
+                <option value="PUBLIC">Public — visible sur /actualites (SEO)</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Matière</label>

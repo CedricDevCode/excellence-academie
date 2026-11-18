@@ -1121,6 +1121,22 @@ export const updateBlogPost = async (id: string, data: any) => {
   return res.json();
 };
 
+// ─── Journal public (sans authentification) ──────────────────────
+export const fetchPublicPosts = async (params?: { page?: number; limit?: number }) => {
+  const query = params ? '?' + new URLSearchParams(
+    Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)])
+  ).toString() : '';
+  const res = await fetch(`${API_BASE_URL}/blog/public${query}`);
+  if (!res.ok) throw new Error('Failed to fetch public posts');
+  return res.json();
+};
+
+export const fetchPublicPostBySlug = async (slug: string) => {
+  const res = await fetch(`${API_BASE_URL}/blog/public/${encodeURIComponent(slug)}`);
+  if (!res.ok) throw new Error('Publication introuvable');
+  return res.json();
+};
+
 export const deleteBlogPost = async (id: string) => {
   const res = await authFetch(`${API_BASE_URL}/blog/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete post');

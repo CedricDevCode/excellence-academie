@@ -452,6 +452,47 @@ if (fs.existsSync(serverUploads)) {
 }
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// ─── Sitemap dynamique (contenu statique + articles du journal public) ─
+app.get('/sitemap.xml', async (_req, res) => {
+  const site = 'https://www.exacademie.net';
+  try {
+    const posts = await prisma.blogPost.findMany({
+      where: { published: true, audience: 'PUBLIC' },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      select: { slug: true, updatedAt: true, createdAt: true },
+    });
+    const staticUrls = [
+      { loc: '/', priority: '1.0', changefreq: 'weekly' },
+      { loc: '/catalogue', priority: '0.9', changefreq: 'weekly' },
+      { loc: '/shop', priority: '0.8', changefreq: 'weekly' },
+      { loc: '/actualites', priority: '0.8', changefreq: 'daily' },
+      { loc: '/cgu', priority: '0.3', changefreq: 'yearly' },
+      { loc: '/mentions-legales', priority: '0.3', changefreq: 'yearly' },
+      { loc: '/politique-de-confidentialite', priority: '0.3', changefreq: 'yearly' },
+    ];
+    const today = new Date().toISOString().split('T')[0];
+    const urls = [
+      ...staticUrls.map(u => `  <url><loc>${site}${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority><lastmod>${today}</lastmod></url>`),
+      ...posts.map(p => {
+        const lastmod = (p.updatedAt || p.createdAt).toISOString().split('T')[0];
+        return `  <url><loc>${site}/actualites/${p.slug}</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>${lastmod}</lastmod></url>`;
+      }),
+    ];
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=1800');
+    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`);
+  } catch (error) {
+    console.error('Sitemap generation error:', error);
+    // Repli statique
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://www.exacademie.net/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>\n  <url><loc>https://www.exacademie.net/actualites</loc><changefreq>daily</changefreq><priority>0.8</priority></url>\n</urlset>`);
+  }
+});
+
+// Flux RSS → redirection vers le RSS du journal public
+app.get('/rss.xml', (_req, res) => res.redirect(301, '/api/blog/public/rss.xml'));
+
 // ─── Images produit servies depuis la base (hors /api) ───────────────────────
 // Avant le fallback SPA : ces URLs n'ont pas d'extension et seraient
 // autrement interceptées par la réécriture vers index.html.
@@ -506,6 +547,8 @@ async function initDatabaseDefaults() {
     try {
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "views" INTEGER NOT NULL DEFAULT 0`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "titleStyle" TEXT`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "audience" TEXT NOT NULL DEFAULT 'MEMBERS'`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "BlogPost_audience_idx" ON "BlogPost"("audience")`);
       await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogRating" (
         "id" TEXT PRIMARY KEY,
         "postId" TEXT NOT NULL REFERENCES "BlogPost"("id") ON DELETE CASCADE,

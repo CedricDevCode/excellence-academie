@@ -430,6 +430,7 @@ model BlogPost {
   published   Boolean        @default(false)
   views       Int            @default(0)
   titleStyle  String?
+  audience    String         @default("MEMBERS")
   author      User           @relation(fields: [authorId], references: [id])
   authorId    String
   course      Course?        @relation(fields: [courseId], references: [id])

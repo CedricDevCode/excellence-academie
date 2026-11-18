@@ -12,6 +12,7 @@ import {
   createExercise, updateExercise, deleteExercise, uploadExerciseAttachment,
   submitExercise, getSubmissions, evaluateSubmission,
   incrementBlogView, rateBlogPost, subscribeBlog, uploadBlogCover,
+  getPublicPosts, getPublicPostBySlug, getPublicPostsRss,
 } from '../controllers/blogController';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -56,6 +57,11 @@ const router = Router();
 
 // ─── Abonnement aux alertes concours (public, rate-limité) ──────────
 router.post('/subscribe', subscribeLimiter, subscribeBlog);
+
+// ─── Journal public (SEO, indexable, sans authentification) ───────────
+router.get('/public', getPublicPosts);
+router.get('/public/rss.xml', getPublicPostsRss);
+router.get('/public/:slug', getPublicPostBySlug);
 
 // ─── Accès restreint ─────────────────────────────────────────
 // Le blog est réservé aux membres actifs : étudiants inscrits

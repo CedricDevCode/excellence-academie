@@ -5739,6 +5739,117 @@ var getBlogPostBySlug = async (req, res) => {
     res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration de l'article" });
   }
 };
+var getPublicPosts = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(asString2(req.query.page) || "1"));
+    const limit = Math.min(24, Math.max(1, parseInt(asString2(req.query.limit) || "9")));
+    const skip = (page - 1) * limit;
+    const where = { published: true, audience: "PUBLIC" };
+    const [posts, total] = await Promise.all([
+      prisma_default.blogPost.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          excerpt: true,
+          coverImage: true,
+          views: true,
+          titleStyle: true,
+          createdAt: true,
+          updatedAt: true,
+          author: { select: { id: true, name: true, image: true } },
+          course: { select: { id: true, title: true } },
+          tags: { select: { tag: { select: { id: true, name: true } } } },
+          _count: { select: { comments: true, exercises: true } }
+        }
+      }),
+      prisma_default.blogPost.count({ where })
+    ]);
+    res.json({ posts, total, page, limit, totalPages: Math.ceil(total / limit) });
+  } catch (error) {
+    console.error("getPublicPosts error:", error);
+    res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration des publications" });
+  }
+};
+var getPublicPostBySlug = async (req, res) => {
+  try {
+    const post = await prisma_default.blogPost.findFirst({
+      where: { slug: req.params.slug, audience: "PUBLIC", published: true },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        excerpt: true,
+        content: true,
+        coverImage: true,
+        views: true,
+        titleStyle: true,
+        createdAt: true,
+        updatedAt: true,
+        author: { select: { id: true, name: true, image: true } },
+        course: { select: { id: true, title: true } },
+        tags: { select: { tag: { select: { id: true, name: true } } } }
+      }
+    });
+    if (!post) return res.status(404).json({ message: "Publication non trouv\xE9e" });
+    res.json(post);
+  } catch (error) {
+    console.error("getPublicPostBySlug error:", error);
+    res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration de la publication" });
+  }
+};
+var getPublicPostsRss = async (_req, res) => {
+  try {
+    const posts = await prisma_default.blogPost.findMany({
+      where: { published: true, audience: "PUBLIC" },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        slug: true,
+        title: true,
+        excerpt: true,
+        coverImage: true,
+        createdAt: true,
+        author: { select: { name: true } }
+      }
+    });
+    const site = "https://www.exacademie.net";
+    const items = posts.map((p) => `
+    <item>
+      <title>${escapeXml(p.title)}</title>
+      <link>${site}/actualites/${p.slug}</link>
+      <guid isPermaLink="true">${site}/actualites/${p.slug}</guid>
+      <pubDate>${new Date(p.createdAt).toUTCString()}</pubDate>
+      <description>${escapeXml(p.excerpt || p.title)}</description>
+      <author>${escapeXml(p.author?.name || "Excellence Acad\xE9mie")}</author>
+    </item>`).join("\n");
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Excellence Acad\xE9mie \u2014 Journal</title>
+    <link>${site}/actualites</link>
+    <atom:link href="${site}/rss.xml" rel="self" type="application/rss+xml" />
+    <description>Actualit\xE9s et publications de l'\xE9cole de pr\xE9paration aux concours en C\xF4te d'Ivoire.</description>
+    <language>fr-CI</language>
+    <lastBuildDate>${(/* @__PURE__ */ new Date()).toUTCString()}</lastBuildDate>
+    ${items}
+  </channel>
+</rss>`;
+    res.setHeader("Content-Type", "application/rss+xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=900");
+    res.status(200).send(xml);
+  } catch (error) {
+    console.error("RSS error:", error);
+    res.status(500).send('<?xml version="1.0"?><error>RSS unavailable</error>');
+  }
+};
+function escapeXml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
 async function notifySubscribers(post) {
   try {
     const subscribers = await prisma_default.blogSubscriber.findMany({ select: { email: true } });
@@ -5759,7 +5870,7 @@ async function notifySubscribers(post) {
 }
 var createBlogPost = async (req, res) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle, audience } = req.body;
     if (!title || !content) return res.status(400).json({ message: "Titre et contenu obligatoires" });
     const sanitizedContent = DOMPurify.sanitize(content);
     let slug = slugify(title);
@@ -5774,6 +5885,7 @@ var createBlogPost = async (req, res) => {
         coverImage,
         views: 0,
         titleStyle: titleStyle || null,
+        audience: audience === "PUBLIC" ? "PUBLIC" : "MEMBERS",
         published: published ?? true,
         authorId: req.user.id,
         courseId: courseId || void 0,
@@ -5797,7 +5909,7 @@ var createBlogPost = async (req, res) => {
 };
 var updateBlogPost = async (req, res) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle, audience } = req.body;
     const id = req.params.id;
     const existing = await prisma_default.blogPost.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ message: "Article non trouv\xE9" });
@@ -5812,6 +5924,7 @@ var updateBlogPost = async (req, res) => {
     if (excerpt !== void 0) data.excerpt = excerpt;
     if (coverImage !== void 0) data.coverImage = coverImage;
     if (titleStyle !== void 0) data.titleStyle = titleStyle || null;
+    if (audience !== void 0) data.audience = audience === "PUBLIC" ? "PUBLIC" : "MEMBERS";
     if (published !== void 0) data.published = published;
     if (courseId !== void 0) data.courseId = courseId || null;
     if (tags !== void 0) {
@@ -6128,6 +6241,9 @@ var subscribeLimiter = rateLimit6({
 });
 var router18 = Router18();
 router18.post("/subscribe", subscribeLimiter, subscribeBlog);
+router18.get("/public", getPublicPosts);
+router18.get("/public/rss.xml", getPublicPostsRss);
+router18.get("/public/:slug", getPublicPostBySlug);
 router18.use(authenticateToken);
 router18.get("/", getBlogPosts);
 router18.get("/:slug", getBlogPostBySlug);
@@ -7124,6 +7240,49 @@ if (fs8.existsSync(serverUploads)) {
   app.use("/uploads", express.static(serverUploads));
 }
 app.use("/uploads", express.static(path10.join(__dirname7, "uploads")));
+app.get("/sitemap.xml", async (_req, res) => {
+  const site = "https://www.exacademie.net";
+  try {
+    const posts = await prisma.blogPost.findMany({
+      where: { published: true, audience: "PUBLIC" },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      select: { slug: true, updatedAt: true, createdAt: true }
+    });
+    const staticUrls = [
+      { loc: "/", priority: "1.0", changefreq: "weekly" },
+      { loc: "/catalogue", priority: "0.9", changefreq: "weekly" },
+      { loc: "/shop", priority: "0.8", changefreq: "weekly" },
+      { loc: "/actualites", priority: "0.8", changefreq: "daily" },
+      { loc: "/cgu", priority: "0.3", changefreq: "yearly" },
+      { loc: "/mentions-legales", priority: "0.3", changefreq: "yearly" },
+      { loc: "/politique-de-confidentialite", priority: "0.3", changefreq: "yearly" }
+    ];
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const urls = [
+      ...staticUrls.map((u) => `  <url><loc>${site}${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority><lastmod>${today}</lastmod></url>`),
+      ...posts.map((p) => {
+        const lastmod = (p.updatedAt || p.createdAt).toISOString().split("T")[0];
+        return `  <url><loc>${site}/actualites/${p.slug}</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>${lastmod}</lastmod></url>`;
+      })
+    ];
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=1800");
+    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.join("\n")}
+</urlset>`);
+  } catch (error) {
+    console.error("Sitemap generation error:", error);
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://www.exacademie.net/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://www.exacademie.net/actualites</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+</urlset>`);
+  }
+});
+app.get("/rss.xml", (_req, res) => res.redirect(301, "/api/blog/public/rss.xml"));
 app.use("/media", mediaRoutes_default);
 var STATIC_FILE_PATTERN = /\.(js|mjs|css|map|json|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|eot|mp4|webm|pdf|txt|xml|wasm|webmanifest)$/i;
 app.use((req, res, next) => {
@@ -7157,6 +7316,8 @@ async function initDatabaseDefaults() {
     try {
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "views" INTEGER NOT NULL DEFAULT 0`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "titleStyle" TEXT`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "audience" TEXT NOT NULL DEFAULT 'MEMBERS'`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "BlogPost_audience_idx" ON "BlogPost"("audience")`);
       await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogRating" (
         "id" TEXT PRIMARY KEY,
         "postId" TEXT NOT NULL REFERENCES "BlogPost"("id") ON DELETE CASCADE,

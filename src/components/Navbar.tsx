@@ -42,6 +42,7 @@ interface CourseItem {
 const baseNavLinks = [
   { label: "Formations", href: "/catalogue" },
   { label: "Boutique", href: "/shop" },
+  { label: "Actualités", href: "/actualites" },
   { label: "Blog", href: "/blog" },
 ];
 

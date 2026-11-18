@@ -33,6 +33,8 @@ const BlogList = lazy(() => import("./pages/BlogList"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const BlogEditor = lazy(() => import("./pages/BlogEditor"));
 const BlogSubmissions = lazy(() => import("./pages/BlogSubmissions"));
+const Actualites = lazy(() => import("./pages/Actualites"));
+const ActualiteDetail = lazy(() => import("./pages/ActualiteDetail"));
 const MentionsLegales = lazy(() => import("./pages/MentionsLegales"));
 const PolitiqueConfidentialite = lazy(() => import("./pages/PolitiqueConfidentialite"));
 const Accessibilite = lazy(() => import("./pages/Accessibilite"));
@@ -105,7 +107,9 @@ function AppRoutes() {
             <Route path="/shop/register" element={<PageTransition><ShopRegister /></PageTransition>} />
             <Route path="/shop/payment/success" element={<PageTransition><ShopCheckoutCallback /></PageTransition>} />
             <Route path="/shop/payment/error" element={<PageTransition><ShopCheckoutCallback /></PageTransition>} />
-            <Route path="/blog" element={<PageTransition><BlogList /></PageTransition>} />
+            <Route path="/actualites" element={<PageTransition><Actualites /></PageTransition>} />
+        <Route path="/actualites/:slug" element={<PageTransition><ActualiteDetail /></PageTransition>} />
+        <Route path="/blog" element={<PageTransition><BlogList /></PageTransition>} />
             <Route path="/blog/new" element={<PageTransition><BlogEditor /></PageTransition>} />
             <Route path="/blog/edit/:id" element={<PageTransition><BlogEditor /></PageTransition>} />
             <Route path="/blog/:slug" element={<PageTransition><BlogDetail /></PageTransition>} />

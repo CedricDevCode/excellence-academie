@@ -98,6 +98,113 @@ export const getBlogPostBySlug = async (req: Request, res: Response) => {
   }
 };
 
+// ─── Journal public (sans authentification, indexable SEO) ─────────────
+export const getPublicPosts = async (req: Request, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(asString(req.query.page) || '1'));
+    const limit = Math.min(24, Math.max(1, parseInt(asString(req.query.limit) || '9')));
+    const skip = (page - 1) * limit;
+
+    const where = { published: true, audience: 'PUBLIC' };
+    const [posts, total] = await Promise.all([
+      prisma.blogPost.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, slug: true, title: true, excerpt: true, coverImage: true,
+          views: true, titleStyle: true, createdAt: true, updatedAt: true,
+          author: { select: { id: true, name: true, image: true } },
+          course: { select: { id: true, title: true } },
+          tags: { select: { tag: { select: { id: true, name: true } } } },
+          _count: { select: { comments: true, exercises: true } },
+        },
+      }),
+      prisma.blogPost.count({ where }),
+    ]);
+
+    res.json({ posts, total, page, limit, totalPages: Math.ceil(total / limit) });
+  } catch (error) {
+    console.error('getPublicPosts error:', error);
+    res.status(500).json({ message: "Erreur lors de la récupération des publications" });
+  }
+};
+
+export const getPublicPostBySlug = async (req: Request, res: Response) => {
+  try {
+    const post = await prisma.blogPost.findFirst({
+      where: { slug: req.params.slug, audience: 'PUBLIC', published: true },
+      select: {
+        id: true, slug: true, title: true, excerpt: true, content: true, coverImage: true,
+        views: true, titleStyle: true, createdAt: true, updatedAt: true,
+        author: { select: { id: true, name: true, image: true } },
+        course: { select: { id: true, title: true } },
+        tags: { select: { tag: { select: { id: true, name: true } } } },
+      },
+    });
+    if (!post) return res.status(404).json({ message: "Publication non trouvée" });
+    res.json(post);
+  } catch (error) {
+    console.error('getPublicPostBySlug error:', error);
+    res.status(500).json({ message: "Erreur lors de la récupération de la publication" });
+  }
+};
+
+export const getPublicPostsRss = async (_req: Request, res: Response) => {
+  try {
+    const posts = await prisma.blogPost.findMany({
+      where: { published: true, audience: 'PUBLIC' },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        slug: true, title: true, excerpt: true, coverImage: true, createdAt: true,
+        author: { select: { name: true } },
+      },
+    });
+
+    const site = 'https://www.exacademie.net';
+    const items = posts.map((p) => `
+    <item>
+      <title>${escapeXml(p.title)}</title>
+      <link>${site}/actualites/${p.slug}</link>
+      <guid isPermaLink="true">${site}/actualites/${p.slug}</guid>
+      <pubDate>${new Date(p.createdAt).toUTCString()}</pubDate>
+      <description>${escapeXml(p.excerpt || p.title)}</description>
+      <author>${escapeXml(p.author?.name || 'Excellence Académie')}</author>
+    </item>`).join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Excellence Académie — Journal</title>
+    <link>${site}/actualites</link>
+    <atom:link href="${site}/rss.xml" rel="self" type="application/rss+xml" />
+    <description>Actualités et publications de l'école de préparation aux concours en Côte d'Ivoire.</description>
+    <language>fr-CI</language>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    ${items}
+  </channel>
+</rss>`;
+
+    res.setHeader('Content-Type', 'application/rss+xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=900');
+    res.status(200).send(xml);
+  } catch (error) {
+    console.error('RSS error:', error);
+    res.status(500).send('<?xml version="1.0"?><error>RSS unavailable</error>');
+  }
+};
+
+function escapeXml(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 // ─── Notification des abonnés alertes ───────────────────────────
 async function notifySubscribers(post: { title: string; slug: string; excerpt?: string | null }) {
   try {
@@ -120,7 +227,7 @@ async function notifySubscribers(post: { title: string; slug: string; excerpt?: 
 
 export const createBlogPost = async (req: Request, res: Response) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle, audience } = req.body;
     if (!title || !content) return res.status(400).json({ message: "Titre et contenu obligatoires" });
 
     const sanitizedContent = DOMPurify.sanitize(content);
@@ -138,6 +245,7 @@ export const createBlogPost = async (req: Request, res: Response) => {
         coverImage,
         views: 0,
         titleStyle: titleStyle || null,
+        audience: audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS',
         published: published ?? true,
         authorId: req.user!.id,
         courseId: courseId || undefined,
@@ -162,7 +270,7 @@ export const createBlogPost = async (req: Request, res: Response) => {
 
 export const updateBlogPost = async (req: Request, res: Response) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle, audience } = req.body;
     const id = req.params.id;
     const existing = await prisma.blogPost.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ message: "Article non trouvé" });
@@ -178,6 +286,7 @@ export const updateBlogPost = async (req: Request, res: Response) => {
     if (excerpt !== undefined) data.excerpt = excerpt;
     if (coverImage !== undefined) data.coverImage = coverImage;
     if (titleStyle !== undefined) data.titleStyle = titleStyle || null;
+    if (audience !== undefined) data.audience = audience === 'PUBLIC' ? 'PUBLIC' : 'MEMBERS';
     if (published !== undefined) data.published = published;
     if (courseId !== undefined) data.courseId = courseId || null;
 
