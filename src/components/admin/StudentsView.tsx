@@ -590,7 +590,7 @@ function StudentsView() {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Nom, email, telephone..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all shadow-xs"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-all shadow-xs"
                   />
                   {search && (
                     <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -604,7 +604,7 @@ function StudentsView() {
                   <select
                     value={selectedCourse}
                     onChange={e => setSelectedCourse(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
                     <option value="">📚 Toutes les formations</option>
                     {courses.map((c: any) => (
@@ -620,7 +620,7 @@ function StudentsView() {
                   <select
                     value={selectedMode}
                     onChange={e => setSelectedMode(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
                     <option value="">🎯 Tous les types</option>
                     <option value="presentiel">🏫 Presentiel</option>
@@ -635,7 +635,7 @@ function StudentsView() {
                   <select
                     value={selectedCity}
                     onChange={e => setSelectedCity(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
                     <option value="">📍 Toutes les villes</option>
                     {studentCities.map(c => (
@@ -649,7 +649,7 @@ function StudentsView() {
                   <select
                     value={dateFilter}
                     onChange={e => setDateFilter(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
+                    className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-all text-gray-700 font-medium shadow-xs"
                   >
                     <option value="">📅 Toutes les dates</option>
                     <option value="today">Inscrits aujourd'hui</option>
@@ -894,11 +894,11 @@ function StudentsView() {
               <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Sujet du message</label>
-                <input required value={msgForm.title} onChange={e => setMsgForm({ ...msgForm, title: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" placeholder="Rappel de cours..." />
+                <input required value={msgForm.title} onChange={e => setMsgForm({ ...msgForm, title: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" placeholder="Rappel de cours..." />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Contenu</label>
-                <textarea required rows={5} value={msgForm.message} onChange={e => setMsgForm({ ...msgForm, message: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none resize-none" placeholder="Votre message..." />
+                <textarea required rows={5} value={msgForm.message} onChange={e => setMsgForm({ ...msgForm, message: e.target.value })} className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none resize-none" placeholder="Votre message..." />
               </div>
               </div>
               <div className="p-6 pt-4 border-t border-gray-100 shrink-0 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
@@ -1176,7 +1176,7 @@ function StudentsView() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="cash-months">Mensualités</label>
-                      <select id="cash-months" value={cashPayMonths} onChange={e => { const m = Number(e.target.value); setCashPayMonths(m); setCashPayAmount(Number(cashPaySub.amount || 0) * m); }} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
+                      <select id="cash-months" value={cashPayMonths} onChange={e => { const m = Number(e.target.value); setCashPayMonths(m); setCashPayAmount(Number(cashPaySub.amount || 0) * m); }} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                           <option key={m} value={m}>{m} mois{m > 1 ? '' : ''}</option>
                         ))}
@@ -1184,7 +1184,7 @@ function StudentsView() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="cash-paidat">Date de paiement *</label>
-                      <input id="cash-paidat" type="date" value={cashPayPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCashPayPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
+                      <input id="cash-paidat" type="date" value={cashPayPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCashPayPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
                     </div>
                   </div>
 
@@ -1221,7 +1221,7 @@ function StudentsView() {
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setCashPayOtpSent(false); setCashPayOtp(""); setCashPayError(null); }}
-                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded text-xs font-semibold hover:bg-surface-100 transition-colors">
+                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded-xl text-xs font-semibold hover:bg-surface-100 transition-colors">
                       Retour
                     </button>
                     <button type="button" onClick={confirmCashPay} disabled={cashPayLoading}
@@ -1279,7 +1279,7 @@ function StudentsView() {
                   {!completionDiaspora && (
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="completion-mode">Mode de formation</label>
-                      <select id="completion-mode" value={completionMode} onChange={e => setCompletionMode(e.target.value as any)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
+                      <select id="completion-mode" value={completionMode} onChange={e => setCompletionMode(e.target.value as any)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
                         <option value="presentiel">Présentiel</option>
                         <option value="en_ligne">En ligne</option>
                         <option value="les_deux">Présentiel + En ligne</option>
@@ -1289,7 +1289,7 @@ function StudentsView() {
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="completion-paidat">Date de paiement *</label>
-                    <input id="completion-paidat" type="date" value={completionPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
+                    <input id="completion-paidat" type="date" value={completionPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
                   </div>
 
                   {selectedCompletionCourses.length > 0 ? (
@@ -1341,7 +1341,7 @@ function StudentsView() {
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setCompletionOtpSent(false); setCompletionOtp(""); setCompletionError(null); }}
-                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded text-xs font-semibold hover:bg-surface-100 transition-colors">
+                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded-xl text-xs font-semibold hover:bg-surface-100 transition-colors">
                       Retour
                     </button>
                     <button type="button" onClick={confirmCompletion} disabled={completionLoading}
@@ -1421,11 +1421,11 @@ function StudentsView() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-prenom">Prénom</label>
-                      <input id="edit-prenom" value={editForm.prenom} onChange={e => setEditForm({ ...editForm, prenom: e.target.value })} autoComplete="given-name" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                      <input id="edit-prenom" value={editForm.prenom} onChange={e => setEditForm({ ...editForm, prenom: e.target.value })} autoComplete="given-name" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-nom">Nom</label>
-                      <input id="edit-nom" value={editForm.nom} onChange={e => setEditForm({ ...editForm, nom: e.target.value })} autoComplete="family-name" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                      <input id="edit-nom" value={editForm.nom} onChange={e => setEditForm({ ...editForm, nom: e.target.value })} autoComplete="family-name" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
                     </div>
                   </div>
                 </div>
@@ -1436,11 +1436,11 @@ function StudentsView() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-email">Email</label>
-                      <input id="edit-email" type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} autoComplete="email" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                      <input id="edit-email" type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} autoComplete="email" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-telephone">Téléphone (WhatsApp)</label>
-                      <input id="edit-telephone" type="tel" value={editForm.telephone} onChange={e => setEditForm({ ...editForm, telephone: e.target.value })} autoComplete="tel" placeholder="07 XX XX XX XX" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                      <input id="edit-telephone" type="tel" value={editForm.telephone} onChange={e => setEditForm({ ...editForm, telephone: e.target.value })} autoComplete="tel" placeholder="07 XX XX XX XX" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
                     </div>
                   </div>
                 </div>
@@ -1451,7 +1451,7 @@ function StudentsView() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-pays">Pays</label>
-                      <select id="edit-pays" value={editForm.pays} onChange={e => setEditForm({ ...editForm, pays: e.target.value })} className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all">
+                      <select id="edit-pays" value={editForm.pays} onChange={e => setEditForm({ ...editForm, pays: e.target.value })} className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all">
                         <option value="">—</option>
                         {PAYS.map(p => <option key={p} value={p}>{p}</option>)}
                         {editForm.pays && !PAYS.includes(editForm.pays) && <option value={editForm.pays}>{editForm.pays}</option>}
@@ -1459,7 +1459,7 @@ function StudentsView() {
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-surface-500 mb-1.5" htmlFor="edit-ville">Ville / Centre</label>
-                      <input id="edit-ville" list="edit-villes-list" value={editForm.ville} onChange={e => setEditForm({ ...editForm, ville: e.target.value })} placeholder="Ex: Abidjan" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                      <input id="edit-ville" list="edit-villes-list" value={editForm.ville} onChange={e => setEditForm({ ...editForm, ville: e.target.value })} placeholder="Ex: Abidjan" className="w-full px-4 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
                       <datalist id="edit-villes-list">
                         {VILLES.map(v => <option key={v} value={v} />)}
                       </datalist>

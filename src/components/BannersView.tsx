@@ -259,7 +259,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
                   placeholder={isHomepageMode ? 'Ex: Offre du mois' : 'Ex: Nouvelle Collection'}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                 />
               </div>
 
@@ -272,7 +272,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       value={form.subtitle}
                       onChange={e => setForm({ ...form, subtitle: e.target.value })}
                       placeholder="Ex: Jusqu'à -50%"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                   <div>
@@ -282,7 +282,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       value={form.badgeText}
                       onChange={e => setForm({ ...form, badgeText: e.target.value })}
                       placeholder="Ex: Promo"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                 </>
@@ -296,7 +296,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                   onChange={e => setForm({ ...form, description: e.target.value })}
                   placeholder="Détails de la bannière..."
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none resize-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none resize-none"
                 />
               </div>
 
@@ -324,7 +324,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                     <select
                       value={form.backgroundColor}
                       onChange={e => setForm({ ...form, backgroundColor: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     >
                       {GRADIENT_COLORS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
@@ -334,7 +334,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                     <select
                       value={form.productId}
                       onChange={e => setForm({ ...form, productId: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     >
                       <option value="">Aucun produit</option>
                       {products.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -346,7 +346,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       type="date"
                       value={form.startDate}
                       onChange={e => setForm({ ...form, startDate: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                   <div>
@@ -355,7 +355,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                       type="date"
                       value={form.endDate}
                       onChange={e => setForm({ ...form, endDate: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                     />
                   </div>
                 </>
@@ -367,7 +367,7 @@ export default function BannersView({ mode = 'shop' }: BannersViewProps) {
                   type="number"
                   value={form.displayOrder}
                   onChange={e => setForm({ ...form, displayOrder: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                 />
               </div>
 

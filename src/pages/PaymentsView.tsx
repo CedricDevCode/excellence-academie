@@ -57,7 +57,7 @@ function PaymentsView() {
               value={searchPayment}
               onChange={e => setSearchPayment(e.target.value)}
               placeholder="Rechercher nom, email, référence ou statut..."
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
+              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -65,13 +65,13 @@ function PaymentsView() {
               type="date"
               value={fromDate}
               onChange={e => setFromDate(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
             />
             <input
               type="date"
               value={toDate}
               onChange={e => setToDate(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none transition-colors"
             />
           </div>
         </div>

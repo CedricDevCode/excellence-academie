@@ -41,10 +41,10 @@ export default function ReportsView({ apiStats }: { apiStats: any }) {
           <p className="text-gray-500 text-sm mt-1">Vue synthétique des revenus, dépenses et inscriptions.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button onClick={handleExportCsv} className="inline-flex items-center gap-2 bg-[#c97e00] text-white px-4 py-2 rounded text-sm font-semibold hover:bg-[#6b4500]">
+          <button onClick={handleExportCsv} className="inline-flex items-center gap-2 bg-[#c97e00] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#6b4500]">
             <Download size={16} /> Exporter CSV
           </button>
-          <button onClick={handleExportPdf} className="inline-flex items-center gap-2 bg-accent-500 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-accent-600">
+          <button onClick={handleExportPdf} className="inline-flex items-center gap-2 bg-accent-500 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-accent-600">
             <FileText size={16} /> Exporter PDF
           </button>
         </div>

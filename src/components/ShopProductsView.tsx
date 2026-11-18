@@ -215,7 +215,7 @@ export default function ShopProductsView() {
                   required type="text"
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                   placeholder="Ex : Livre de Mathématiques CM2"
                 />
               </div>
@@ -229,7 +229,7 @@ export default function ShopProductsView() {
                   value={form.description}
                   onChange={e => setForm({ ...form, description: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all resize-none"
                   placeholder="Décrivez le produit..."
                 />
               </div>
@@ -244,7 +244,7 @@ export default function ShopProductsView() {
                     required type="number" min="0"
                     value={form.price}
                     onChange={e => setForm({ ...form, price: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                     placeholder="5 000"
                   />
                 </div>
@@ -256,7 +256,7 @@ export default function ShopProductsView() {
                     type="number" min="0"
                     value={form.originalPrice}
                     onChange={e => setForm({ ...form, originalPrice: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                     placeholder="6 250"
                   />
                   {form.originalPrice && Number(form.originalPrice) > Number(form.price) && (
@@ -272,7 +272,7 @@ export default function ShopProductsView() {
                   <select
                     value={form.type}
                     onChange={e => setForm({ ...form, type: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all bg-white"
                   >
                     {PRODUCT_TYPES.map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -287,7 +287,7 @@ export default function ShopProductsView() {
                     type="number" min="0"
                     value={form.stock}
                     onChange={e => setForm({ ...form, stock: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-50 outline-none transition-all"
                     placeholder="Illimité"
                   />
                 </div>

@@ -149,7 +149,7 @@ export default function ConfirmDialog({
                   onClick={onConfirm}
                   disabled={loading}
                   className={cn(
-                    "flex-1 px-4 py-3 rounded text-sm font-black text-white transition-shadow flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-rose-500/40",
+                    "flex-1 px-4 py-3 rounded-xl text-sm font-black text-white transition-shadow flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-rose-500/40",
                     "bg-gradient-to-r from-rose-600 via-red-600 to-rose-600 bg-[length:200%_100%] bg-left hover:bg-right duration-500",
                     "shadow-lg shadow-rose-600/35 hover:shadow-xl hover:shadow-rose-600/45 disabled:opacity-70 disabled:cursor-not-allowed"
                   )}

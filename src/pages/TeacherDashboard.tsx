@@ -458,7 +458,7 @@ function BlogView() {
           <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><BookOpen size={18} className="text-accent-700" /> Blog</h2>
           <p className="text-gray-500 text-sm">Gérez vos articles.</p>
         </div>
-        <Link to="/blog/new" className="flex items-center gap-1.5 bg-accent-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-accent-700">
+        <Link to="/blog/new" className="flex items-center gap-1.5 bg-accent-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-accent-700">
           <BookOpen size={16} /> Nouvel article
         </Link>
       </div>
@@ -590,7 +590,7 @@ export default function TeacherDashboard() {
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Rechercher un étudiant..."
-                  className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none" />
+                  className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none" />
               </div>
             </div>
             {filteredStudents.length === 0 ? (
@@ -789,7 +789,7 @@ export default function TeacherDashboard() {
               onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
               whileHover={{ scale: 1.02, x: 2 }}
               whileTap={{ scale: 0.98 }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded text-sm font-medium transition-all ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
               aria-current={activeTab === item.id ? "page" : undefined}>
               {item.icon} {item.label}
               {activeTab === item.id && <ChevronRight size={16} className="ml-auto" />}

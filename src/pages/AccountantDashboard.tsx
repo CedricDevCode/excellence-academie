@@ -15,23 +15,23 @@ import TeacherSalariesView from "../components/TeacherSalariesView";
 import { generateInvoiceReport } from "../utils/pdf";
 
 const EXPENSE_CATEGORIES = [
-  { value: '', label: 'Non catÃ©gorisÃ©' },
+  { value: '', label: 'Non catégorisé' },
   { value: 'SALAIRE', label: 'Salaire / Enseignant' },
   { value: 'LOYER', label: 'Loyer / Location' },
-  { value: 'FOURNITURE', label: 'Fournitures / MatÃ©riel' },
-  { value: 'EQUIPEMENT', label: 'Ãquipement' },
+  { value: 'FOURNITURE', label: 'Fournitures / Matériel' },
+  { value: 'EQUIPEMENT', label: 'Équipement' },
   { value: 'TRANSPORT', label: 'Transport' },
   { value: 'COMMUNICATION', label: 'Communication / Internet' },
-  { value: 'SERVICES_PUBLICS', label: 'Services publics (eau, Ã©lectricitÃ©)' },
-  { value: 'FORMATION', label: 'Formation / SÃ©minaire' },
+  { value: 'SERVICES_PUBLICS', label: 'Services publics (eau, électricité)' },
+  { value: 'FORMATION', label: 'Formation / Séminaire' },
   { value: 'AUTRE', label: 'Autre' },
 ];
 
 const NAV_ITEMS = [
   { icon: <Home size={18} />, label: "Tableau de bord", id: "dashboard" },
   { icon: <DollarSign size={18} />, label: "Revenus", id: "revenues" },
-  { icon: <TrendingDown size={18} />, label: "DÃ©penses", id: "expenses" },
-  { icon: <FileText size={18} />, label: "ReÃ§us & Factures", id: "receipts" },
+  { icon: <TrendingDown size={18} />, label: "Dépenses", id: "expenses" },
+  { icon: <FileText size={18} />, label: "Reçus & Factures", id: "receipts" },
   { icon: <MapPin size={18} />, label: "Villes", id: "cities" },
   { icon: <Clock size={18} />, label: "Sï¿½ances", id: "sessions" },
   { icon: <TrendingUp size={18} />, label: "Rapports", id: "reports" },
@@ -439,7 +439,7 @@ export default function AccountantDashboard() {
                 <p className="text-gray-500 text-sm mt-1">Suivi des dï¿½penses.</p>
               </div>
               <button onClick={() => setShowExpenseForm(true)}
-                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-red-700 transition-colors">
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors">
                 <Plus size={16} /> Ajouter une dï¿½pense
               </button>
             </div>
@@ -641,10 +641,10 @@ export default function AccountantDashboard() {
                 <p className="text-gray-500 text-sm mt-1">Exportez les donnï¿½es financiï¿½res.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={handleExportCsv} className="flex items-center gap-2 bg-gradient-hero text-white px-4 py-2 rounded text-sm font-semibold hover:bg-[#6b4500] transition-colors">
+                <button onClick={handleExportCsv} className="flex items-center gap-2 bg-gradient-hero text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#6b4500] transition-colors">
                   <Download size={16} /> CSV
                 </button>
-                <button onClick={handleExportPdfReport} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-green-700 transition-colors">
+                <button onClick={handleExportPdfReport} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors">
                   <Printer size={16} /> Rapport PDF
                 </button>
               </div>
@@ -753,11 +753,11 @@ export default function AccountantDashboard() {
           <>
             <div className="bg-white rounded shadow-sm border border-gray-100 p-1 flex gap-1 w-fit mb-6">
               <button onClick={() => setDashboardTab('overview')}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${dashboardTab === 'overview' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${dashboardTab === 'overview' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <Home size={16} /> Vue d'ensemble
               </button>
               <button onClick={() => setDashboardTab('salaries')}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${dashboardTab === 'salaries' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${dashboardTab === 'salaries' ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <DollarSign size={16} /> Salaires
               </button>
             </div>
@@ -937,7 +937,7 @@ export default function AccountantDashboard() {
         <nav className={`space-y-1 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           {NAV_ITEMS.map(item => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 rounded text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
+              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
               aria-current={activeTab === item.id ? "page" : undefined}
               title={sidebarCollapsed ? item.label : undefined}>
               <span className="shrink-0">{item.icon}</span>
@@ -990,7 +990,7 @@ export default function AccountantDashboard() {
               <Globe size={14} className="text-green-600" />
               <span className="hidden sm:inline">Voir le site public</span>
             </Link>
-            <button onClick={handleExportCsv} className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded text-sm font-semibold hover:bg-green-100 transition-colors" aria-label="Exporter le rapport">
+            <button onClick={handleExportCsv} className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-100 transition-colors" aria-label="Exporter le rapport">
               <Download size={16} /> Exporter rapport
             </button>
             <div className="relative" ref={profileRef}>
@@ -1006,7 +1006,7 @@ export default function AccountantDashboard() {
                   </div>
                   <div className="p-2">
                     <button onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors">
                       <LogOut size={16} /> Dï¿½connexion
                     </button>
                   </div>
@@ -1037,17 +1037,17 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Description *</label>
                 <input type="text" value={expenseForm.description} onChange={e => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none" required placeholder="Ex: Fournitures de bureau" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" required placeholder="Ex: Fournitures de bureau" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Montant (FCFA) *</label>
                 <input type="number" value={expenseForm.amount} onChange={e => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none" required min="1" placeholder="50000" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" required min="1" placeholder="50000" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Catï¿½gorie</label>
                 <select value={expenseForm.category} onChange={e => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none">
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
                   {EXPENSE_CATEGORIES.map(cat => (
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
@@ -1056,7 +1056,7 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Ville</label>
                 <input type="text" value={expenseForm.ville} list="city-list-acc" onChange={e => setExpenseForm({ ...expenseForm, ville: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none" placeholder="Ex: Abidjan, Bouakï¿½..." />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" placeholder="Ex: Abidjan, Bouakï¿½..." />
                 <datalist id="city-list-acc">
                   {cities.map(c => <option key={c.id} value={c.name} />)}
                 </datalist>
@@ -1064,7 +1064,7 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Mï¿½thode de paiement</label>
                 <select value={expenseForm.paymentMethod} onChange={e => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none">
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
                   <option value="Espï¿½ces">Espï¿½ces</option>
                   <option value="Virement bancaire">Virement bancaire</option>
                   <option value="Mobile Money">Mobile Money (Orange Money / MTN)</option>
@@ -1075,7 +1075,7 @@ export default function AccountantDashboard() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Enseignant (optionnel)</label>
                 <select value={expenseForm.teacherId} onChange={e => setExpenseForm({ ...expenseForm, teacherId: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none">
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none">
                   <option value="">Sï¿½lectionner un enseignant</option>
                   {teachers.map((t: any) => (
                     <option key={t.id} value={t.id}>{t.name || t.email}</option>

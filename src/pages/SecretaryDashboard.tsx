@@ -71,11 +71,11 @@ export default function SecretaryDashboard() {
           <div className="space-y-6">
             <div className="bg-white rounded shadow-sm border border-gray-100 p-1 flex gap-1 w-fit">
               <button onClick={() => setSecSessionsTab('sessions')}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${secSessionsTab === 'sessions' ? 'bg-gradient-hero text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${secSessionsTab === 'sessions' ? 'bg-gradient-hero text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <Clock size={16} /> Séances
               </button>
               <button onClick={() => setSecSessionsTab('salaries')}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${secSessionsTab === 'salaries' ? 'bg-gradient-hero text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${secSessionsTab === 'salaries' ? 'bg-gradient-hero text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-surface-50'}`}>
                 <DollarSign size={16} /> Salaires
               </button>
             </div>
@@ -108,7 +108,7 @@ export default function SecretaryDashboard() {
         <nav className={`space-y-1 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           {NAV_ITEMS.map((item) => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 rounded text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10 hover:text-white"}`}
+              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-3"} ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10 hover:text-white"}`}
               title={sidebarCollapsed ? item.label : undefined}>
               {item.icon}
               {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
@@ -177,7 +177,7 @@ export default function SecretaryDashboard() {
                   </div>
                   <div className="p-2">
                     <button onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-red-600 hover:bg-red-50 transition-colors">
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors">
                       <LogOut size={16} /> Déconnexion
                     </button>
                   </div>

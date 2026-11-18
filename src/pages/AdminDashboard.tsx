@@ -482,11 +482,11 @@ case 'mensualites': return <MensualitesView />;
                     </div>
                     <div className="p-2">
                       <button onClick={() => { localStorage.setItem('adminSettingsTab', 'account'); setActiveTab('settings'); setProfileOpen(false); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                         <User size={16} className="text-gray-400" /> Profil
                       </button>
                       <button onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm text-red-600 hover:bg-red-50 transition-colors">
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors">
                         <LogOut size={16} /> Déconnexion
                       </button>
                     </div>

@@ -251,7 +251,7 @@ export default function MensualitesView() {
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nom, email, matricule, formation..."
-            className="w-full pl-9 pr-9 py-2.5 border border-surface-300 rounded text-sm focus:border-primary-600 focus:outline-none" />
+            className="w-full pl-9 pr-9 py-2.5 border border-surface-300 rounded-xl text-sm focus:border-primary-600 focus:outline-none" />
           {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600"><X size={14} /></button>}
         </div>
         <div className="flex rounded border border-surface-200 overflow-hidden self-start lg:self-auto">
@@ -355,13 +355,13 @@ export default function MensualitesView() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="mp-months">Mensualités</label>
-                      <select id="mp-months" value={cashPayMonths} onChange={e => { const m = Number(e.target.value); setCashPayMonths(m); setCashPayAmount(Number(cashPaySub.amount || 0) * m); }} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
+                      <select id="mp-months" value={cashPayMonths} onChange={e => { const m = Number(e.target.value); setCashPayMonths(m); setCashPayAmount(Number(cashPaySub.amount || 0) * m); }} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none">
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{m} mois</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5" htmlFor="mp-paidat">Date de paiement *</label>
-                      <input id="mp-paidat" type="date" value={cashPayPaidAt} max={new Date().toISOString().split("T")[0]} onChange={e => setCashPayPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
+                      <input id="mp-paidat" type="date" value={cashPayPaidAt} max={new Date().toISOString().split("T")[0]} onChange={e => setCashPayPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
                     </div>
                   </div>
                   <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 flex items-center justify-between gap-3">
@@ -393,7 +393,7 @@ export default function MensualitesView() {
                     className="w-full px-4 py-3 border-2 border-surface-300 rounded text-center text-lg tracking-widest font-black tabular-nums focus:border-primary-600 focus:outline-none" />
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setCashPayOtpSent(false); setCashPayOtp(""); setCashPayError(null); }}
-                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded text-xs font-semibold hover:bg-surface-100 transition-colors">
+                      className="flex-1 px-4 py-2.5 border border-surface-300 text-surface-600 rounded-xl text-xs font-semibold hover:bg-surface-100 transition-colors">
                       Retour
                     </button>
                     <button type="button" onClick={confirmCashPay} disabled={cashPayLoading}

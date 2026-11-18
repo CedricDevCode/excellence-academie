@@ -210,7 +210,7 @@ export default function TestimonialsView() {
                   value={form.name}
                   onChange={e => setForm({ ...form, name: e.target.value })}
                   placeholder="Ex: Kouamé Jean-Marc"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                 />
               </div>
 
@@ -224,7 +224,7 @@ export default function TestimonialsView() {
                   value={form.course}
                   onChange={e => setForm({ ...form, course: e.target.value })}
                   placeholder="Ex: Admis Magistrature 2023, Admise ENA 2024..."
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none"
                 />
                 {/* Suggestions rapides */}
                 <div className="flex items-center gap-1.5 mt-2 flex-wrap text-[11px]">
@@ -262,7 +262,7 @@ export default function TestimonialsView() {
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingImage}
-                      className="inline-flex items-center gap-2 px-3.5 py-2 border border-gray-200 hover:border-primary-600 hover:text-primary-600 bg-white rounded text-xs font-bold text-gray-700 transition-colors shadow-2xs"
+                      className="inline-flex items-center gap-2 px-3.5 py-2 border border-gray-200 hover:border-primary-600 hover:text-primary-600 bg-white rounded-xl text-xs font-bold text-gray-700 transition-colors shadow-2xs"
                     >
                       {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                       <span>{uploadingImage ? "Téléchargement..." : "Choisir une photo"}</span>
@@ -329,7 +329,7 @@ export default function TestimonialsView() {
                 value={form.message}
                 onChange={e => setForm({ ...form, message: e.target.value })}
                 placeholder="Ex: Grâce à la rigueur des cours et aux examens blancs avec les magistrats formateurs, j'ai été reçu au concours dès ma première tentative..."
-                className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none resize-none"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-primary-600 focus:ring-1 focus:ring-primary-500 outline-none resize-none"
               />
             </div>
 
@@ -368,7 +368,7 @@ export default function TestimonialsView() {
             </p>
             <button
               onClick={openCreate}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white font-bold rounded text-xs hover:bg-primary-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white font-bold rounded-xl text-xs hover:bg-primary-700 transition-colors"
             >
               <Plus size={16} />
               <span>Ajouter un premier admis</span>

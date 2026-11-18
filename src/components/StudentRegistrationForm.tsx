@@ -355,7 +355,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
                 value={form.dateInscription}
                 max={new Date().toISOString().split('T')[0]}
                 onChange={e => update("dateInscription", e.target.value)}
-                className="w-full px-4 py-3 bg-surface-50/60 border border-surface-300 rounded text-sm text-surface-900 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all"
+                className="w-full px-4 py-3 bg-surface-50/60 border border-surface-300 rounded-xl text-sm text-surface-900 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all"
               />
               <p className="text-[11px] text-surface-400 mt-1">Date effective de l'inscription (comptabilisée pour les revenus et la prochaine mensualité).</p>
             </div>
@@ -472,7 +472,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
                   onChange={e => update("geniusPhone", e.target.value)}
                   placeholder="Ex: 07 01 02 03 04"
                   autoComplete="tel"
-                  className="w-full pl-11 pr-4 py-3 bg-surface-50/60 border border-surface-300 rounded text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+                  className="w-full pl-11 pr-4 py-3 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
               </div>
             </div>
           )}
@@ -519,7 +519,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
             <input id="otp-input" type="text" inputMode="numeric" autoComplete="one-time-code" value={otpCode} onChange={e => setOtpCode(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); verifyOtp(); } }}
               placeholder="Entrez le code reçu par email"
-              className="w-full px-4 py-3 border-2 border-surface-300 rounded text-sm focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-colors text-center text-lg tracking-widest font-black tabular-nums"
+              className="w-full px-4 py-3 border-2 border-surface-300 rounded-xl text-sm focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-colors text-center text-lg tracking-widest font-black tabular-nums"
               maxLength={8} autoFocus />
           </div>
           <button type="button" onClick={verifyOtp} disabled={otpLoading}

@@ -59,7 +59,7 @@ export default function AddCourseModal({
     });
   }, [isOpen, user]);
 
-  // Exclure les cours dÃƒÂ©jÃƒÂ  souscrits
+  // Exclure les cours déjà souscrits
   const availableCourses = useMemo(() => {
     return courses.filter((c) => !subscribedCourseIds.includes(c.id));
   }, [courses, subscribedCourseIds]);
@@ -80,17 +80,17 @@ export default function AddCourseModal({
     return selectedCourses.reduce((sum, c) => sum + courseMonthlyFee(c, pays, mode), 0);
   }, [selectedCourses, pays, mode]);
 
-  // Montant total = mensualitÃƒÂ©(s) + frais supplÃƒÂ©mentaire (10 000 FCFA)
+  // Montant total = mensualité(s) + frais supplémentaire (10 000 FCFA)
   const totalAmount = selectedCourses.length > 0 ? monthlyTotal + additionalAmount : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCourseIds.length === 0) {
-      setError("Veuillez sÃƒÂ©lectionner au moins une formation ÃƒÂ  ajouter.");
+      setError("Veuillez sélectionner au moins une formation à ajouter.");
       return;
     }
     if (!geniusPhone.trim()) {
-      setError("Veuillez renseigner votre numÃƒÂ©ro de tÃƒÂ©lÃƒÂ©phone pour le paiement.");
+      setError("Veuillez renseigner votre numéro de téléphone pour le paiement.");
       return;
     }
 
@@ -120,7 +120,7 @@ export default function AddCourseModal({
 
   if (!isOpen) return null;
 
-  // Filtrer les mÃƒÂ©thodes de paiement GeniusPay
+  // Filtrer les méthodes de paiement GeniusPay
   const paymentMethodMap: Record<string, string> = {
     wave: "WAVE",
     orange: "ORANGE_MONEY",
@@ -137,7 +137,7 @@ export default function AddCourseModal({
     }));
 
   return (
-<div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn modal-overlay">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn modal-overlay">
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100 modal-content">
         
         {/* Header */}
@@ -147,9 +147,9 @@ export default function AddCourseModal({
               <GraduationCap size={24} />
             </span>
             <div>
-              <h3 className="font-black text-lg sm:text-xl">Ajouter une formation supplÃƒÂ©mentaire</h3>
+              <h3 className="font-black text-lg sm:text-xl">Ajouter une formation supplémentaire</h3>
               <p className="text-amber-100 text-xs mt-0.5">
-                Tarif prÃƒÂ©fÃƒÂ©rentiel exclusif pour ÃƒÂ©tudiant dÃƒÂ©jÃƒÂ  inscrit
+                Tarif préférentiel exclusif pour étudiant déjà inscrit
               </p>
             </div>
           </div>
@@ -164,16 +164,16 @@ export default function AddCourseModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1">
           
-          {/* Information badge tarif prÃƒÂ©fÃƒÂ©rentiel */}
+          {/* Information badge tarif préférentiel */}
           <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-200 flex items-start gap-3">
             <Sparkles size={20} className="text-[#c97e00] shrink-0 mt-0.5" />
             <div className="text-xs text-amber-950 space-y-1">
               <div className="font-black text-sm text-[#7a4b00]">
-                Avantage ÃƒÂ©tudiant actif : Pas de frais d'inscription complets !
+                Avantage étudiant actif : Pas de frais d'inscription complets !
               </div>
               <p className="leading-relaxed">
-                Vous ÃƒÂªtes dÃƒÂ©jÃƒÂ  membre de l'acadÃƒÂ©mie. Pour toute formation supplÃƒÂ©mentaire, les frais de dossier initiaux ne sont pas refacturÃƒÂ©s.
-                Seul le <strong>tarif de formation supplÃƒÂ©mentaire (+{formatPrice(additionalAmount)} FCFA)</strong> s'ajoute ÃƒÂ  votre mensualitÃƒÂ©.
+                Vous êtes déjà membre de l'académie. Pour toute formation supplémentaire, les frais de dossier initiaux ne sont pas refacturés.
+                Seul le <strong>tarif de formation supplémentaire (+{formatPrice(additionalAmount)} FCFA)</strong> s'ajoute à votre mensualité.
               </p>
             </div>
           </div>
@@ -214,7 +214,7 @@ export default function AddCourseModal({
           {/* Choix des formations disponibles */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">
-              1. Choisissez la formation ÃƒÂ  ajouter *
+              1. Choisissez la formation à ajouter *
             </label>
 
             {loading ? (
@@ -226,7 +226,7 @@ export default function AddCourseModal({
               <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-200">
                 <CheckCircle size={32} className="text-green-500 mx-auto mb-2" />
                 <p className="text-sm font-bold text-gray-800">
-                  Vous ÃƒÂªtes dÃƒÂ©jÃƒÂ  inscrit ÃƒÂ  toutes nos formations disponibles !
+                  Vous êtes déjà inscrit à toutes nos formations disponibles !
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   Revenez plus tard pour de nouveaux concours et programmes.
@@ -256,7 +256,7 @@ export default function AddCourseModal({
                         />
                         <div>
                           <div className="font-black text-gray-900 text-sm">{c.title}</div>
-                          <div className="text-[11px] text-gray-500">{c.category || "GÃƒÂ©nÃƒÂ©ral"}</div>
+                          <div className="text-[11px] text-gray-500">{c.category || "Général"}</div>
                         </div>
                       </div>
 
@@ -264,7 +264,7 @@ export default function AddCourseModal({
                         <span className="text-xs font-bold text-[#c97e00] block">
                           +{formatPrice(mFee)} FCFA/m
                         </span>
-                        <span className="text-[10px] text-gray-400">mensualitÃƒÂ©</span>
+                        <span className="text-[10px] text-gray-400">mensualité</span>
                       </div>
                     </label>
                   );
@@ -273,25 +273,25 @@ export default function AddCourseModal({
             )}
           </div>
 
-          {/* DÃƒÂ©composition du tarif */}
+          {/* Décomposition du tarif */}
           {selectedCourses.length > 0 && (
             <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
               <div className="text-xs font-bold text-gray-700 flex items-center justify-between">
-                <span>MensualitÃƒÂ© cours choisi :</span>
+                <span>Mensualité cours choisi :</span>
                 <span className="font-semibold text-gray-900">{formatPrice(monthlyTotal)} FCFA</span>
               </div>
               <div className="text-xs font-bold text-gray-700 flex items-center justify-between">
-                <span>Frais forfaitaire formation supplÃƒÂ©mentaire :</span>
+                <span>Frais forfaitaire formation supplémentaire :</span>
                 <span className="font-semibold text-emerald-700">+{formatPrice(additionalAmount)} FCFA</span>
               </div>
               <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
-                <span className="font-black text-gray-900 text-sm">Total ÃƒÂ  payer aujourd'hui :</span>
+                <span className="font-black text-gray-900 text-sm">Total à payer aujourd'hui :</span>
                 <span className="font-black text-lg text-[#c97e00]">
                   {formatPrice(totalAmount)} FCFA
                 </span>
               </div>
               <p className="text-[10px] text-gray-400">
-                Ce paiement valide immÃƒÂ©diatement votre inscription au nouveau cours et rÃƒÂ¨gle son 1er mois.
+                Ce paiement valide immédiatement votre inscription au nouveau cours et règle son 1er mois.
               </p>
             </div>
           )}
@@ -320,10 +320,10 @@ export default function AddCourseModal({
             </div>
           </div>
 
-          {/* NumÃƒÂ©ro pour le paiement Mobile Money */}
+          {/* Numéro pour le paiement Mobile Money */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-              3. NumÃƒÂ©ro de tÃƒÂ©lÃƒÂ©phone pour le dÃƒÂ©bit *
+              3. Numéro de téléphone pour le débit *
             </label>
             <div className="relative">
               <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -337,7 +337,7 @@ export default function AddCourseModal({
               />
             </div>
             <p className="text-[10px] text-gray-400 mt-1">
-              Vous recevrez la notification de dÃƒÂ©bit directement sur ce numÃƒÂ©ro.
+              Vous recevrez la notification de débit directement sur ce numéro.
             </p>
           </div>
 

@@ -147,7 +147,7 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
       <div className="bg-white rounded shadow-sm border border-gray-100 p-1.5 flex gap-1">
         {SETTINGS_TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveSettingsTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded text-sm font-semibold transition-all ${activeSettingsTab === tab.id ? 'bg-[#c97e00] text-white shadow-md' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${activeSettingsTab === tab.id ? 'bg-[#c97e00] text-white shadow-md' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
             {tab.icon} {tab.label}
           </button>
         ))}
@@ -167,7 +167,7 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
           </div>
           <div className="p-6 space-y-6">
             {message && (
-              <div className={`px-4 py-3 rounded text-sm font-semibold ${messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              <div className={`px-4 py-3 rounded-xl text-sm font-semibold ${messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                 {message}
               </div>
             )}
@@ -215,12 +215,12 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nom d'affichage</label>
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
                 <input value={form.email} disabled
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
               </div>
             </div>
             <hr className="border-gray-100" />
@@ -231,12 +231,12 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mot de passe actuel</label>
                   <input type="password" value={form.oldPass} onChange={e => setForm({ ...form, oldPass: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nouveau mot de passe</label>
                   <input type="password" value={form.newPass} onChange={e => setForm({ ...form, newPass: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
                 </div>
               </div>
             </div>
@@ -514,12 +514,12 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Nom de la ville *</label>
                 <input type="text" value={cityForm.name} onChange={e => setCityForm({ ...cityForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-accent-700 focus:outline-none focus:ring-2 focus:ring-accent-100 transition-all" required placeholder="Ex: Abidjan, Bouaké..." />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-accent-700 focus:outline-none focus:ring-2 focus:ring-accent-100 transition-all" required placeholder="Ex: Abidjan, Bouaké..." />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Pays *</label>
                 <select value={cityForm.country} onChange={e => setCityForm({ ...cityForm, country: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-accent-700 focus:outline-none focus:ring-2 focus:ring-accent-100 transition-all" required>
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-accent-700 focus:outline-none focus:ring-2 focus:ring-accent-100 transition-all" required>
                   <option value="">Sélectionner un pays</option>
                   <optgroup label="Afrique">
                     {AFRICA_COUNTRIES.map(c => (

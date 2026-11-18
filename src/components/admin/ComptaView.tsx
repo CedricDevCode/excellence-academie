@@ -55,7 +55,7 @@ function ComptaView() {
   const [cityData, setCityData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ amount: '', description: '', category: '', ville: '', paymentMethod: 'EspÃƒÂ¨ces', teacherId: '' });
+  const [form, setForm] = useState({ amount: '', description: '', category: '', ville: '', paymentMethod: 'Espèces', teacherId: '' });
   const [submitting, setSubmitting] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -126,7 +126,7 @@ function ComptaView() {
         teacherId: form.teacherId || undefined,
         attachmentUrl: uploadedUrl || undefined,
       });
-      setForm({ amount: '', description: '', category: '', ville: '', paymentMethod: 'EspÃƒÂ¨ces', teacherId: '' });
+      setForm({ amount: '', description: '', category: '', ville: '', paymentMethod: 'Espèces', teacherId: '' });
       setAttachmentFile(null);
       setAttachmentUrl('');
       setShowForm(false);
@@ -142,13 +142,13 @@ function ComptaView() {
   };
 
   const handleDeleteExpense = async (id: string) => {
-    const ok = await confirm('Supprimer cette dÃƒÂ©pense ?');
+    const ok = await confirm('Supprimer cette dépense ?');
     if (!ok) return;
     setDeletingId(id);
     try {
       await deleteExpense(id);
       setExpenses(expenses.filter(e => e.id !== id));
-      toast('success', 'DÃƒÂ©pense supprimÃƒÂ©e');
+      toast('success', 'Dépense supprimée');
     } catch {
       toast('error', 'Erreur lors de la suppression');
     } finally {
@@ -239,7 +239,7 @@ function ComptaView() {
   }, [dateFilteredExpenses]);
 
   const monthlyData = useMemo(() => {
-    const months = ['Janvier', 'FÃƒÂ©vrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'AoÃƒÂ»t', 'Septembre', 'Octobre', 'Novembre', 'DÃƒÂ©cembre'];
+    const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
     const map: Record<string, { revenus: number; depenses: number; count: number }> = {};
 
     paidPayments.forEach((p: any) => {
@@ -288,7 +288,7 @@ function ComptaView() {
         className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:border-green-500 focus:outline-none" />
       {(startDate || endDate) && (
         <button onClick={() => { setStartDate(''); setEndDate(''); }}
-          className="text-xs text-gray-500 hover:text-gray-700 underline">RÃƒÂ©initialiser</button>
+          className="text-xs text-gray-500 hover:text-gray-700 underline">Réinitialiser</button>
       )}
     </div>
   );
@@ -296,9 +296,9 @@ function ComptaView() {
   if (loading) return <LoadingSpinner />;
 
   const COMPTA_TABS = [
-    { id: 'scolarite', label: 'ScolaritÃƒÂ©', icon: <GraduationCap size={16} />, color: 'from-primary-500 to-primary-700' },
+    { id: 'scolarite', label: 'Scolarité', icon: <GraduationCap size={16} />, color: 'from-primary-500 to-primary-700' },
     { id: 'boutique', label: 'Boutique', icon: <ShoppingCart size={16} />, color: 'from-accent-500 to-accent-700' },
-    { id: 'depenses', label: 'DÃƒÂ©penses', icon: <TrendingDown size={16} />, color: 'from-red-500 to-red-700' },
+    { id: 'depenses', label: 'Dépenses', icon: <TrendingDown size={16} />, color: 'from-red-500 to-red-700' },
     { id: 'bilan', label: 'Bilan Global', icon: <BarChart3 size={16} />, color: 'from-accent-700 to-accent-700' },
     { id: 'salaries', label: 'Salaires', icon: <DollarSign size={16} />, color: 'from-green-500 to-green-700' },
   ];
@@ -313,7 +313,7 @@ function ComptaView() {
         <div className="flex flex-wrap gap-2">
           {COMPTA_TABS.map(tab => (
             <button key={tab.id} onClick={() => setComptaTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded text-sm font-semibold transition-all duration-200 ${comptaTab === tab.id
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${comptaTab === tab.id
                 ? `bg-linear-to-r ${tab.color} text-white shadow-md scale-105`
                 : 'text-gray-500 hover:text-gray-800 hover:bg-surface-50'
                 }`}>
@@ -352,7 +352,7 @@ function ComptaView() {
             <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-3 text-green-500">
                 <CreditCard size={18} />
-                <span className="text-sm font-medium">MensualitÃƒÂ©s</span>
+                <span className="text-sm font-medium">Mensualités</span>
               </div>
               <div className="text-3xl font-black text-green-600">{formatPrice(scolariteMensualites.reduce((a: number, p: any) => a + Number(p.amount), 0))}</div>
               <div className="text-gray-400 text-sm mt-1">{scolariteMensualites.length} versements</div>
@@ -381,7 +381,7 @@ function ComptaView() {
                 className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none bg-white">
                 <option value="">Tous les types</option>
                 <option value="INSCRIPTION">Inscriptions</option>
-                <option value="MENSUALITE">MensualitÃƒÂ©s</option>
+                <option value="MENSUALITE">Mensualités</option>
               </select>
               <select value={scolariteCityFilter} onChange={e => setScolariteCityFilter(e.target.value)}
                 className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none bg-white">
@@ -391,9 +391,9 @@ function ComptaView() {
               <select value={scolariteFormuleFilter} onChange={e => setScolariteFormuleFilter(e.target.value)}
                 className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none bg-white">
                 <option value="">Toutes les formules</option>
-                <option value="presentiel">PrÃƒÂ©sentiel</option>
+                <option value="presentiel">Présentiel</option>
                 <option value="en_ligne">En ligne</option>
-                <option value="les_deux">PrÃƒÂ©sentiel + En ligne</option>
+                <option value="les_deux">Présentiel + En ligne</option>
                 <option value="particulier">Cours particuliers</option>
               </select>
               {(scolariteTypeFilter || scolariteCityFilter || scolariteFormuleFilter) && (
@@ -409,7 +409,7 @@ function ComptaView() {
           <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <TrendingUp size={16} className="text-primary-500" /> Paiements de scolaritÃƒÂ©
+                <TrendingUp size={16} className="text-primary-500" /> Paiements de scolarité
                 <span className="bg-primary-50 text-primary-700 text-xs font-bold px-2 py-0.5 rounded-full">{filteredScolaritePayments.length}</span>
               </h3>
               <span className="text-sm font-black text-primary-600">{formatPrice(totalRevenus)} FCFA</span>
@@ -417,7 +417,7 @@ function ComptaView() {
             {filteredScolaritePayments.length === 0 ? (
               <div className="py-12 text-center">
                 <TrendingUp size={40} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm">Aucun paiement de scolaritÃƒÂ©</p>
+                <p className="text-gray-400 text-sm">Aucun paiement de scolarité</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -430,11 +430,11 @@ function ComptaView() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-gray-900 text-sm truncate">{p.user?.name || 'Client inconnu'}</span>
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${p.type === 'INSCRIPTION' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                          {p.type === 'INSCRIPTION' ? 'Inscription' : 'MensualitÃƒÂ©'}
+                          {p.type === 'INSCRIPTION' ? 'Inscription' : 'Mensualité'}
                         </span>
                         {p.formule && (
                           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                            {p.formule === 'en_ligne' ? 'En ligne' : p.formule === 'les_deux' ? 'Hybride' : p.coursParticuliers ? 'Particulier' : 'PrÃƒÂ©sentiel'}
+                            {p.formule === 'en_ligne' ? 'En ligne' : p.formule === 'les_deux' ? 'Hybride' : p.coursParticuliers ? 'Particulier' : 'Présentiel'}
                           </span>
                         )}
                       </div>
@@ -472,15 +472,15 @@ function ComptaView() {
                 <span className="text-accent-100 text-sm font-medium">Ventes Boutique</span>
               </div>
               <div className="text-3xl font-black relative z-10">{formatPrice(totalShopRevenus)}</div>
-              <div className="text-accent-100 text-sm mt-1 relative z-10">FCFA &bull; {paidShopOrders.length} commandes payÃƒÂ©es</div>
+              <div className="text-accent-100 text-sm mt-1 relative z-10">FCFA &bull; {paidShopOrders.length} commandes payées</div>
             </div>
             <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-3 text-gray-400">
                 <ShoppingCart size={18} />
-                <span className="text-sm font-medium">Commandes validÃƒÂ©es</span>
+                <span className="text-sm font-medium">Commandes validées</span>
               </div>
               <div className="text-3xl font-black text-gray-900">{paidShopOrders.length}</div>
-              <div className="text-gray-400 text-sm mt-1">LivrÃƒÂ©es ou en cours</div>
+              <div className="text-gray-400 text-sm mt-1">Livrées ou en cours</div>
             </div>
             <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-3 text-gray-400">
@@ -498,7 +498,7 @@ function ComptaView() {
           <div className="bg-white rounded shadow-sm border border-gray-100 p-4 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2 text-gray-600">
               <Filter size={15} />
-              <span className="text-sm font-semibold">Filtrer la pÃƒÂ©riode</span>
+              <span className="text-sm font-semibold">Filtrer la période</span>
             </div>
             <DateFilterBar />
           </div>
@@ -515,7 +515,7 @@ function ComptaView() {
             {dateFilteredShopOrders.length === 0 ? (
               <div className="py-12 text-center">
                 <ShoppingCart size={40} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm">Aucune vente boutique sur cette pÃƒÂ©riode</p>
+                <p className="text-gray-400 text-sm">Aucune vente boutique sur cette période</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -557,18 +557,18 @@ function ComptaView() {
               <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full" />
               <div className="flex items-center gap-2 mb-3 relative z-10">
                 <TrendingDown size={18} />
-                <span className="text-red-100 text-sm font-medium">Total DÃƒÂ©penses</span>
+                <span className="text-red-100 text-sm font-medium">Total Dépenses</span>
               </div>
               <div className="text-3xl font-black relative z-10">{formatPrice(totalDepenses)}</div>
-              <div className="text-red-200 text-sm mt-1 relative z-10">FCFA &bull; {expenses.length} entrÃƒÂ©es</div>
+              <div className="text-red-200 text-sm mt-1 relative z-10">FCFA &bull; {expenses.length} entrées</div>
             </div>
             <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-3 text-gray-400">
                 <BarChart3 size={18} />
-                <span className="text-sm font-medium">CatÃƒÂ©gories</span>
+                <span className="text-sm font-medium">Catégories</span>
               </div>
               <div className="text-3xl font-black text-gray-900">{expenseByCategory.length}</div>
-              <div className="text-gray-400 text-sm mt-1">Types de dÃƒÂ©penses</div>
+              <div className="text-gray-400 text-sm mt-1">Types de dépenses</div>
             </div>
             <div className="bg-white rounded p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-3 text-gray-400">
@@ -600,8 +600,8 @@ function ComptaView() {
               )}
             </div>
             <button onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 bg-linear-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded text-sm font-bold shadow-sm hover:shadow-md transition-all hover:scale-105">
-              <Plus size={15} /> Ajouter une dÃƒÂ©pense
+              className="flex items-center gap-2 bg-linear-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:shadow-md transition-all hover:scale-105">
+              <Plus size={15} /> Ajouter une dépense
             </button>
           </div>
 
@@ -609,7 +609,7 @@ function ComptaView() {
           <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-5 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <TrendingDown size={16} className="text-red-500" /> Liste des dÃƒÂ©penses
+                <TrendingDown size={16} className="text-red-500" /> Liste des dépenses
                 <span className="bg-red-50 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">{filteredExpenses.length}</span>
               </h3>
               <span className="text-sm font-black text-red-600">-{formatPrice(totalDepenses)} FCFA</span>
@@ -617,7 +617,7 @@ function ComptaView() {
             {filteredExpenses.length === 0 ? (
               <div className="py-12 text-center">
                 <TrendingDown size={40} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm">Aucune dÃƒÂ©pense sur cette pÃƒÂ©riode</p>
+                <p className="text-gray-400 text-sm">Aucune dépense sur cette période</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
@@ -659,7 +659,7 @@ function ComptaView() {
             <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                  <BarChart3 size={16} className="text-red-500" /> RÃƒÂ©partition par catÃƒÂ©gorie
+                  <BarChart3 size={16} className="text-red-500" /> Répartition par catégorie
                 </h3>
               </div>
               <div className="p-5 space-y-3">
@@ -687,7 +687,7 @@ function ComptaView() {
           {/* Summary KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative overflow-hidden bg-linear-to-br from-primary-500 to-primary-700 rounded p-5 text-white shadow-lg">
-              <div className="text-primary-200 text-xs font-semibold mb-2 uppercase tracking-wider">ScolaritÃƒÂ©</div>
+              <div className="text-primary-200 text-xs font-semibold mb-2 uppercase tracking-wider">Scolarité</div>
               <div className="text-2xl font-black">{formatPrice(totalRevenus)}</div>
               <div className="text-primary-200 text-xs mt-1">FCFA</div>
             </div>
@@ -697,14 +697,14 @@ function ComptaView() {
               <div className="text-accent-100 text-xs mt-1">FCFA</div>
             </div>
             <div className="relative overflow-hidden bg-linear-to-br from-red-500 to-red-700 rounded p-5 text-white shadow-lg">
-              <div className="text-red-200 text-xs font-semibold mb-2 uppercase tracking-wider">DÃƒÂ©penses</div>
+              <div className="text-red-200 text-xs font-semibold mb-2 uppercase tracking-wider">Dépenses</div>
               <div className="text-2xl font-black">-{formatPrice(totalDepenses)}</div>
               <div className="text-red-200 text-xs mt-1">FCFA</div>
             </div>
             <div className={`relative overflow-hidden bg-linear-to-br ${globalBalance >= 0 ? 'from-emerald-500 to-emerald-700' : 'from-rose-600 to-rose-800'} rounded p-5 text-white shadow-lg`}>
-              <div className="text-white/70 text-xs font-semibold mb-2 uppercase tracking-wider">RÃƒÂ©sultat net</div>
+              <div className="text-white/70 text-xs font-semibold mb-2 uppercase tracking-wider">Résultat net</div>
               <div className="text-2xl font-black">{globalBalance >= 0 ? '+' : ''}{formatPrice(globalBalance)}</div>
-              <div className="text-white/70 text-xs mt-1">{globalBalance >= 0 ? 'BÃƒÂ©nÃƒÂ©fice' : 'DÃƒÂ©ficit'}</div>
+              <div className="text-white/70 text-xs mt-1">{globalBalance >= 0 ? 'Bénéfice' : 'Déficit'}</div>
             </div>
           </div>
 
@@ -714,7 +714,7 @@ function ComptaView() {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="flex items-center gap-2 font-medium text-gray-700"><GraduationCap size={14} className="text-primary-500" /> ScolaritÃƒÂ© (inscriptions & mensualitÃƒÂ©s)</span>
+                  <span className="flex items-center gap-2 font-medium text-gray-700"><GraduationCap size={14} className="text-primary-500" /> Scolarité (inscriptions & mensualités)</span>
                   <span className="font-black text-primary-600">{formatPrice(totalRevenus)} FCFA</span>
                 </div>
                 <div className="w-full bg-surface-50 rounded-full h-3">
@@ -741,13 +741,13 @@ function ComptaView() {
           {monthlyData.length > 0 && (
             <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
-                <h3 className="font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={16} className="text-primary-500" /> Ãƒâ€°volution mensuelle (ScolaritÃƒÂ©)</h3>
+                <h3 className="font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={16} className="text-primary-500" /> Évolution mensuelle (Scolarité)</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      {['Mois', 'Revenus ScolaritÃƒÂ©', 'DÃƒÂ©penses', 'RÃƒÂ©sultat net'].map(h => (
+                      {['Mois', 'Revenus Scolarité', 'Dépenses', 'Résultat net'].map(h => (
                         <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-bold uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -790,7 +790,7 @@ function ComptaView() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      {['Ville', 'Revenus', 'DÃƒÂ©penses', 'Net'].map(h => (
+                      {['Ville', 'Revenus', 'Dépenses', 'Net'].map(h => (
                         <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-bold uppercase tracking-wider">{h}</th>
                       ))}
                     </tr>
@@ -821,15 +821,15 @@ function ComptaView() {
         </div>
       )}
 
-      {/* Expense Form Modal Ã¢â‚¬â€ Premium Design */}
+      {/* Expense Form Modal — Premium Design */}
       {showForm && (
-<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay"
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 modal-overlay"
           onClick={e => { if (e.target === e.currentTarget) setShowForm(false); }}>
           <div className="bg-white rounded w-full max-w-lg shadow-2xl overflow-hidden modal-content flex flex-col max-h-[90vh]">
             {/* Modal header */}
             <div className="bg-linear-to-r from-red-500 to-red-700 px-6 py-5 flex items-center justify-between shrink-0">
               <div>
-                <h3 className="font-black text-white text-lg">Nouvelle dÃƒÂ©pense</h3>
+                <h3 className="font-black text-white text-lg">Nouvelle dépense</h3>
                 <p className="text-red-200 text-sm mt-0.5">Enregistrez une sortie d'argent</p>
               </div>
               <button onClick={() => setShowForm(false)}
@@ -844,28 +844,28 @@ function ComptaView() {
                   <div className="col-span-2">
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Description *</label>
                     <input type="text" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all"
-                      required placeholder="Ex : Salaire professeur MathÃƒÂ©matiques" />
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all"
+                      required placeholder="Ex : Salaire professeur Mathématiques" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Montant (FCFA) *</label>
                     <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all"
                       required min="1" placeholder="50 000" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ville</label>
                     <input type="text" value={form.ville} list="city-list" onChange={e => setForm({ ...form, ville: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all"
-                      placeholder="Abidjan, BouakÃƒÂ©..." />
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all"
+                      placeholder="Abidjan, Bouaké..." />
                     <datalist id="city-list">
                       {cities.map(c => <option key={c.id} value={c.name} />)}
                     </datalist>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">CatÃƒÂ©gorie</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Catégorie</label>
                     <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all bg-white">
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all bg-white">
                       {EXPENSE_CATEGORIES.map(cat => (
                         <option key={cat.value} value={cat.value}>{cat.label}</option>
                       ))}
@@ -874,19 +874,19 @@ function ComptaView() {
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Mode de paiement</label>
                     <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all bg-white">
-                      <option value="EspÃƒÂ¨ces">EspÃƒÂ¨ces</option>
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all bg-white">
+                      <option value="Espèces">Espèces</option>
                       <option value="Virement bancaire">Virement bancaire</option>
                       <option value="Mobile Money">Mobile Money</option>
-                      <option value="ChÃƒÂ¨que">ChÃƒÂ¨que</option>
+                      <option value="Chèque">Chèque</option>
                       <option value="Carte bancaire">Carte bancaire</option>
                     </select>
                   </div>
                   {teachers.length > 0 && (
                     <div className="col-span-2">
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Enseignant concernÃƒÂ© (optionnel)</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Enseignant concerné (optionnel)</label>
                       <select value={form.teacherId} onChange={e => setForm({ ...form, teacherId: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all bg-white">
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:ring-2 focus:ring-red-100 outline-none transition-all bg-white">
                         <option value="">-- Aucun enseignant --</option>
                         {teachers.map((t: any) => (
                           <option key={t.id} value={t.id}>{t.name || t.email}</option>
@@ -895,9 +895,9 @@ function ComptaView() {
                     </div>
                   )}
                   <div className="col-span-2">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">PiÃƒÂ¨ce jointe justificative (optionnel)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Pièce jointe justificative (optionnel)</label>
                     <div className="flex items-center gap-3">
-                      <label className="flex-1 flex items-center gap-2 px-4 py-3 border border-dashed border-gray-300 rounded text-sm text-gray-500 hover:border-red-400 hover:bg-red-50/30 transition-colors cursor-pointer">
+                      <label className="flex-1 flex items-center gap-2 px-4 py-3 border border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-red-400 hover:bg-red-50/30 transition-colors cursor-pointer">
                         <Upload size={16} />
                         <span>{attachmentFile ? attachmentFile.name : 'Choisir un fichier (PDF, image...)'}
                         </span>
@@ -910,7 +910,7 @@ function ComptaView() {
                       )}
                     </div>
                     {attachmentFile && !attachmentUrl && (
-                      <p className="text-xs text-gray-400 mt-1">Fichier sÃƒÂ©lectionnÃƒÂ© Ã¢â‚¬â€ sera uploadÃƒÂ© ÃƒÂ  l'enregistrement</p>
+                      <p className="text-xs text-gray-400 mt-1">Fichier sélectionné — sera uploadé à l'enregistrement</p>
                     )}
                   </div>
                 </div>

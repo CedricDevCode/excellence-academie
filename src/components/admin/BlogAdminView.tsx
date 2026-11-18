@@ -219,7 +219,7 @@ export default function BlogAdminView() {
                 value={formTitle}
                 onChange={e => setFormTitle(e.target.value)}
                 placeholder="Ex: Concours de Magistrature 2024 : Guide complet"
-                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:ring-1 focus:ring-[#c97e00] outline-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:ring-1 focus:ring-[#c97e00] outline-none"
               />
             </div>
 
@@ -231,7 +231,7 @@ export default function BlogAdminView() {
                 value={formExcerpt}
                 onChange={e => setFormExcerpt(e.target.value)}
                 placeholder="Courte description de l'article..."
-                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:ring-1 focus:ring-[#c97e00] outline-none"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:ring-1 focus:ring-[#c97e00] outline-none"
               />
             </div>
 
@@ -248,12 +248,12 @@ export default function BlogAdminView() {
                     value={formCoverImage}
                     onChange={e => setFormCoverImage(e.target.value)}
                     placeholder="URL de l'image..."
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] outline-none"
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => fileCoverRef.current?.click()}
-                    className="px-3 py-2 bg-surface-50 rounded text-xs font-semibold cursor-pointer hover:bg-gray-200 flex items-center gap-1"
+                    className="px-3 py-2 bg-surface-50 rounded-xl text-xs font-semibold cursor-pointer hover:bg-gray-200 flex items-center gap-1"
                   >
                     {uploadingCover ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                     Upload
@@ -266,7 +266,7 @@ export default function BlogAdminView() {
                 <select
                   value={formCourseId}
                   onChange={e => setFormCourseId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] outline-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] outline-none"
                 >
                   <option value="">Aucune</option>
                   {courses.map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
@@ -279,7 +279,7 @@ export default function BlogAdminView() {
                   value={formTags}
                   onChange={e => setFormTags(e.target.value)}
                   placeholder="maths, physique, examen..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] outline-none"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] outline-none"
                 />
               </div>
             </div>

@@ -43,7 +43,7 @@ interface StudentProgramFieldsProps {
 }
 
 const inputCls =
-  "w-full pl-11 pr-4 py-3 bg-surface-50/60 border border-surface-300 rounded text-sm text-surface-900 placeholder-surface-400 " +
+  "w-full pl-11 pr-4 py-3 bg-surface-50/60 border border-surface-300 rounded-xl text-sm text-surface-900 placeholder-surface-400 " +
   "focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all duration-150";
 
 const labelCls = "block text-[11px] font-bold uppercase tracking-wider text-surface-500 mb-1.5";

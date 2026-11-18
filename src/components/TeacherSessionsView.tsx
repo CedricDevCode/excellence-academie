@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchUsers, fetchCourses, fetchSessions, createSession, deleteSession, validateSession } from "../utils/api";
-import { Plus, Search, Trash2, Loader2, Clock, CheckCircle, X, Monitor, User, Bell, MapPin, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Search, Trash2, Loader2, Clock, CheckCircle, X, Monitor, User, Bell, MapPin, ShieldCheck, CalendarClock, ChevronDown, GraduationCap, BookOpen, Link2 } from "lucide-react";
 import { useToast } from "./Toast";
 
 interface Props {
@@ -153,105 +154,135 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
         </button>
       </div>
 
+      <AnimatePresence>
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded shadow-sm border border-gray-100 p-6 space-y-4">
-          <h3 className="font-bold text-gray-900">Programmer une séance de cours</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Enseignant *</label>
-              <select required value={form.teacherId} onChange={e => setForm({ ...form, teacherId: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none">
-                <option value="">Sélectionnez...</option>
-                {teachers.map((t: any) => (
-                  <option key={t.id} value={t.id}>{t.name || t.email}</option>
-                ))}
-              </select>
+        <motion.form
+          key="new-session-form"
+          onSubmit={handleSubmit}
+          initial={{ opacity: 0, height: 0, y: -12 }}
+          animate={{ opacity: 1, height: "auto", y: 0 }}
+          exit={{ opacity: 0, height: 0, y: -12 }}
+          transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+          className="bg-white rounded-2xl shadow-xl border border-primary-100 overflow-hidden origin-top"
+        >
+          <div className="flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-primary-700 via-[#c97e00] to-primary-800 text-white">
+            <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+              <CalendarClock size={22} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Matière / Cours</label>
-              <select value={form.courseId} onChange={e => setForm({ ...form, courseId: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none">
-                <option value="">Sélectionnez...</option>
-                {courses.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.title}</option>
-                ))}
-              </select>
+              <h3 className="font-display font-bold text-base leading-tight">Programmer une séance</h3>
+              <p className="text-amber-100/80 text-[11px]">Enseignant, matière, horaires et type de cours</p>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Date *</label>
-              <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Début *</label>
-              <input type="time" required value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
-            </div>
+            <button type="button" onClick={() => setShowForm(false)} aria-label="Fermer"
+              className="ml-auto text-amber-100/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg p-2 transition-colors">
+              <X size={17} />
+            </button>
           </div>
+          <div className="p-6 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Fin *</label>
-              <input type="time" required value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Durée (auto)</label>
-              <div className="px-3 py-2.5 border-2 border-gray-100 rounded text-sm text-gray-500 bg-gray-50">
-                {autoHours !== '0' ? `${autoHours}h` : '—'}
+            <div className="sm:col-span-2">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5 flex items-center gap-1"><User size={11} /> Enseignant *</label>
+              <div className="relative">
+                <select required value={form.teacherId} onChange={e => setForm({ ...form, teacherId: e.target.value })}
+                  className="w-full appearance-none pl-4 pr-10 py-2.5 border border-surface-300 rounded-xl text-sm bg-surface-50/60 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all">
+                  <option value="">Sélectionnez...</option>
+                  {teachers.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.name || t.email}</option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none" />
               </div>
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5 flex items-center gap-1"><BookOpen size={11} /> Matière / Cours</label>
+              <div className="relative">
+                <select value={form.courseId} onChange={e => setForm({ ...form, courseId: e.target.value })}
+                  className="w-full appearance-none pl-4 pr-10 py-2.5 border border-surface-300 rounded-xl text-sm bg-surface-50/60 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all">
+                  <option value="">Sélectionnez...</option>
+                  {courses.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-surface-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Type *</label>
-              <div className="flex gap-2">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5">Date *</label>
+              <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })}
+                className="w-full px-4 py-2.5 border border-surface-300 rounded-xl text-sm bg-surface-50/60 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5">Début *</label>
+              <input type="time" required value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })}
+                className="w-full px-4 py-2.5 border border-surface-300 rounded-xl text-sm bg-surface-50/60 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all num" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5">Fin *</label>
+              <input type="time" required value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })}
+                className="w-full px-4 py-2.5 border border-surface-300 rounded-xl text-sm bg-surface-50/60 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all num" />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5">Durée (auto)</label>
+              <div className="px-4 py-2.5 border border-transparent rounded-xl text-sm text-primary-800 font-bold bg-primary-50 border-primary-100 num flex items-center gap-2">
+                <Clock size={14} /> {autoHours !== '0' ? `${autoHours}h` : '—'}
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5 flex items-center gap-1"><GraduationCap size={11} /> Type de cours *</label>
+              <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setForm({ ...form, type: 'PRESENTIEL', location: '' })}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded text-sm font-semibold border-2 transition-colors ${form.type === 'PRESENTIEL' ? 'border-[#c97e00] bg-primary-50 text-[#c97e00]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                  <User size={14} /> Présentiel
+                  className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-150 ${form.type === 'PRESENTIEL' ? 'border-primary-600 bg-primary-50 text-primary-800 shadow-[0_0_0_3px_rgba(201,126,0,0.15)]' : 'border-surface-300 text-surface-500 hover:border-primary-300 hover:text-surface-700'}`}>
+                  <User size={15} /> Présentiel
                 </button>
                 <button type="button" onClick={() => setForm({ ...form, type: 'ONLINE', location: '' })}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded text-sm font-semibold border-2 transition-colors ${form.type === 'ONLINE' ? 'border-[#c97e00] bg-primary-50 text-[#c97e00]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                  <Monitor size={14} /> En ligne
+                  className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-bold border transition-all duration-150 ${form.type === 'ONLINE' ? 'border-primary-600 bg-primary-50 text-primary-800 shadow-[0_0_0_3px_rgba(201,126,0,0.15)]' : 'border-surface-300 text-surface-500 hover:border-primary-300 hover:text-surface-700'}`}>
+                  <Monitor size={15} /> En ligne
                 </button>
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                {form.type === 'ONLINE' ? 'Lien de connexion' : 'Lieu / Salle'}
-              </label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5 flex items-center gap-1">{form.type === 'ONLINE' ? <Link2 size={11} /> : <MapPin size={11} />} {form.type === 'ONLINE' ? 'Lien de connexion' : 'Lieu / Salle'}</label>
               <div className="relative">
-                <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400" />
                 <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
                   placeholder={form.type === 'ONLINE' ? 'https://meet.google.com/...' : 'Salle 101, étage 2'}
-                  className="w-full pl-9 pr-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  className="w-full pl-11 pr-4 py-2.5 border border-surface-300 rounded-xl text-sm bg-surface-50/60 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" />
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-end">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Description (optionnel)</label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-surface-500 mb-1.5">Description (optionnel)</label>
               <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                className="w-full px-3 py-2.5 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" placeholder="Cours de mathématiques - Chapitre 3" />
+                className="w-full px-4 py-2.5 border border-surface-300 rounded-xl text-sm bg-surface-50/60 focus:bg-white focus:border-primary-600 focus:ring-4 focus:ring-primary-600/10 focus:outline-none transition-all" placeholder="Ex: Magistrature — Chapitre 3" />
             </div>
-            <div className="flex items-end pb-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.notifyStudents} onChange={e => setForm({ ...form, notifyStudents: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-[#c97e00] focus:ring-[#c97e00]" />
-                <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                  <Bell size={14} /> Notifier les étudiants
-                </span>
-              </label>
-            </div>
+            <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-surface-200 bg-surface-50/60 px-4 py-3 hover:border-primary-300 transition-colors">
+              <button type="button" role="switch" aria-checked={form.notifyStudents} onClick={() => setForm({ ...form, notifyStudents: !form.notifyStudents })}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${form.notifyStudents ? 'bg-primary-600' : 'bg-surface-300'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${form.notifyStudents ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+              <span className="text-sm font-semibold text-surface-800 flex items-center gap-1.5">
+                <Bell size={14} className="text-primary-600" /> Notifier les inscrits
+              </span>
+            </label>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex items-center justify-between gap-3 pt-1 border-t border-surface-100 pt-4">
             <button type="button" onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-sm text-gray-600 font-semibold">Annuler</button>
+              className="px-4 py-2.5 text-sm text-surface-500 font-semibold hover:text-surface-800 rounded-xl hover:bg-surface-100 transition-colors">Annuler</button>
             <button type="submit" disabled={submitting || autoHours === '0'}
-              className="flex items-center gap-2 bg-[#c97e00] text-white px-5 py-2 rounded font-bold text-sm hover:bg-[#6b4500] disabled:opacity-50">
-              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md">
+              {submitting ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
               Programmer la séance
             </button>
           </div>
-        </form>
+          </div>
+        </motion.form>
       )}
+      </AnimatePresence>
 
       <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gray-50">
@@ -259,7 +290,7 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher par enseignant, matière..."
-              className="w-full pl-9 pr-4 py-2 border-2 border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+              className="w-full pl-9 pr-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
           </div>
         </div>
         <div className="divide-y divide-gray-100">

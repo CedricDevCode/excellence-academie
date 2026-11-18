@@ -131,7 +131,7 @@ export default function StudentLogin() {
                 ].map(r => (
                   <button key={r.val} type="button"
                     onClick={() => setForm({ ...form, role: r.val })}
-                    className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded text-xs font-bold transition-all duration-200 ${form.role === r.val ? "bg-accent-500 text-white shadow-sm" : "bg-surface-50 text-surface-600 border border-surface-200 hover:border-surface-300"}`}>
+                    className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 ${form.role === r.val ? "bg-accent-500 text-white shadow-sm" : "bg-surface-50 text-surface-600 border border-surface-200 hover:border-surface-300"}`}>
                     {r.icon} {r.label}
                   </button>
                 ))}

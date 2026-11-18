@@ -216,7 +216,7 @@ export default function UsersView() {
         <div className="flex flex-wrap gap-2 mt-4">
           {USER_TABS.map(tab => (
             <button key={tab.id} onClick={() => setUserTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-semibold transition-all ${userTab === tab.id
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${userTab === tab.id
                 ? 'bg-[#c97e00] text-white shadow-md'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}>
@@ -350,20 +350,20 @@ export default function UsersView() {
               <div className="space-y-4 px-6 py-5 overflow-y-auto flex-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-gray-600">Prenom</label>
-                  <input value={userForm.prenom} onChange={e => setUserForm({ ...userForm, prenom: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  <input value={userForm.prenom} onChange={e => setUserForm({ ...userForm, prenom: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-gray-600">Nom</label>
-                  <input value={userForm.nom} onChange={e => setUserForm({ ...userForm, nom: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  <input value={userForm.nom} onChange={e => setUserForm({ ...userForm, nom: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-gray-600">Email</label>
-                  <input type="email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  <input type="email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-gray-600">Mot de passe</label>
                   <div className="relative">
-                    <input type={showPassword ? 'text' : 'password'} value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} className="w-full px-3 py-2 pr-10 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                    <input type={showPassword ? 'text' : 'password'} value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -371,7 +371,7 @@ export default function UsersView() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-gray-600">Role</label>
-                  <select value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none">
+                  <select value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none">
                     <option value="ADMIN">Administrateur</option>
                     <option value="ACCOUNTANT">Comptable</option>
                     <option value="SECRETARY">Secretaire</option>
@@ -382,18 +382,18 @@ export default function UsersView() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-gray-600">Ville / Centre</label>
-                  <input value={userForm.ville} onChange={e => setUserForm({ ...userForm, ville: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  <input value={userForm.ville} onChange={e => setUserForm({ ...userForm, ville: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                 </div>
                 {userForm.role === 'TEACHER' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="block text-xs font-semibold text-gray-600">Taux horaire (FCFA/h)</label>
                     <input type="number" min="0" value={userForm.hourlyRate} onChange={e => setUserForm({ ...userForm, hourlyRate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" placeholder="5000" />
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" placeholder="5000" />
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="block text-xs font-semibold text-gray-600">Telephone</label>
-                  <input value={userForm.telephone} onChange={e => setUserForm({ ...userForm, telephone: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                  <input value={userForm.telephone} onChange={e => setUserForm({ ...userForm, telephone: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                 </div>
 
                 {/* Parent-Student linking */}
@@ -407,7 +407,7 @@ export default function UsersView() {
                         <div className="relative mb-2">
                           <input type="text" value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
                             placeholder="Rechercher par nom, email, matricule..."
-                            className="w-full px-3 py-2 pl-8 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                            className="w-full px-3 py-2 pl-8 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                           <Users size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                           {studentSearch && (
                             <button type="button" onClick={() => setStudentSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">

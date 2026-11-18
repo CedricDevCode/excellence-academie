@@ -115,18 +115,18 @@ export default function BlogSubmissions() {
                       <input type="number" min="0" max="20" step="0.5"
                         value={grades[s.id] ?? ""}
                         onChange={e => setGrades(prev => ({ ...prev, [s.id]: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                     </div>
                     <div className="md:col-span-1">
                       <label className="block text-xs font-semibold text-gray-500 mb-1">Feedback</label>
                       <input value={feedbacks[s.id] ?? ""}
                         onChange={e => setFeedbacks(prev => ({ ...prev, [s.id]: e.target.value }))}
                         placeholder="Commentaire..."
-                        className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:border-[#c97e00] focus:outline-none" />
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:border-[#c97e00] focus:outline-none" />
                     </div>
                     <div className="flex items-end">
                       <button onClick={() => handleEvaluate(s.id)} disabled={evaluating[s.id]}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded text-sm font-semibold hover:bg-primary-700 disabled:opacity-50">
+                        className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 disabled:opacity-50">
                         {evaluating[s.id] ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                         Évaluer
                       </button>

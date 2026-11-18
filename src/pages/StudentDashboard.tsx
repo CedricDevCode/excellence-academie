@@ -53,7 +53,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => vo
       <p className="text-red-700 text-sm flex-1">{message}</p>
       {onRetry && (
         <button onClick={onRetry} className="text-red-600 text-sm font-semibold hover:underline shrink-0">
-          RÃƒÂ©essayer
+          Réessayer
         </button>
       )}
     </div>
@@ -99,7 +99,7 @@ function DashboardOverview({
   const activeSub = subscriptions.find((s: any) => s.status === 'ACTIVE');
   const nextPaymentDate = activeSub
     ? new Date(activeSub.nextPayment).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
-    : "Ã¢â‚¬â€";
+    : "—";
   const nextPaymentAmount = activeSub ? activeSub.amount : 0;
 
   // Determine subscription status
@@ -116,27 +116,27 @@ function DashboardOverview({
       <div className="bg-gradient-hero rounded p-6 text-white mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-black text-xl mb-1">Bon retour parmi nous, {user?.name?.split(" ")[0] || "Ãƒâ€°tudiant"} !</h2>
+            <h2 className="font-black text-xl mb-1">Bon retour parmi nous, {user?.name?.split(" ")[0] || "Étudiant"} !</h2>
             {user?.matricule && <p className="text-amber-200/90 text-[10px] font-mono mb-1">{user.matricule}</p>}
             <p className="text-amber-200/90 text-sm">
               {!activeSub
-                ? "Bienvenue sur votre espace ÃƒÂ©tudiant."
+                ? "Bienvenue sur votre espace étudiant."
                 : hasPendingPayment
                   ? "Un paiement est en cours de confirmation..."
                   : isOverdue
-                    ? `Ã¢Å¡Â Ã¯Â¸Â Paiement en retard - ${nextPaymentDate} Ã¢â‚¬Â¢ ${formatPrice(nextPaymentAmount)} FCFA`
-                    : `Prochaine ÃƒÂ©chÃƒÂ©ance : ${nextPaymentDate} Ã¢â‚¬Â¢ ${formatPrice(nextPaymentAmount)} FCFA`
+                    ? `⚠️ Paiement en retard - ${nextPaymentDate} • ${formatPrice(nextPaymentAmount)} FCFA`
+                    : `Prochaine échéance : ${nextPaymentDate} • ${formatPrice(nextPaymentAmount)} FCFA`
               }
             </p>
           </div>
           <div className="text-right hidden sm:block">
             <div className="text-3xl font-black text-amber-300">{formatPrice(totalPaidAmount)}</div>
-            <div className="text-amber-200/90 text-sm">FCFA payÃƒÂ©s</div>
+            <div className="text-amber-200/90 text-sm">FCFA payés</div>
           </div>
         </div>
       </div>
 
-      {/* BanniÃƒÂ¨re Vos Formations & Ajout de formation supplÃƒÂ©mentaire */}
+      {/* Bannière Vos Formations & Ajout de formation supplémentaire */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-50 text-[#c97e00] flex items-center justify-center shrink-0">
@@ -150,7 +150,7 @@ function DashboardOverview({
               {courseNames.length > 0 ? (
                 courseNames.map((name: string) => (
                   <span key={name} className="inline-flex items-center gap-1 text-xs font-bold text-gray-900 bg-amber-50/70 border border-amber-200 px-2.5 py-0.5 rounded-md">
-                    Ã°Å¸Å½â€œ {name}
+                    🎓 {name}
                   </span>
                 ))
               ) : (
@@ -166,7 +166,7 @@ function DashboardOverview({
             className="inline-flex items-center gap-2 bg-[#c97e00] text-white px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-[#7a4b00] transition-all shadow-xs cursor-pointer shrink-0"
           >
             <Plus size={15} />
-            <span>S'inscrire ÃƒÂ  une autre formation</span>
+            <span>S'inscrire à une autre formation</span>
           </button>
         )}
       </div>
@@ -181,17 +181,17 @@ function DashboardOverview({
       {payments.length === 0 && (
         <div className="bg-primary-50 border-2 border-amber-100 rounded p-5 mb-6">
           <p className="text-primary-800 text-sm font-semibold">
-            Aucun paiement enregistrÃƒÂ© pour le moment. Votre historique apparaÃƒÂ®tra ici aprÃƒÂ¨s votre premiÃƒÂ¨re inscription.
+            Aucun paiement enregistré pour le moment. Votre historique apparaîtra ici après votre première inscription.
           </p>
         </div>
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Paiements effectuÃƒÂ©s", value: `${paidCount}`, icon: <CheckCircle size={18} />, color: "text-green-500", bg: "bg-green-50" },
-          { label: "Prochaine ÃƒÂ©chÃƒÂ©ance", value: activeSub ? `${formatPrice(nextPaymentAmount)} FCFA` : "Ã¢â‚¬â€", icon: <Clock size={18} />, color: "text-orange-500", bg: "bg-orange-50", sub: nextPaymentDate },
-          { label: "Total payÃƒÂ©", value: `${formatPrice(totalPaidAmount)} FCFA`, icon: <CreditCard size={18} />, color: "text-primary-500", bg: "bg-primary-50" },
-          { label: "Concours", value: courseNames[0] || "Non dÃƒÂ©fini", icon: <GraduationCap size={18} />, color: "text-accent-700", bg: "bg-accent-50" },
+          { label: "Paiements effectués", value: `${paidCount}`, icon: <CheckCircle size={18} />, color: "text-green-500", bg: "bg-green-50" },
+          { label: "Prochaine échéance", value: activeSub ? `${formatPrice(nextPaymentAmount)} FCFA` : "—", icon: <Clock size={18} />, color: "text-orange-500", bg: "bg-orange-50", sub: nextPaymentDate },
+          { label: "Total payé", value: `${formatPrice(totalPaidAmount)} FCFA`, icon: <CreditCard size={18} />, color: "text-primary-500", bg: "bg-primary-50" },
+          { label: "Concours", value: courseNames[0] || "Non défini", icon: <GraduationCap size={18} />, color: "text-accent-700", bg: "bg-accent-50" },
         ].map((s, i) => (
           <motion.div
             key={i}
@@ -205,7 +205,7 @@ function DashboardOverview({
               <div className="text-gray-500 text-xs mt-1">{s.label}</div>
               {(s as any).sub && activeSub && (
                 <div className="mt-2 space-y-1.5">
-                  <div className="text-gray-400 text-[10px]">Ãƒâ€°chÃƒÂ©ance : {(s as any).sub}</div>
+                  <div className="text-gray-400 text-[10px]">Échéance : {(s as any).sub}</div>
                   {hasPendingPayment ? (
                     <div className="py-1.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-lg text-center">
                       Paiement en cours...
@@ -275,7 +275,7 @@ function DashboardOverview({
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    {["Date", "Montant", "Type", "Statut", "RÃƒÂ©fÃƒÂ©rence"].map(h => (
+                    {["Date", "Montant", "Type", "Statut", "Référence"].map(h => (
                       <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                     ))}
                   </tr>
@@ -295,15 +295,15 @@ function DashboardOverview({
                         <td className="py-3 px-4 font-bold text-primary-500 text-sm">{formatPrice(m.amount)} FCFA</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-accent-100 text-accent-700" : "bg-primary-100 text-primary-800"}`}>
-                            {m.type === "INSCRIPTION" ? "Inscription" : "MensualitÃƒÂ©"}
+                            {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.status === "SUCCESS" ? "bg-green-100 text-green-700" : m.status === "PENDING" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
-                            {m.status === "SUCCESS" ? "Ã¢Å“â€¦ PayÃƒÂ©" : m.status === "PENDING" ? "Ã¢ÂÂ³ En attente" : "Ã¢ÂÅ’ Ãƒâ€°chouÃƒÂ©"}
+                            {m.status === "SUCCESS" ? "✅ Payé" : m.status === "PENDING" ? "⏳ En attente" : "❌ Échoué"}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "Ã¢â‚¬â€"}</td>
+                        <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "—"}</td>
                       </motion.tr>
                     ))}
                   </AnimatePresence>
@@ -318,10 +318,10 @@ function DashboardOverview({
         <h3 className="font-black text-gray-900 mb-3 flex items-center gap-2"><Phone size={18} className="text-primary-500" /> Besoin d'aide ?</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <a href="tel:+2250747439443" className="flex items-center gap-2 text-sm text-primary-500 font-semibold hover:underline" aria-label="Appeler le 07 47 43 94 43">
-            Ã°Å¸â€œÅ¾ 07 47 43 94 43 (WhatsApp)
+            📞 07 47 43 94 43 (WhatsApp)
           </a>
-          <a href="mailto:ea@exacademie.com" className="flex items-center gap-2 text-sm text-primary-500 font-semibold hover:underline" aria-label="Envoyer un email ÃƒÂ  ea@exacademie.com">
-            Ã°Å¸â€œÂ§ ea@exacademie.com
+          <a href="mailto:ea@exacademie.com" className="flex items-center gap-2 text-sm text-primary-500 font-semibold hover:underline" aria-label="Envoyer un email à ea@exacademie.com">
+            📧 ea@exacademie.com
           </a>
         </div>
       </div>
@@ -372,12 +372,12 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
 
   const handleExportCsv = () => {
     const rows = [
-      ["Date", "Montant", "Type", "Statut", "RÃƒÂ©fÃƒÂ©rence"],
+      ["Date", "Montant", "Type", "Statut", "Référence"],
       ...payments.map((m: any) => [
         new Date(m.createdAt).toLocaleDateString("fr-FR"),
         `${formatPrice(m.amount)} FCFA`,
-        m.type === "INSCRIPTION" ? "Inscription" : "MensualitÃƒÂ©",
-        m.status === "SUCCESS" ? "PayÃƒÂ©" : m.status,
+        m.type === "INSCRIPTION" ? "Inscription" : "Mensualité",
+        m.status === "SUCCESS" ? "Payé" : m.status,
         m.geniusPayReference || "",
       ]),
     ];
@@ -425,7 +425,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
             <p className="text-gray-500 text-sm flex items-center gap-2">
               Suivez l'historique complet de vos paiements.
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Temps rÃƒÂ©el
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Temps réel
               </span>
             </p>
           </div>
@@ -449,12 +449,12 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
         </div>
       )}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Overdue items section Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ───── Overdue items section ───── */}
       {overdueItems.length > 0 && (
         <div className="bg-white rounded shadow-sm border border-red-100 overflow-hidden">
           <div className="p-4 border-b border-red-100 bg-red-50 flex items-center justify-between">
             <h3 className="font-black text-red-700 flex items-center gap-2 text-sm">
-              <AlertCircle size={16} /> Ãƒâ€°chÃƒÂ©ances impayÃƒÂ©es
+              <AlertCircle size={16} /> Échéances impayées
             </h3>
             <span className="text-red-600 text-xs font-bold">{overdueItems.length} mois</span>
           </div>
@@ -479,7 +479,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
                       <input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleItem(item.id)} className="rounded border-gray-300" />
                     </td>
                     <td className="py-2.5 px-4 font-semibold text-gray-900 text-sm">{item.label}</td>
-                    <td className="py-2.5 px-4 text-sm text-gray-700">{item.courseTitle || "Ã¢â‚¬â€"}</td>
+                    <td className="py-2.5 px-4 text-sm text-gray-700">{item.courseTitle || "—"}</td>
                     <td className="py-2.5 px-4 font-bold text-red-600 text-sm">{formatPrice(item.amount)} FCFA</td>
                   </tr>
                 ))}
@@ -489,7 +489,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
           {selectedIds.length > 0 && (
             <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
               <div>
-                <span className="text-sm text-gray-600">{selectedIds.length} mois sÃƒÂ©lectionnÃƒÂ©(s)</span>
+                <span className="text-sm text-gray-600">{selectedIds.length} mois sélectionné(s)</span>
                 <span className="ml-3 text-lg font-black text-primary-500">{formatPrice(totalSelected)} FCFA</span>
               </div>
               <Button variant="accent" size="sm" disabled={paying} onClick={handlePaySelected}>
@@ -500,11 +500,11 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
         </div>
       )}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Payment history Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ───── Payment history ───── */}
       {payments.length === 0 ? (
         <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
           <CreditCard size={40} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-400 text-sm">Aucun paiement enregistrÃƒÂ©</p>
+          <p className="text-gray-400 text-sm">Aucun paiement enregistré</p>
         </div>
       ) : (
         <motion.div
@@ -520,7 +520,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    {["Date", "Montant", "Formation(s) suivie(s)", "Type", "Statut", "RÃƒÂ©fÃƒÂ©rence", ""].map(h => (
+                    {["Date", "Montant", "Formation(s) suivie(s)", "Type", "Statut", "Référence", ""].map(h => (
                       <th key={h} className="text-left py-3 px-4 text-gray-500 text-xs font-semibold">{h}</th>
                     ))}
                   </tr>
@@ -543,22 +543,22 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
                         <td className="py-3 px-4">
                           <div className="font-bold text-primary-500 text-sm">{formatPrice(m.amount)}</div>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-700 font-medium">{m.course?.title || "Ã¢â‚¬â€"}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700 font-medium">{m.course?.title || "—"}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.type === "INSCRIPTION" ? "bg-accent-100 text-accent-700" : "bg-primary-100 text-primary-800"}`}>
-                            {m.type === "INSCRIPTION" ? "Inscription" : "MensualitÃƒÂ©"}
+                            {m.type === "INSCRIPTION" ? "Inscription" : "Mensualité"}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${m.status === "SUCCESS" ? "bg-green-100 text-green-700" : m.status === "PENDING" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
-                            {m.status === "SUCCESS" ? "Ã¢Å“â€¦ PayÃƒÂ©" : m.status === "PENDING" ? "Ã¢ÂÂ³ En attente" : "Ã¢ÂÅ’ Ãƒâ€°chouÃƒÂ©"}
+                            {m.status === "SUCCESS" ? "✅ Payé" : m.status === "PENDING" ? "⏳ En attente" : "❌ Échoué"}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "Ã¢â‚¬â€"}</td>
+                        <td className="py-3 px-4 text-xs text-gray-400 font-mono">{m.geniusPayReference || "—"}</td>
                         <td className="py-3 px-4">
                           {m.status === "SUCCESS" && (
-                            <button onClick={() => openReceipt(m)} className="px-3 py-1.5 border border-primary-500 text-primary-500 rounded-lg text-xs font-semibold hover:bg-primary-50 whitespace-nowrap" aria-label="Voir le reÃƒÂ§u">
-                              <Eye size={12} className="inline mr-1" /> ReÃƒÂ§u
+                            <button onClick={() => openReceipt(m)} className="px-3 py-1.5 border border-primary-500 text-primary-500 rounded-lg text-xs font-semibold hover:bg-primary-50 whitespace-nowrap" aria-label="Voir le reçu">
+                              <Eye size={12} className="inline mr-1" /> Reçu
                             </button>
                           )}
                         </td>
@@ -571,16 +571,16 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
           </Card>
         </motion.div>
       )}
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Receipt Preview Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ───── Receipt Preview Modal ───── */}
       {showReceiptModal && receiptUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 modal-overlay" onClick={closeReceiptModal}>
           <div className="bg-white rounded shadow-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden modal-content" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
               <div>
-                <h3 className="font-black text-gray-900">AperÃƒÂ§u du reÃƒÂ§u</h3>
+                <h3 className="font-black text-gray-900">Aperçu du reçu</h3>
                 {receiptPayment && (
                   <p className="text-gray-400 text-xs mt-0.5">
-                    {receiptPayment.type === "INSCRIPTION" ? "Inscription" : "MensualitÃƒÂ©"} Ã¢â‚¬â€ {formatPrice(receiptPayment.amount)} FCFA
+                    {receiptPayment.type === "INSCRIPTION" ? "Inscription" : "Mensualité"} — {formatPrice(receiptPayment.amount)} FCFA
                   </p>
                 )}
               </div>
@@ -589,7 +589,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
                   Imprimer
                 </Button>
                 <Button variant="primary" size="sm" icon={<Download size={16} />} onClick={handleDownloadReceipt}>
-                  TÃƒÂ©lÃƒÂ©charger
+                  Télécharger
                 </Button>
                 <button onClick={closeReceiptModal} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-surface-50 transition-colors" aria-label="Fermer">
                   <X size={20} />
@@ -597,7 +597,7 @@ function PaymentsPage({ payments, subscriptions, overdueItems, onRefresh }: { pa
               </div>
             </div>
             <div className="flex-1 bg-surface-50">
-              <iframe src={receiptUrl} className="w-full h-full" title="AperÃƒÂ§u du reÃƒÂ§u" />
+              <iframe src={receiptUrl} className="w-full h-full" title="Aperçu du reçu" />
             </div>
           </div>
         </div>
@@ -643,7 +643,7 @@ function CoursesPage({
             <h2 className="font-black text-gray-900 text-lg">Mes Formations & Sessions</h2>
           </div>
           <p className="text-gray-500 text-xs">
-            Formations auxquelles vous ÃƒÂªtes actuellement inscrit chez Excellence AcadÃƒÂ©mie.
+            Formations auxquelles vous êtes actuellement inscrit chez Excellence Académie.
           </p>
 
           {/* Formations badges */}
@@ -672,7 +672,7 @@ function CoursesPage({
           className="flex items-center justify-center gap-2 bg-[#c97e00] text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-[#7a4b00] transition-all shadow-sm hover:shadow-md cursor-pointer shrink-0"
         >
           <Plus size={16} />
-          <span>S'inscrire ÃƒÂ  une autre formation</span>
+          <span>S'inscrire à une autre formation</span>
         </button>
       </div>
 
@@ -697,14 +697,14 @@ function CalendarPage() {
     <div className="space-y-6">
       <Card padding="lg">
         <h2 className="font-black text-gray-900 text-xl">Calendrier</h2>
-        <p className="text-gray-500 text-sm">Vos prochaines sessions et ÃƒÂ©chÃƒÂ©ances.</p>
+        <p className="text-gray-500 text-sm">Vos prochaines sessions et échéances.</p>
       </Card>
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-primary-500" /></div>
       ) : events.length === 0 ? (
         <div className="bg-white rounded border border-gray-100 p-8 text-center shadow-sm">
           <Calendar size={40} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-400 text-sm">Aucun ÃƒÂ©vÃƒÂ©nement planifiÃƒÂ© pour le moment.</p>
+          <p className="text-gray-400 text-sm">Aucun événement planifié pour le moment.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -731,13 +731,13 @@ function CalendarPage() {
                       event.type === "EVENT" ? "bg-accent-100 text-accent-700" :
                       "bg-green-100 text-green-700"
                     }`}>
-                      {event.type === "EXAM" ? "Examen" : event.type === "EVENT" ? "Ãƒâ€°vÃƒÂ©nement" : "Cours"}
+                      {event.type === "EXAM" ? "Examen" : event.type === "EVENT" ? "Événement" : "Cours"}
                     </span>
                   </div>
                   <p className="text-gray-500 text-xs">
                     {new Date(event.startTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                     {event.endTime ? ` - ${new Date(event.endTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : ""}
-                    {event.location ? ` Ã¢â‚¬Â¢ ${event.location}` : ""}
+                    {event.location ? ` • ${event.location}` : ""}
                   </p>
                   {event.description && <p className="text-gray-400 text-xs mt-1">{event.description}</p>}
                   {event.course && <span className="mt-1.5 inline-block text-[10px] bg-surface-50 text-gray-600 px-2 py-0.5 rounded-full font-medium">{event.course.title}</span>}
@@ -774,7 +774,7 @@ function NotificationsPage({ notifs, onRefresh }: { notifs: any[]; onRefresh: ()
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-black text-gray-900 text-xl">Notifications</h2>
-            <p className="text-gray-500 text-sm">DerniÃƒÂ¨res alertes et messages reÃƒÂ§us.</p>
+            <p className="text-gray-500 text-sm">Dernières alertes et messages reçus.</p>
           </div>
           <div className="flex items-center gap-3">
             {unreadCount > 0 && (
@@ -850,12 +850,12 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
       if (form.oldPass && form.newPass) data.password = form.newPass;
       await updateMyProfile(data);
       setMessageType('success');
-      setMessage('Profil mis ÃƒÂ  jour avec succÃƒÂ¨s.');
+      setMessage('Profil mis à jour avec succès.');
       setForm(prev => ({ ...prev, oldPass: '', newPass: '' }));
       onRefresh();
     } catch {
       setMessageType('error');
-      setMessage('Erreur lors de la mise ÃƒÂ  jour.');
+      setMessage('Erreur lors de la mise à jour.');
     } finally {
       setSaving(false);
     }
@@ -870,7 +870,7 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
           <div className="w-12 h-12 rounded bg-primary-500 flex items-center justify-center text-white"><User size={22} /></div>
           <div>
             <h2 className="font-black text-gray-900">Mon profil</h2>
-            <p className="text-gray-500 text-sm">Informations personnelles et sÃƒÂ©curitÃƒÂ©</p>
+            <p className="text-gray-500 text-sm">Informations personnelles et sécurité</p>
           </div>
         </div>
       </Card>
@@ -878,7 +878,7 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
       <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 space-y-6">
           {message && (
-            <div className={`px-4 py-3 rounded text-sm font-semibold ${messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            <div className={`px-4 py-3 rounded-xl text-sm font-semibold ${messageType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
               {message}
             </div>
           )}
@@ -914,11 +914,11 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
                 }} />
             </div>
             <div>
-              <div className="font-bold text-gray-900">{form.name || 'Ãƒâ€°tudiant'}</div>
+              <div className="font-bold text-gray-900">{form.name || 'Étudiant'}</div>
               <div className="text-gray-500 text-sm">{user?.email}</div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant="primary" size="md" dot>
-                  Ãƒâ€°tudiant
+                  Étudiant
                 </Badge>
                 {user?.matricule && (
                   <span className="inline-flex items-center gap-1 bg-surface-50 text-gray-600 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full">
@@ -939,27 +939,27 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nom complet</label>
               <input value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
               <input value={user?.email || ''} disabled
-                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 text-gray-500 cursor-not-allowed" />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">TÃƒÂ©lÃƒÂ©phone</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Téléphone</label>
               <input value={form.telephone} onChange={e => setForm({...form, telephone: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Ville</label>
               <input value={form.ville} onChange={e => setForm({...form, ville: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Pays</label>
               <input value={form.pays} onChange={e => setForm({...form, pays: e.target.value})}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
             </div>
           </div>
 
@@ -973,12 +973,12 @@ function ProfilePage({ user, onRefresh }: { user: any; onRefresh: () => void }) 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mot de passe actuel</label>
                 <input type="password" value={form.oldPass} onChange={e => setForm({...form, oldPass: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nouveau mot de passe</label>
                 <input type="password" value={form.newPass} onChange={e => setForm({...form, newPass: e.target.value})}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100 transition-all" />
               </div>
             </div>
           </div>
@@ -1040,21 +1040,21 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
           <div className="p-6 border-b border-gray-100 bg-green-50">
             <div className="flex items-center gap-2">
               <CheckCircle size={18} className="text-green-600" />
-              <span className="font-bold text-green-800">Contrat signÃƒÂ© le {contract.signedAt ? new Date(contract.signedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "Ã¢â‚¬â€"}</span>
+              <span className="font-bold text-green-800">Contrat signé le {contract.signedAt ? new Date(contract.signedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "—"}</span>
             </div>
           </div>
           <div className="p-6">
             <div className="bg-gray-50 rounded p-4 mb-4">
-              <p className="text-xs font-semibold text-gray-500 mb-2">Signature ÃƒÂ©lectronique apposÃƒÂ©e sur le contrat</p>
+              <p className="text-xs font-semibold text-gray-500 mb-2">Signature électronique apposée sur le contrat</p>
               <img src={contract.signatureData} alt="Signature" className="h-16" />
             </div>
             <div className="bg-gray-50 rounded p-4">
-              <p className="text-xs font-semibold text-gray-500 mb-2">Contrat de formation signÃƒÂ©</p>
+              <p className="text-xs font-semibold text-gray-500 mb-2">Contrat de formation signé</p>
               <div className="h-[500px]">
                 <iframe
                   src={signedPdfUrl}
                   className="w-full h-full rounded-lg"
-                  title="Contrat de formation signÃƒÂ©"
+                  title="Contrat de formation signé"
                 />
               </div>
             </div>
@@ -1094,7 +1094,7 @@ function StudentBlogView() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-black text-gray-900 text-lg flex items-center gap-2"><BookOpen size={18} className="text-primary-500" /> Blog</h2>
-            <p className="text-gray-500 text-sm">Articles rÃƒÂ©cents de l'acadÃƒÂ©mie.</p>
+            <p className="text-gray-500 text-sm">Articles récents de l'académie.</p>
           </div>
           <Link to="/blog" className="text-sm text-primary-500 font-semibold hover:underline">Voir tout</Link>
         </div>
@@ -1156,7 +1156,7 @@ export default function StudentDashboard() {
       setSubscriptions(subsData);
       setOverdueItems(overdueData.items || []);
     } catch {
-      // silencieux : ne pas interrompre le dashboard en cas d'ÃƒÂ©chec ponctuel
+      // silencieux : ne pas interrompre le dashboard en cas d'échec ponctuel
     }
   }, []);
 
@@ -1194,7 +1194,7 @@ export default function StudentDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // RafraÃƒÂ®chissement automatique des paiements pour un suivi en temps rÃƒÂ©el
+  // Rafraîchissement automatique des paiements pour un suivi en temps réel
   useEffect(() => {
     if (!user) return;
     const tick = () => {
@@ -1262,14 +1262,14 @@ export default function StudentDashboard() {
 
   return (
     <div className="flex h-screen bg-surface-50 font-[Inter,sans-serif] overflow-hidden">
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-hero text-white transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} role="navigation" aria-label="Menu ÃƒÂ©tudiant">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-hero text-white transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} role="navigation" aria-label="Menu étudiant">
           <div className="flex items-center justify-between p-5 border-b border-white/15">
           <div className="flex items-center gap-3">
-            <img src="/images/logo%20exacademy.jpeg" alt="Excellence AcadÃƒÂ©mie" className="h-10 w-10 rounded-full object-cover border-2 border-white/30" />
+            <img src="/images/logo%20exacademy.jpeg" alt="Excellence Académie" className="h-10 w-10 rounded-full object-cover border-2 border-white/30" />
             <div className="min-w-0">
-              <div className="font-black text-sm truncate">Excellence AcadÃƒÂ©mie</div>
+              <div className="font-black text-sm truncate">Excellence Académie</div>
               <div className="text-amber-200/90 text-xs truncate">
-                Ãƒâ€°tudiant
+                Étudiant
                 {user?.matricule && <span className="block text-[10px] text-amber-200/60 font-mono mt-0.5">{user.matricule}</span>}
               </div>
             </div>
@@ -1282,7 +1282,7 @@ export default function StudentDashboard() {
         <nav className="p-4 space-y-1">
           {NAV_ITEMS.map(item => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded text-sm font-medium transition-all ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === item.id ? "bg-white/15 text-white font-bold" : "text-amber-100 hover:bg-white/10"}`}
               aria-current={activeTab === item.id ? "page" : undefined}>
               {item.icon} {item.label}
               {activeTab === item.id && <ChevronRight size={16} className="ml-auto" />}
@@ -1291,8 +1291,8 @@ export default function StudentDashboard() {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/15 space-y-1">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-red-200 hover:text-white text-sm rounded hover:bg-red-500/20 transition-all" aria-label="Se dÃƒÂ©connecter">
-            <LogOut size={18} className="text-red-300 shrink-0" /> DÃƒÂ©connexion
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-red-200 hover:text-white text-sm rounded hover:bg-red-500/20 transition-all" aria-label="Se déconnecter">
+            <LogOut size={18} className="text-red-300 shrink-0" /> Déconnexion
           </button>
         </div>
       </aside>
@@ -1308,7 +1308,7 @@ export default function StudentDashboard() {
               </button>
               <div>
                 <h1 className="font-black text-gray-900">{activeTitle}</h1>
-                <p className="text-gray-400 text-xs">Excellence AcadÃƒÂ©mie Ã¢â‚¬Â¢ Espace ÃƒÂ©tudiant</p>
+                <p className="text-gray-400 text-xs">Excellence Académie • Espace étudiant</p>
               </div>
             </div>
             <nav className="hidden lg:flex items-center gap-5 mx-6">
@@ -1321,7 +1321,7 @@ export default function StudentDashboard() {
               <Link
                 to="/"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:text-primary-700 hover:bg-gray-50 text-xs font-bold transition-all shadow-2xs"
-                title="AccÃƒÂ©der ÃƒÂ  la page d'accueil sans se dÃƒÂ©connecter"
+                title="Accéder à la page d'accueil sans se déconnecter"
               >
                 <Globe size={14} className="text-primary-600" />
                 <span className="hidden sm:inline">Voir le site public</span>
@@ -1395,7 +1395,7 @@ export default function StudentDashboard() {
               {showUserDropdown && (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded shadow-xl border border-gray-100 z-50 overflow-hidden">
                   <div className="p-4 border-b border-gray-100">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{user?.name || "Ãƒâ€°tudiant"}</p>
+                    <p className="font-semibold text-gray-900 text-sm truncate">{user?.name || "Étudiant"}</p>
                     <p className="text-gray-400 text-xs">{user?.email || ""}</p>
                   </div>
                   <div className="py-1">
@@ -1403,7 +1403,7 @@ export default function StudentDashboard() {
                       <User size={16} className="text-gray-400" /> Profil
                     </button>
                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                      <LogOut size={16} /> DÃƒÂ©connexion
+                      <LogOut size={16} /> Déconnexion
                     </button>
                   </div>
                 </div>
@@ -1418,7 +1418,7 @@ export default function StudentDashboard() {
             <div className="mb-6 p-4 rounded-xl bg-emerald-50 border-2 border-emerald-200 flex items-center gap-3 text-emerald-800 text-xs font-bold shadow-xs">
               <CheckCircle size={20} className="text-emerald-600 shrink-0" />
               <span>
-                FÃƒÂ©licitations ! Votre inscription ÃƒÂ  votre nouvelle formation a ÃƒÂ©tÃƒÂ© validÃƒÂ©e avec succÃƒÂ¨s. Vos nouveaux modules et sessions sont dÃƒÂ©sormais actifs.
+                Félicitations ! Votre inscription à votre nouvelle formation a été validée avec succès. Vos nouveaux modules et sessions sont désormais actifs.
               </span>
             </div>
           )}
@@ -1435,7 +1435,7 @@ export default function StudentDashboard() {
           </AnimatePresence>
         </div>
 
-        {/* Modal d'ajout de formation supplÃƒÂ©mentaire ÃƒÂ  tarif prÃƒÂ©fÃƒÂ©rentiel */}
+        {/* Modal d'ajout de formation supplémentaire à tarif préférentiel */}
         <AddCourseModal
           isOpen={showAddCourseModal}
           onClose={() => setShowAddCourseModal(false)}
