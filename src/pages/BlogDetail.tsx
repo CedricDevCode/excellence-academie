@@ -20,6 +20,8 @@ import {
   Award,
   ChevronRight,
   ArrowRight,
+  Eye,
+  Star,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -32,6 +34,8 @@ import {
   submitExercise,
   deleteBlogPost,
   getMe,
+  rateBlogPost,
+  incrementBlogView,
 } from "../utils/api";
 import { Card, Badge, Button, Container } from "../components/ui";
 import BlogRestricted from "../components/BlogRestricted";
@@ -47,6 +51,23 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.06 } },
 };
 
+const TITLE_SIZE_MAP: Record<string, string> = { sm: '1.5rem', md: '2rem', lg: '2.25rem', xl: '3rem' };
+function parseTitleStyle(raw?: string | null) {
+  const fallback = { size: 'lg', align: 'left' as const, color: '#0f172a', weight: 'black' as const };
+  if (!raw) return fallback;
+  try {
+    const p = JSON.parse(raw);
+    return {
+      size: TITLE_SIZE_MAP[p.size] ? p.size : 'lg',
+      align: (['left', 'center', 'right'].includes(p.align) ? p.align : 'left') as 'left' | 'center' | 'right',
+      color: typeof p.color === 'string' ? p.color : '#0f172a',
+      weight: p.weight === 'normal' ? 'normal' as const : 'black' as const,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 export default function BlogDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -59,6 +80,10 @@ export default function BlogDetail() {
   const [exerciseForm, setExerciseForm] = useState({ title: "", description: "" });
   const [submitForm, setSubmitForm] = useState<Record<string, { content: string; file: File | null }>>({});
   const [copied, setCopied] = useState(false);
+  const [views, setViews] = useState(0);
+  const [rating, setRating] = useState({ average: 0, count: 0, mine: 0 });
+  const [hoverStar, setHoverStar] = useState(0);
+  const [ratingSaving, setRatingSaving] = useState(false);
 
   const loadPost = useCallback(async () => {
     if (!slug) return;
@@ -66,6 +91,12 @@ export default function BlogDetail() {
     try {
       const data = await fetchBlogPostBySlug(slug);
       setPost(data);
+      setViews(Number(data?.views || 0));
+      setRating({
+        average: Number(data?.ratingAverage || 0),
+        count: Number(data?.ratingCount || 0),
+        mine: Number(data?.myRating || 0),
+      });
       setRelatedPosts([]);
       fetchBlogPosts({ limit: 12 })
         .then((res: any) => {
@@ -100,6 +131,29 @@ export default function BlogDetail() {
   useEffect(() => {
     getMe().then(setUser).catch(() => {});
   }, []);
+
+  // Compte une vue par article et par session (anti-refresh)
+  useEffect(() => {
+    if (!slug) return;
+    const key = `blog-view-${slug}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+      incrementBlogView(slug).then((res) => res?.views && setViews(res.views)).catch(() => {});
+    } catch { /* sessionStorage indisponible */ }
+  }, [slug]);
+
+  const handleRate = async (value: number) => {
+    if (!post || ratingSaving) return;
+    if (user && ["ADMIN", "TEACHER", "SECRETARY", "STUDENT"].includes(user.role)) {
+      setRatingSaving(true);
+      try {
+        const res = await rateBlogPost(post.id, value);
+        setRating({ average: res.ratingAverage, count: res.ratingCount, mine: res.myRating });
+      } catch {}
+      finally { setRatingSaving(false); }
+    }
+  };
 
   const handleComment = async () => {
     if (!commentText.trim() || !post) return;
@@ -176,6 +230,7 @@ export default function BlogDetail() {
 
   const readingTime = post.readingTime || "5 min de lecture";
   const categoryName = post.category || post.course?.title || post.tags?.[0]?.tag?.name || "Concours";
+  const titleStyle = parseTitleStyle(post.titleStyle);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
@@ -241,9 +296,22 @@ export default function BlogDetail() {
                   year: "numeric",
                 })}
               </span>
+              <span className="text-xs text-slate-400 flex items-center gap-1 font-medium num">
+                <Eye size={13} /> {views.toLocaleString("fr-FR")} vue{views > 1 ? "s" : ""}
+              </span>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+            <h1
+              className="tracking-tight break-words"
+              style={{
+                fontSize: TITLE_SIZE_MAP[titleStyle.size] || TITLE_SIZE_MAP.lg,
+                textAlign: titleStyle.align,
+                color: titleStyle.color,
+                fontWeight: titleStyle.weight === 'black' ? 800 : 500,
+                fontFamily: '"Bricolage Grotesque", "Inter", sans-serif',
+                lineHeight: 1.1,
+              }}
+            >
               {post.title}
             </h1>
 
@@ -273,6 +341,46 @@ export default function BlogDetail() {
                 <div className="text-xs text-slate-500 font-medium">
                   {post.author?.role || "Excellence Académie Côte d'Ivoire"}
                 </div>
+              </div>
+            </div>
+
+            {/* Notez l'article */}
+            <div className="pt-2 flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1" role="radiogroup" aria-label="Notez cet article">
+                {[1, 2, 3, 4, 5].map((star) => {
+                  const filled = hoverStar ? star <= hoverStar : star <= rating.mine;
+                  return (
+                    <button
+                      key={star}
+                      type="button"
+                      role="radio"
+                      aria-checked={rating.mine === star}
+                      aria-label={`${star} étoile${star > 1 ? "s" : ""}`}
+                      onMouseEnter={() => setHoverStar(star)}
+                      onMouseLeave={() => setHoverStar(0)}
+                      onClick={() => handleRate(star)}
+                      disabled={ratingSaving}
+                      className="p-0.5 transition-transform hover:scale-125 disabled:opacity-60"
+                    >
+                      <Star
+                        size={22}
+                        strokeWidth={1.6}
+                        className={filled ? "fill-amber-400 text-amber-500 drop-shadow-[0_1px_3px_rgba(251,191,36,0.5)]" : "text-slate-300"}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-xs text-slate-500">
+                {rating.count > 0 ? (
+                  <>
+                    <span className="font-black text-slate-800 num">{rating.average.toFixed(1)}/5</span>
+                    {' '}· {rating.count} note{rating.count > 1 ? 's' : ''}
+                    {rating.mine > 0 && <span className="text-accent-700 font-semibold"> — votre note : {rating.mine}★</span>}
+                  </>
+                ) : (
+                  <span>Soyez le premier à noter cet article</span>
+                )}
               </div>
             </div>
           </div>

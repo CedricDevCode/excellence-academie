@@ -23,7 +23,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import rateLimit6 from "express-rate-limit";
+import rateLimit7 from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import bcrypt4 from "bcrypt";
 
@@ -5674,16 +5674,18 @@ var getBlogPosts = async (req, res) => {
     const courseId = asString2(req.query.courseId);
     const authorId = asString2(req.query.authorId);
     const tag = asString2(req.query.tag);
+    const sort = asString2(req.query.sort);
     const where = {};
     if (courseId) where.courseId = courseId;
     if (authorId) where.authorId = authorId;
     if (tag) where.tags = { some: { tag: { name: tag } } };
+    const orderBy = sort === "popular" ? [{ views: "desc" }, { createdAt: "desc" }] : { createdAt: "desc" };
     const [posts, total] = await Promise.all([
       prisma_default.blogPost.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         include: {
           author: { select: { id: true, name: true, image: true } },
           course: { select: { id: true, title: true } },
@@ -5710,7 +5712,7 @@ var getBlogPosts = async (req, res) => {
 var getBlogPostBySlug = async (req, res) => {
   try {
     const post = await prisma_default.blogPost.findUnique({
-      where: { slug: req.params.slug },
+      where: { slug: asString2(req.params.slug) },
       include: {
         author: { select: { id: true, name: true, image: true } },
         course: { select: { id: true, title: true } },
@@ -5721,19 +5723,43 @@ var getBlogPostBySlug = async (req, res) => {
         },
         exercises: {
           include: {}
-        }
+        },
+        ratings: { select: { rating: true, userId: true } }
       }
     });
     if (!post) return res.status(404).json({ message: "Article non trouv\xE9" });
-    res.json(post);
+    const ratingCount = post.ratings.length;
+    const ratingSum = post.ratings.reduce((s, r) => s + r.rating, 0);
+    const ratingAverage = ratingCount ? Math.round(ratingSum / ratingCount * 10) / 10 : 0;
+    const myRating = req.user ? post.ratings.find((r) => r.userId === req.user.id)?.rating || 0 : 0;
+    const { ratings, ...rest } = post;
+    res.json({ ...rest, ratingAverage, ratingCount, myRating });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de la r\xE9cup\xE9ration de l'article" });
   }
 };
+async function notifySubscribers(post) {
+  try {
+    const subscribers = await prisma_default.blogSubscriber.findMany({ select: { email: true } });
+    if (subscribers.length === 0) return;
+    const frontendUrl2 = process.env.FRONTEND_URL || "https://exacademie.net";
+    const articleUrl = `${frontendUrl2}/blog/${post.slug}`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#fffdf6;border:1px solid #eee">
+      <p style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c97e00;font-weight:700;margin:0 0 8px">Excellence Acad\xE9mie \u2014 Alertes Concours</p>
+      <h1 style="font-size:22px;line-height:1.3;color:#1c1d1f;margin:0 0 14px">${post.title}</h1>
+      <p style="font-size:14px;line-height:1.6;color:#52565a;margin:0 0 18px">${post.excerpt || "Un nouvel article vient d\u2019\xEAtre publi\xE9 sur le blog de l\u2019acad\xE9mie."}</p>
+      <a href="${articleUrl}" style="display:inline-block;background:#c97e00;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:8px">Lire l\u2019article</a>
+      <p style="font-size:11px;color:#999;margin-top:22px">Vous recevez cet email car vous \xEAtes abonn\xE9 aux alertes concours d\u2019Excellence Acad\xE9mie. <a href="mailto:ea@exacademie.com?subject=Desabonnement" style="color:#c97e00">Se d\xE9sabonner</a></p>
+    </div>`;
+    await Promise.allSettled(subscribers.map((s) => sendDirectEmail(s.email, post.title, html)));
+  } catch (err) {
+    console.error("notifySubscribers error:", err);
+  }
+}
 var createBlogPost = async (req, res) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
     if (!title || !content) return res.status(400).json({ message: "Titre et contenu obligatoires" });
     const sanitizedContent = DOMPurify.sanitize(content);
     let slug = slugify(title);
@@ -5746,6 +5772,8 @@ var createBlogPost = async (req, res) => {
         content: sanitizedContent,
         excerpt,
         coverImage,
+        views: 0,
+        titleStyle: titleStyle || null,
         published: published ?? true,
         authorId: req.user.id,
         courseId: courseId || void 0,
@@ -5760,6 +5788,7 @@ var createBlogPost = async (req, res) => {
         tags: { include: { tag: true } }
       }
     });
+    if (post.published) await notifySubscribers(post);
     res.status(201).json(post);
   } catch (error) {
     console.error(error);
@@ -5768,7 +5797,7 @@ var createBlogPost = async (req, res) => {
 };
 var updateBlogPost = async (req, res) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
     const id = req.params.id;
     const existing = await prisma_default.blogPost.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ message: "Article non trouv\xE9" });
@@ -5782,6 +5811,7 @@ var updateBlogPost = async (req, res) => {
     if (content !== void 0) data.content = DOMPurify.sanitize(content);
     if (excerpt !== void 0) data.excerpt = excerpt;
     if (coverImage !== void 0) data.coverImage = coverImage;
+    if (titleStyle !== void 0) data.titleStyle = titleStyle || null;
     if (published !== void 0) data.published = published;
     if (courseId !== void 0) data.courseId = courseId || null;
     if (tags !== void 0) {
@@ -5804,6 +5834,9 @@ var updateBlogPost = async (req, res) => {
         tags: { include: { tag: true } }
       }
     });
+    if (published === true && existing.published === false) {
+      await notifySubscribers(post);
+    }
     res.json(post);
   } catch (error) {
     console.error(error);
@@ -5981,8 +6014,86 @@ var evaluateSubmission = async (req, res) => {
     res.status(500).json({ message: "Erreur lors de l'\xE9valuation" });
   }
 };
+var incrementBlogView = async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const post = await prisma_default.blogPost.update({
+      where: { slug },
+      data: { views: { increment: 1 } },
+      select: { id: true, views: true }
+    });
+    res.json({ views: post.views });
+  } catch (error) {
+    res.status(404).json({ message: "Article non trouv\xE9" });
+  }
+};
+var rateBlogPost = async (req, res) => {
+  try {
+    const { rating } = req.body || {};
+    const value = Math.round(Number(rating));
+    if (!Number.isFinite(value) || value < 1 || value > 5) {
+      return res.status(400).json({ message: "La note doit \xEAtre un entier entre 1 et 5" });
+    }
+    const postId = req.params.id;
+    const userId = req.user.id;
+    await prisma_default.blogRating.upsert({
+      where: { postId_userId: { postId, userId } },
+      update: { rating: value },
+      create: { postId, userId, rating: value }
+    });
+    const agg = await prisma_default.blogRating.aggregate({
+      where: { postId },
+      _avg: { rating: true },
+      _count: { rating: true }
+    });
+    res.json({
+      ratingAverage: Math.round((agg._avg.rating || 0) * 10) / 10,
+      ratingCount: agg._count.rating,
+      myRating: value
+    });
+  } catch (error) {
+    console.error("rateBlogPost error:", error);
+    res.status(500).json({ message: "Erreur lors de l'enregistrement de la note" });
+  }
+};
+var subscribeBlog = async (req, res) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "Adresse email invalide" });
+    }
+    await prisma_default.blogSubscriber.upsert({
+      where: { email },
+      update: {},
+      create: { email }
+    });
+    res.status(201).json({ message: "Inscription aux alertes confirm\xE9e !" });
+  } catch (error) {
+    console.error("subscribeBlog error:", error);
+    res.status(500).json({ message: "Erreur lors de l'inscription aux alertes" });
+  }
+};
+var uploadBlogCover = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: "Image requise" });
+    }
+    const image = await prisma_default.blogImage.create({
+      data: {
+        mimeType: req.file.mimetype || "image/jpeg",
+        data: req.file.buffer,
+        size: req.file.size || req.file.buffer.length
+      }
+    });
+    res.status(201).json({ url: `/media/blog-images/${image.id}` });
+  } catch (error) {
+    console.error("uploadBlogCover error:", error);
+    res.status(500).json({ message: "Erreur lors de l'upload de la couverture" });
+  }
+};
 
 // server/routes/blogRoutes.ts
+import rateLimit6 from "express-rate-limit";
 var __dirname5 = path8.dirname(fileURLToPath5(import.meta.url));
 var blogUploadsDir = path8.join(__dirname5, "..", "uploads", "blog");
 fs6.mkdirSync(blogUploadsDir, { recursive: true });
@@ -6003,13 +6114,29 @@ var upload6 = multer7({
     }
   }
 });
+var memoryUpload = multer7({
+  storage: multer7.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith("image/"))
+});
+var subscribeLimiter = rateLimit6({
+  windowMs: 60 * 60 * 1e3,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives. R\xE9essayez plus tard." }
+});
 var router18 = Router18();
+router18.post("/subscribe", subscribeLimiter, subscribeBlog);
 router18.use(authenticateToken);
 router18.get("/", getBlogPosts);
 router18.get("/:slug", getBlogPostBySlug);
 router18.post("/", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), createBlogPost);
 router18.put("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), updateBlogPost);
 router18.delete("/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), deleteBlogPost);
+router18.post("/cover", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), memoryUpload.single("file"), uploadBlogCover);
+router18.post("/:slug/view", incrementBlogView);
+router18.post("/:id/rate", rateBlogPost);
 router18.post("/:id/attachments", requireRole(["ADMIN", "TEACHER", "SECRETARY"]), upload6.single("file"), uploadPostAttachment);
 router18.get("/:postId/comments", getComments);
 router18.post("/:postId/comments", requireRole(["ADMIN", "TEACHER", "SECRETARY", "STUDENT"]), createComment);
@@ -6415,6 +6542,29 @@ router23.get("/product-images/:id", async (req, res) => {
     }
   }
 });
+router23.get("/blog-images/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!/^[A-Za-z0-9-]{1,64}$/.test(id)) {
+      return res.status(404).json({ error: "Image introuvable" });
+    }
+    const image = await prisma_default.blogImage.findUnique({ where: { id } });
+    if (!image) {
+      return res.status(404).json({ error: "Image introuvable" });
+    }
+    const buffer = Buffer.from(image.data);
+    res.setHeader("Content-Type", image.mimeType);
+    res.setHeader("Content-Length", String(buffer.length));
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Content-Disposition", "inline");
+    res.status(200).end(buffer);
+  } catch (error) {
+    console.error("Get blog image error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to load image" });
+    }
+  }
+});
 var mediaRoutes_default = router23;
 
 // server/seed-courses.ts
@@ -6751,7 +6901,7 @@ if (!process.env.JWT_SECRET) {
   console.error("\u274C FATAL: JWT_SECRET est manquant dans les variables d'environnement.");
   process.exit(1);
 }
-var globalLimiter = rateLimit6({
+var globalLimiter = rateLimit7({
   windowMs: 15 * 60 * 1e3,
   // 15 minutes
   max: Number(process.env.GLOBAL_RATE_MAX) || 1500,
@@ -6760,7 +6910,7 @@ var globalLimiter = rateLimit6({
   legacyHeaders: false,
   message: { error: "Trop de requ\xEAtes. R\xE9essayez dans 15 minutes." }
 });
-var authLimiter = rateLimit6({
+var authLimiter = rateLimit7({
   windowMs: 15 * 60 * 1e3,
   max: 100,
   // 100 requêtes auth par fenêtre (GET /me, login, etc.)
@@ -6770,7 +6920,7 @@ var authLimiter = rateLimit6({
   // Ne compter que les échecs
   message: { error: "Trop de tentatives. R\xE9essayez dans 15 minutes." }
 });
-var webhookLimiter2 = rateLimit6({
+var webhookLimiter2 = rateLimit7({
   windowMs: 1 * 60 * 1e3,
   max: 30,
   // 30 webhooks par minute
@@ -6778,7 +6928,7 @@ var webhookLimiter2 = rateLimit6({
   legacyHeaders: false,
   message: { error: "Trop de requ\xEAtes webhook." }
 });
-var uploadLimiter2 = rateLimit6({
+var uploadLimiter2 = rateLimit7({
   windowMs: 60 * 60 * 1e3,
   max: 100,
   // 100 uploads par heure (20 bloquait la création d'un catalogue)

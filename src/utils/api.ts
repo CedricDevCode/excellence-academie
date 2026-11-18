@@ -1090,7 +1090,7 @@ const blogFetchError = (res: Response, message: string) => {
   return err;
 };
 
-export const fetchBlogPosts = async (params?: { page?: number; limit?: number; courseId?: string; authorId?: string; tag?: string }) => {
+export const fetchBlogPosts = async (params?: { page?: number; limit?: number; courseId?: string; authorId?: string; tag?: string; sort?: 'popular' | 'recent' }) => {
   const query = params ? '?' + new URLSearchParams(Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : '';
   const res = await fetch(`${API_BASE_URL}/blog${query}`);
   if (!res.ok) throw blogFetchError(res, 'Failed to fetch blog posts');
@@ -1125,6 +1125,36 @@ export const deleteBlogPost = async (id: string) => {
   const res = await authFetch(`${API_BASE_URL}/blog/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete post');
   return res.json();
+};
+
+export const rateBlogPost = async (postId: string, rating: number) => {
+  const res = await authFetch(`${API_BASE_URL}/blog/${postId}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ rating }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || 'Failed to rate post');
+  return body as { ratingAverage: number; ratingCount: number; myRating: number };
+};
+
+export const incrementBlogView = async (slug: string) => {
+  const res = await fetch(`${API_BASE_URL}/blog/${encodeURIComponent(slug)}/view`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<{ views: number }>;
+};
+
+export const subscribeBlogAlerts = async (email: string) => {
+  const res = await fetch(`${API_BASE_URL}/blog/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message || body?.error || "Erreur lors de l'inscription aux alertes");
+  return body;
 };
 
 export const uploadBlogAttachment = async (postId: string, file: File) => {

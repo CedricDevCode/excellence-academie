@@ -17,9 +17,10 @@ import {
   Mail,
   CheckCircle,
   PlusCircle,
+  Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { fetchBlogPosts, fetchCourses, getMe } from "../utils/api";
+import { fetchBlogPosts, fetchCourses, getMe, subscribeBlogAlerts } from "../utils/api";
 import { Card, Badge, Button, Container } from "../components/ui";
 import BlogRestricted from "../components/BlogRestricted";
 import { BlogPostItem } from "../types/blog";
@@ -55,11 +56,27 @@ export default function BlogList() {
   const [user, setUser] = useState<any>(null);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSuccess, setNewsletterSuccess] = useState(false);
+  const [newsletterError, setNewsletterError] = useState<string | null>(null);
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [popularPosts, setPopularPosts] = useState<BlogPostItem[]>([]);
   const [accessDenied, setAccessDenied] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCourses().then(setCourses).catch(() => {});
     getMe().then(setUser).catch(() => {});
+    // Articles les plus visités pour la barre latérale
+    fetchBlogPosts({ sort: 'popular', limit: 4 })
+      .then((res: any) => {
+        setPopularPosts(
+          (res.posts || []).map((p: any) => ({
+            ...p,
+            category: p.course?.title || p.tags?.[0]?.tag?.name || "Concours",
+            readingTime: p.readingTime || "5 min de lecture",
+            publishedAt: p.createdAt || new Date().toISOString(),
+          }))
+        );
+      })
+      .catch(() => setPopularPosts([]));
   }, []);
 
   useEffect(() => {
@@ -122,17 +139,25 @@ export default function BlogList() {
 
   const canCreate = user && ["ADMIN", "TEACHER", "SECRETARY"].includes(user.role);
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newsletterEmail.trim()) return;
-    setNewsletterSuccess(true);
-    setNewsletterEmail("");
-    setTimeout(() => setNewsletterSuccess(false), 4000);
+    if (!newsletterEmail.trim() || newsletterLoading) return;
+    setNewsletterError(null);
+    setNewsletterLoading(true);
+    try {
+      await subscribeBlogAlerts(newsletterEmail.trim());
+      setNewsletterSuccess(true);
+      setNewsletterEmail("");
+      setTimeout(() => setNewsletterSuccess(false), 5000);
+    } catch (err: any) {
+      setNewsletterError(err?.message || "Erreur lors de l'inscription. Veuillez réessayer.");
+    } finally {
+      setNewsletterLoading(false);
+    }
   };
 
   if (accessDenied) return <BlogRestricted status={accessDenied} />;
 
-  const popularPosts = allPosts.slice(0, 3);
   const hasPosts = allPosts.length > 0;
 
   return (
@@ -440,6 +465,10 @@ export default function BlogList() {
                               </div>
 
                               <div className="flex items-center gap-3 text-xs text-slate-400 font-medium">
+                                <span className="flex items-center gap-1" title="Vues">
+                                  <Eye size={13} />
+                                  {Number((post as any).views || 0).toLocaleString('fr-FR')}
+                                </span>
                                 <span className="flex items-center gap-1">
                                   <MessageSquare size={13} />
                                   {post._count?.comments || post.comments?.length || 0}
@@ -524,21 +553,22 @@ export default function BlogList() {
                   Articles les plus consultés
                 </h4>
                 <div className="space-y-3.5">
-                  {popularPosts.map((p, idx) => (
+                  {popularPosts.map((p: any, idx) => (
                     <Link
                       key={p.id}
                       to={`/blog/${p.slug}`}
                       className="flex items-start gap-3 group py-1.5 border-b border-slate-100 last:border-none"
                     >
-                      <span className="font-black text-slate-300 group-hover:text-accent-500 transition-colors text-lg leading-none shrink-0 w-4">
+                      <span className="font-black text-slate-300 group-hover:text-accent-500 transition-colors text-lg leading-none shrink-0 w-4 num">
                         0{idx + 1}
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <h5 className="text-xs font-bold text-slate-800 group-hover:text-primary-600 transition-colors line-clamp-2 leading-snug mb-1">
                           {p.title}
                         </h5>
-                        <span className="text-[11px] text-slate-400 font-medium">
+                        <span className="text-[11px] text-slate-400 font-medium flex items-center gap-2">
                           {p.readingTime}
+                          <span className="inline-flex items-center gap-1 text-slate-400"><Eye size={11} />{Number(p.views || 0).toLocaleString('fr-FR')}</span>
                         </span>
                       </div>
                     </Link>
@@ -562,7 +592,7 @@ export default function BlogList() {
 
               {newsletterSuccess ? (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-xs font-bold flex items-center gap-2">
-                  <CheckCircle size={16} /> Inscription validée avec succès !
+                  <CheckCircle size={16} /> Inscription validée ! Vous serez notifié des nouveaux articles.
                 </div>
               ) : (
                 <form onSubmit={handleNewsletterSubmit} className="space-y-2">
@@ -574,8 +604,11 @@ export default function BlogList() {
                     placeholder="Votre adresse email..."
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent-500"
                   />
-                  <Button type="submit" variant="accent" size="sm" className="w-full justify-center text-xs">
-                    S'abonner aux alertes
+                  {newsletterError && (
+                    <p className="text-[11px] text-red-600 font-semibold">{newsletterError}</p>
+                  )}
+                  <Button type="submit" variant="accent" size="sm" className="w-full justify-center text-xs" disabled={newsletterLoading}>
+                    {newsletterLoading ? "Inscription…" : "S'abonner aux alertes"}
                   </Button>
                 </form>
               )}

@@ -46,6 +46,7 @@ model User {
   blogPosts     BlogPost[]
   blogComments  BlogComment[]
   blogSubmissions BlogSubmission[]
+  blogRatings   BlogRating[]
   parentLinks   ParentStudent[] @relation("ParentOf")
   studentLinks  ParentStudent[] @relation("StudentOf")
   createdAt     DateTime        @default(now())
@@ -427,6 +428,8 @@ model BlogPost {
   content     String
   coverImage  String?
   published   Boolean        @default(false)
+  views       Int            @default(0)
+  titleStyle  String?
   author      User           @relation(fields: [authorId], references: [id])
   authorId    String
   course      Course?        @relation(fields: [courseId], references: [id])
@@ -434,6 +437,7 @@ model BlogPost {
   tags        BlogPostTag[]
   comments    BlogComment[]
   exercises   BlogExercise[]
+  ratings     BlogRating[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -441,6 +445,7 @@ model BlogPost {
   @@index([courseId])
   @@index([published])
   @@index([createdAt])
+  @@index([views])
 }
 
 model BlogComment {
@@ -455,6 +460,35 @@ model BlogComment {
 
   @@index([authorId])
   @@index([postId])
+  @@index([createdAt])
+}
+
+model BlogRating {
+  id        String   @id @default(uuid())
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  rating    Int
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+model BlogSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model BlogImage {
+  id        String   @id @default(uuid())
+  mimeType  String
+  data      Bytes
+  size      Int
+  createdAt DateTime @default(now())
+
   @@index([createdAt])
 }
 

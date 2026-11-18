@@ -11,6 +11,7 @@ import {
   getComments, createComment, deleteComment,
   createExercise, updateExercise, deleteExercise, uploadExerciseAttachment,
   submitExercise, getSubmissions, evaluateSubmission,
+  incrementBlogView, rateBlogPost, subscribeBlog, uploadBlogCover,
 } from '../controllers/blogController';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,7 +36,26 @@ const upload = multer({
   },
 });
 
+import rateLimit from 'express-rate-limit';
+
+const memoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith('image/')),
+});
+
+const subscribeLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez plus tard.' },
+});
+
 const router = Router();
+
+// ─── Abonnement aux alertes concours (public, rate-limité) ──────────
+router.post('/subscribe', subscribeLimiter, subscribeBlog);
 
 // ─── Accès restreint ─────────────────────────────────────────
 // Le blog est réservé aux membres actifs : étudiants inscrits
@@ -51,6 +71,9 @@ router.get('/:slug', getBlogPostBySlug);
 router.post('/', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), createBlogPost);
 router.put('/:id', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), updateBlogPost);
 router.delete('/:id', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), deleteBlogPost);
+router.post('/cover', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), memoryUpload.single('file'), uploadBlogCover);
+router.post('/:slug/view', incrementBlogView);
+router.post('/:id/rate', rateBlogPost);
 router.post('/:id/attachments', requireRole(['ADMIN', 'TEACHER', 'SECRETARY']), upload.single('file'), uploadPostAttachment);
 
 router.get('/:postId/comments', getComments);

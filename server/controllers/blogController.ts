@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import DOMPurify from 'isomorphic-dompurify';
+import { sendDirectEmail } from './notificationController';
 
 const asString = (value: string | string[] | undefined): string | undefined => {
   if (Array.isArray(value)) return value[0];
@@ -21,18 +22,23 @@ export const getBlogPosts = async (req: Request, res: Response) => {
     const courseId = asString(req.query.courseId);
     const authorId = asString(req.query.authorId);
     const tag = asString(req.query.tag);
+    const sort = asString(req.query.sort);
 
     const where: any = {};
     if (courseId) where.courseId = courseId;
     if (authorId) where.authorId = authorId;
     if (tag) where.tags = { some: { tag: { name: tag } } };
 
+    const orderBy: any = sort === 'popular'
+      ? [{ views: 'desc' }, { createdAt: 'desc' }]
+      : { createdAt: 'desc' };
+
     const [posts, total] = await Promise.all([
       prisma.blogPost.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: {
           author: { select: { id: true, name: true, image: true } },
           course: { select: { id: true, title: true } },
@@ -61,8 +67,8 @@ export const getBlogPosts = async (req: Request, res: Response) => {
 
 export const getBlogPostBySlug = async (req: Request, res: Response) => {
   try {
-    const post = await prisma.blogPost.findUnique({
-      where: { slug: req.params.slug },
+    const post: any = await prisma.blogPost.findUnique({
+      where: { slug: asString(req.params.slug) },
       include: {
         author: { select: { id: true, name: true, image: true } },
         course: { select: { id: true, title: true } },
@@ -74,19 +80,47 @@ export const getBlogPostBySlug = async (req: Request, res: Response) => {
         exercises: {
           include: {},
         },
+        ratings: { select: { rating: true, userId: true } },
       },
     });
     if (!post) return res.status(404).json({ message: "Article non trouvé" });
-    res.json(post);
+
+    const ratingCount = post.ratings.length;
+    const ratingSum = post.ratings.reduce((s: number, r: any) => s + r.rating, 0);
+    const ratingAverage = ratingCount ? Math.round((ratingSum / ratingCount) * 10) / 10 : 0;
+    const myRating = (req as any).user ? post.ratings.find((r: any) => r.userId === (req as any).user.id)?.rating || 0 : 0;
+
+    const { ratings, ...rest } = post as any;
+    res.json({ ...rest, ratingAverage, ratingCount, myRating });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de la récupération de l'article" });
   }
 };
 
+// ─── Notification des abonnés alertes ───────────────────────────
+async function notifySubscribers(post: { title: string; slug: string; excerpt?: string | null }) {
+  try {
+    const subscribers = await prisma.blogSubscriber.findMany({ select: { email: true } });
+    if (subscribers.length === 0) return;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://exacademie.net';
+    const articleUrl = `${frontendUrl}/blog/${post.slug}`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#fffdf6;border:1px solid #eee">
+      <p style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#c97e00;font-weight:700;margin:0 0 8px">Excellence Académie — Alertes Concours</p>
+      <h1 style="font-size:22px;line-height:1.3;color:#1c1d1f;margin:0 0 14px">${post.title}</h1>
+      <p style="font-size:14px;line-height:1.6;color:#52565a;margin:0 0 18px">${post.excerpt || 'Un nouvel article vient d’être publié sur le blog de l’académie.'}</p>
+      <a href="${articleUrl}" style="display:inline-block;background:#c97e00;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:8px">Lire l’article</a>
+      <p style="font-size:11px;color:#999;margin-top:22px">Vous recevez cet email car vous êtes abonné aux alertes concours d’Excellence Académie. <a href="mailto:ea@exacademie.com?subject=Desabonnement" style="color:#c97e00">Se désabonner</a></p>
+    </div>`;
+    await Promise.allSettled(subscribers.map((s) => sendDirectEmail(s.email, post.title, html)));
+  } catch (err) {
+    console.error('notifySubscribers error:', err);
+  }
+}
+
 export const createBlogPost = async (req: Request, res: Response) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
     if (!title || !content) return res.status(400).json({ message: "Titre et contenu obligatoires" });
 
     const sanitizedContent = DOMPurify.sanitize(content);
@@ -102,6 +136,8 @@ export const createBlogPost = async (req: Request, res: Response) => {
         content: sanitizedContent,
         excerpt,
         coverImage,
+        views: 0,
+        titleStyle: titleStyle || null,
         published: published ?? true,
         authorId: req.user!.id,
         courseId: courseId || undefined,
@@ -116,6 +152,7 @@ export const createBlogPost = async (req: Request, res: Response) => {
         tags: { include: { tag: true } },
       },
     });
+    if (post.published) await notifySubscribers(post);
     res.status(201).json(post);
   } catch (error) {
     console.error(error);
@@ -125,7 +162,7 @@ export const createBlogPost = async (req: Request, res: Response) => {
 
 export const updateBlogPost = async (req: Request, res: Response) => {
   try {
-    const { title, content, excerpt, coverImage, published, courseId, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, courseId, tags, titleStyle } = req.body;
     const id = req.params.id;
     const existing = await prisma.blogPost.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ message: "Article non trouvé" });
@@ -140,6 +177,7 @@ export const updateBlogPost = async (req: Request, res: Response) => {
     if (content !== undefined) data.content = DOMPurify.sanitize(content);
     if (excerpt !== undefined) data.excerpt = excerpt;
     if (coverImage !== undefined) data.coverImage = coverImage;
+    if (titleStyle !== undefined) data.titleStyle = titleStyle || null;
     if (published !== undefined) data.published = published;
     if (courseId !== undefined) data.courseId = courseId || null;
 
@@ -164,6 +202,10 @@ export const updateBlogPost = async (req: Request, res: Response) => {
         tags: { include: { tag: true } },
       },
     });
+    // Passage en mode publié → notifier les abonnés
+    if (published === true && existing.published === false) {
+      await notifySubscribers(post);
+    }
     res.json(post);
   } catch (error) {
     console.error(error);
@@ -365,5 +407,91 @@ export const evaluateSubmission = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Erreur lors de l'évaluation" });
+  }
+};
+
+// ─── Vues & Notes (likes 5 étoiles) ───────────────────────────
+export const incrementBlogView = async (req: Request, res: Response) => {
+  try {
+    const slug = req.params.slug;
+    const post = await prisma.blogPost.update({
+      where: { slug },
+      data: { views: { increment: 1 } },
+      select: { id: true, views: true },
+    });
+    res.json({ views: post.views });
+  } catch (error) {
+    res.status(404).json({ message: 'Article non trouvé' });
+  }
+};
+
+export const rateBlogPost = async (req: Request, res: Response) => {
+  try {
+    const { rating } = req.body || {};
+    const value = Math.round(Number(rating));
+    if (!Number.isFinite(value) || value < 1 || value > 5) {
+      return res.status(400).json({ message: 'La note doit être un entier entre 1 et 5' });
+    }
+    const postId = req.params.id;
+    const userId = req.user!.id;
+
+    await prisma.blogRating.upsert({
+      where: { postId_userId: { postId, userId } },
+      update: { rating: value },
+      create: { postId, userId, rating: value },
+    });
+
+    const agg = await prisma.blogRating.aggregate({
+      where: { postId },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+    res.json({
+      ratingAverage: Math.round((agg._avg.rating || 0) * 10) / 10,
+      ratingCount: agg._count.rating,
+      myRating: value,
+    });
+  } catch (error) {
+    console.error('rateBlogPost error:', error);
+    res.status(500).json({ message: "Erreur lors de l'enregistrement de la note" });
+  }
+};
+
+// ─── Alertes Concours (newsletter) ───────────────────────────
+export const subscribeBlog = async (req: Request, res: Response) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: 'Adresse email invalide' });
+    }
+    await prisma.blogSubscriber.upsert({
+      where: { email },
+      update: {},
+      create: { email },
+    });
+    res.status(201).json({ message: "Inscription aux alertes confirmée !" });
+  } catch (error) {
+    console.error('subscribeBlog error:', error);
+    res.status(500).json({ message: "Erreur lors de l'inscription aux alertes" });
+  }
+};
+
+// ─── Upload de couverture en base (BYTEA) ─────────────────────
+export const uploadBlogCover = async (req: Request, res: Response) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: 'Image requise' });
+    }
+    const image = await prisma.blogImage.create({
+      data: {
+        mimeType: req.file.mimetype || 'image/jpeg',
+        data: req.file.buffer as any,
+        size: req.file.size || req.file.buffer.length,
+      },
+    });
+    res.status(201).json({ url: `/media/blog-images/${image.id}` });
+  } catch (error) {
+    console.error('uploadBlogCover error:', error);
+    res.status(500).json({ message: "Erreur lors de l'upload de la couverture" });
   }
 };
