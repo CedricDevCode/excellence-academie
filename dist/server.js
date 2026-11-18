@@ -7154,6 +7154,34 @@ async function initDatabaseDefaults() {
       console.log("\u2139\uFE0F [CourseColumns] Le lazy migration dans getAllCourses ajoutera les colonnes manquantes au premier appel");
     }
     await ensureContractNullableColumns();
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "views" INTEGER NOT NULL DEFAULT 0`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "titleStyle" TEXT`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogRating" (
+        "id" TEXT PRIMARY KEY,
+        "postId" TEXT NOT NULL REFERENCES "BlogPost"("id") ON DELETE CASCADE,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "rating" INTEGER NOT NULL CHECK ("rating" BETWEEN 1 AND 5),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "BlogRating_postId_userId_key" ON "BlogRating"("postId", "userId")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "BlogRating_postId_idx" ON "BlogRating"("postId")`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogSubscriber" (
+        "id" TEXT PRIMARY KEY,
+        "email" TEXT UNIQUE NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogImage" (
+        "id" TEXT PRIMARY KEY,
+        "mimeType" TEXT NOT NULL,
+        "data" BYTEA NOT NULL,
+        "size" INTEGER NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      console.log("\u2705 Colonnes/tables blog v\xE9rifi\xE9es/cr\xE9\xE9es");
+    } catch (e) {
+      console.error("\u26A0\uFE0F [BlogFeatures] \xC9chec fallback blog:", e?.message || e);
+    }
     await normalizeSubscriptionDueDates();
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "PendingRegistration" (

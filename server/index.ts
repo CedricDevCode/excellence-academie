@@ -502,6 +502,36 @@ async function initDatabaseDefaults() {
     // Contrat en attente de signature : signatureData / signedAt doivent être nullables
     await ensureContractNullableColumns();
 
+    // Fonctionnalités blog (vues, notes 5★, abonnés alertes, images en base)
+    try {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "views" INTEGER NOT NULL DEFAULT 0`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "titleStyle" TEXT`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogRating" (
+        "id" TEXT PRIMARY KEY,
+        "postId" TEXT NOT NULL REFERENCES "BlogPost"("id") ON DELETE CASCADE,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "rating" INTEGER NOT NULL CHECK ("rating" BETWEEN 1 AND 5),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "BlogRating_postId_userId_key" ON "BlogRating"("postId", "userId")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "BlogRating_postId_idx" ON "BlogRating"("postId")`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogSubscriber" (
+        "id" TEXT PRIMARY KEY,
+        "email" TEXT UNIQUE NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogImage" (
+        "id" TEXT PRIMARY KEY,
+        "mimeType" TEXT NOT NULL,
+        "data" BYTEA NOT NULL,
+        "size" INTEGER NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      console.log('✅ Colonnes/tables blog vérifiées/créées');
+    } catch (e: any) {
+      console.error('⚠️ [BlogFeatures] Échec fallback blog:', e?.message || e);
+    }
+
     // Aligner les échéances mensualités sur le 05 (règle métier de la liste étudiants)
     await normalizeSubscriptionDueDates();
 
