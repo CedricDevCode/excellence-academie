@@ -47,6 +47,8 @@ model User {
   blogComments  BlogComment[]
   blogSubmissions BlogSubmission[]
   blogRatings   BlogRating[]
+  conversations ConversationMember[]
+  messages      Message[]
   parentLinks   ParentStudent[] @relation("ParentOf")
   studentLinks  ParentStudent[] @relation("StudentOf")
   createdAt     DateTime        @default(now())
@@ -108,6 +110,9 @@ model Payment {
   type               String?
   geniusPayReference String?
   receiptNumber      String?  @unique
+  discountAmount     Float?
+  discountNote       String?
+  discountDate       DateTime?
   user               User     @relation(fields: [userId], references: [id])
   userId             String
   course             Course?  @relation(fields: [courseId], references: [id])
@@ -490,6 +495,71 @@ model BlogImage {
   size      Int
   createdAt DateTime @default(now())
 
+  @@index([createdAt])
+}
+
+// ─── Messagerie interne (discussions + projets, partage de fichiers) ───
+model Conversation {
+  id        String    @id @default(uuid())
+  title     String?
+  type      String    @default("DIRECT") // DIRECT | PROJECT
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+model ConversationMember {
+  id             String       @id @default(uuid())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  joinedAt       DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id             String            @id @default(uuid())
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId       String
+  content        String?
+  createdAt      DateTime          @default(now())
+  attachments    MessageAttachment[]
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  fileName  String
+  mimeType  String
+  data      Bytes
+  size      Int
+}
+
+// ─── Bibliothèque en ligne (réservée aux inscrits + équipe) ─────────
+model LibraryDocument {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  courseId      String?
+  courseTitle   String?
+  fileName      String
+  mimeType      String
+  data          Bytes
+  size          Int
+  uploadedById  String
+  createdAt     DateTime @default(now())
+
+  @@index([courseId])
   @@index([createdAt])
 }
 

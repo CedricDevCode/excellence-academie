@@ -23,7 +23,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import rateLimit7 from "express-rate-limit";
+import rateLimit8 from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import bcrypt4 from "bcrypt";
 
@@ -1694,7 +1694,7 @@ async function sendOtpMail(to, cleanEmail, otp) {
 }
 var registerCash = async (req, res) => {
   try {
-    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance, dateInscription } = req.body;
+    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance, dateInscription, remiseAmount, remiseNote, remiseDate } = req.body;
     if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
       return res.status(400).json({ error: "Email, mot de passe et au moins un concours sont requis" });
     }
@@ -1730,7 +1730,10 @@ var registerCash = async (req, res) => {
       mode,
       coursParticuliers,
       dateNaissance,
-      dateInscription: parsedDateInscription ? parsedDateInscription.toISOString() : null
+      dateInscription: parsedDateInscription ? parsedDateInscription.toISOString() : null,
+      remiseAmount: Math.max(0, Math.floor(Number(remiseAmount || 0))) || 0,
+      remiseNote: String(remiseNote || "").trim(),
+      remiseDate: remiseDate ? new Date(remiseDate).toISOString() : null
     };
     cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + OTP_TTL_MS });
     const otpSent = await sendOtpMail(CASH_OTP_EMAIL, cleanEmail, otp);
@@ -1781,7 +1784,12 @@ var confirmCashRegistration = async (req, res) => {
     const courses = await prisma_default.course.findMany({ where: { id: { in: d.courseIds } } });
     const cParticuliers = d.coursParticuliers === true || d.coursParticuliers === "true";
     const cMode = d.mode || "presentiel";
-    const regPrice = calcRegistrationTotal(courses, cParticuliers, d.pays, d.ville);
+    const regPriceRaw = calcRegistrationTotal(courses, cParticuliers, d.pays, d.ville);
+    const remise = Math.max(0, Math.min(regPriceRaw, Number(d.remiseAmount || 0)));
+    if (remise > 0 && !String(d.remiseNote || "").trim()) {
+      return res.status(400).json({ error: "Un justificatif de remise est requis si une remise est appliqu\xE9e." });
+    }
+    const regPrice = regPriceRaw - remise;
     const monthly = calcMonthlyTotal(courses, cParticuliers, d.pays, cMode);
     const paymentCourseId = courses.length === 1 ? courses[0].id : null;
     const matricule = await generateMatricule();
@@ -1810,7 +1818,10 @@ var confirmCashRegistration = async (req, res) => {
             status: "SUCCESS",
             type: "REGISTRATION",
             receiptNumber: generateReceiptNumber(),
-            createdAt: inscriptionDate
+            createdAt: inscriptionDate,
+            discountAmount: remise || null,
+            discountNote: remise > 0 ? String(d.remiseNote || "").trim() : null,
+            discountDate: remise > 0 ? d.remiseDate ? new Date(d.remiseDate) : inscriptionDate : null
           }
         });
         regPaymentId = regPayment.id;
@@ -4516,7 +4527,7 @@ async function loadActiveSubscription(subscriptionId) {
 }
 var initCashPayment = async (req, res) => {
   try {
-    const { subscriptionId, months, paidAt } = req.body || {};
+    const { subscriptionId, months, paidAt, remiseAmount, remiseNote, remiseDate } = req.body || {};
     if (!subscriptionId) return res.status(400).json({ error: "subscriptionId requis" });
     const nbMonths = Math.max(1, Math.min(24, parseInt(String(months), 10) || 1));
     const paidDate = paidAt ? new Date(paidAt) : /* @__PURE__ */ new Date();
@@ -4526,7 +4537,12 @@ var initCashPayment = async (req, res) => {
     if (!sub) return res.status(404).json({ error: "Abonnement introuvable" });
     if (sub.status !== "ACTIVE") return res.status(400).json({ error: "Cet abonnement n'est pas actif" });
     if (sub.coursParticuliers) return res.status(400).json({ error: "Les cours particuliers n'ont pas de mensualit\xE9" });
-    const amount = Number(sub.amount || 0) * nbMonths;
+    const gross = Number(sub.amount || 0) * nbMonths;
+    const remise = Math.max(0, Math.min(gross, Math.floor(Number(remiseAmount || 0))));
+    if (remise > 0 && !String(remiseNote || "").trim()) {
+      return res.status(400).json({ error: "Un justificatif de remise est requis si une remise est appliqu\xE9e" });
+    }
+    const amount = gross - remise;
     const otp = String(Math.floor(1e5 + Math.random() * 9e5));
     const expiresAt = Date.now() + CASH_PAYMENT_OTP_TTL_MS;
     cashPaymentOtpStore.set(String(req.user.id), {
@@ -4535,7 +4551,10 @@ var initCashPayment = async (req, res) => {
       paidAt: paidDate.toISOString(),
       amount,
       otp,
-      expiresAt
+      expiresAt,
+      discountAmount: remise || void 0,
+      discountNote: remise > 0 ? String(remiseNote).trim() : void 0,
+      discountDate: remise > 0 ? remiseDate ? new Date(remiseDate).toISOString() : paidDate.toISOString() : void 0
     });
     const studentName = sub.user.name || sub.user.email;
     const sent = await sendCashPaymentOtpMail(CASH_PAYMENT_OTP_EMAIL, otp, studentName, sub.course?.title || "\u2014", amount);
@@ -4601,7 +4620,10 @@ var confirmCashPayment = async (req, res) => {
           status: "SUCCESS",
           type: "MONTHLY",
           receiptNumber: generateReceiptNumber(),
-          createdAt: paidDate
+          createdAt: paidDate,
+          discountAmount: stored.discountAmount || null,
+          discountNote: stored.discountNote || null,
+          discountDate: stored.discountDate ? new Date(stored.discountDate) : null
         }
       });
       const nextPayment = computeNextDueDate(paidDate, stored.months);
@@ -4656,7 +4678,7 @@ function resolvePaidAt(paidAt) {
 }
 var initRegistrationCompletion = async (req, res) => {
   try {
-    const { userId, courseIds, mode, paidAt } = req.body || {};
+    const { userId, courseIds, mode, paidAt, remiseAmount, remiseNote, remiseDate } = req.body || {};
     if (!userId) return res.status(400).json({ error: "userId requis" });
     if (!Array.isArray(courseIds) || courseIds.length === 0) return res.status(400).json({ error: "Au moins une formation est requise" });
     const user = await prisma_default.user.findUnique({ where: { id: String(userId) } });
@@ -4667,8 +4689,13 @@ var initRegistrationCompletion = async (req, res) => {
     const paidDate = resolvePaidAt(paidAt);
     if (!paidDate) return res.status(400).json({ error: "Date de paiement invalide" });
     const cMode = String(mode || "presentiel");
-    const regPrice = calcRegistrationTotal(courses, false, user.pays || "", user.ville || "");
+    const regPriceRaw = calcRegistrationTotal(courses, false, user.pays || "", user.ville || "");
     const monthly = calcMonthlyTotal(courses, false, user.pays || "", cMode);
+    const remise = Math.max(0, Math.min(regPriceRaw, Math.floor(Number(remiseAmount || 0))));
+    if (remise > 0 && !String(remiseNote || "").trim()) {
+      return res.status(400).json({ error: "Un justificatif de remise est requis si une remise est appliqu\xE9e" });
+    }
+    const regPrice = regPriceRaw - remise;
     const amount = regPrice + monthly;
     const otp = String(Math.floor(1e5 + Math.random() * 9e5));
     const expiresAt = Date.now() + CASH_PAYMENT_OTP_TTL_MS;
@@ -4681,7 +4708,10 @@ var initRegistrationCompletion = async (req, res) => {
       monthly,
       amount,
       otp,
-      expiresAt
+      expiresAt,
+      discountAmount: remise || void 0,
+      discountNote: remise > 0 ? String(remiseNote).trim() : void 0,
+      discountDate: remise > 0 ? remiseDate ? new Date(remiseDate).toISOString() : paidDate.toISOString() : void 0
     });
     const studentName = user.name || user.email;
     const sent = await sendRegistrationOtpMail(REGISTRATION_OTP_EMAIL, otp, studentName, user.email, courses.map((c) => c.title), amount);
@@ -4748,7 +4778,10 @@ var confirmRegistrationCompletion = async (req, res) => {
             status: "SUCCESS",
             type: "REGISTRATION",
             receiptNumber: generateReceiptNumber(),
-            createdAt: paidDate
+            createdAt: paidDate,
+            discountAmount: stored.discountAmount || null,
+            discountNote: stored.discountNote || null,
+            discountDate: stored.discountDate ? new Date(stored.discountDate) : null
           }
         });
         regPaymentId = regPayment.id;
@@ -6683,6 +6716,354 @@ router23.get("/blog-images/:id", async (req, res) => {
 });
 var mediaRoutes_default = router23;
 
+// server/routes/chatRoutes.ts
+import { Router as Router24 } from "express";
+import rateLimit7 from "express-rate-limit";
+
+// server/controllers/conversationController.ts
+import multer8 from "multer";
+var chatUpload = multer8({
+  storage: multer8.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
+var libraryUpload = multer8({
+  storage: multer8.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }
+});
+async function requireMembership(req, conversationId) {
+  if (!req.user?.id) return null;
+  const member = await prisma_default.conversationMember.findUnique({
+    where: { conversationId_userId: { conversationId, userId: req.user.id } }
+  });
+  return member;
+}
+var listConversations = async (req, res) => {
+  try {
+    const memberships = await prisma_default.conversationMember.findMany({
+      where: { userId: req.user.id },
+      select: { conversationId: true }
+    });
+    const ids = memberships.map((m) => m.conversationId);
+    if (ids.length === 0) return res.json([]);
+    const conversations = await prisma_default.conversation.findMany({
+      where: { id: { in: ids } },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        members: {
+          include: { user: { select: { id: true, name: true, email: true, image: true, role: true } } }
+        },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1
+        },
+        _count: { select: { messages: true } }
+      }
+    });
+    res.json(conversations.map((c) => ({
+      id: c.id,
+      title: c.title,
+      type: c.type,
+      updatedAt: c.updatedAt,
+      members: c.members.map((m) => m.user),
+      lastMessage: c.messages[0]?.content || null,
+      lastMessageAt: c.messages[0]?.createdAt || c.updatedAt,
+      messageCount: c._count.messages
+    })));
+  } catch (error) {
+    logger.error("listConversations error", "chat", error);
+    res.status(500).json({ error: "Erreur lors du chargement des conversations" });
+  }
+};
+var createConversation = async (req, res) => {
+  try {
+    const { type, title, memberIds } = req.body || {};
+    const ids = Array.isArray(memberIds) ? [...new Set(memberIds.map(String))] : [];
+    if (!req.user?.id) return res.status(401).json({ error: "Non authentifi\xE9" });
+    if (!ids.includes(req.user.id)) ids.push(req.user.id);
+    if (ids.length < 2) return res.status(400).json({ error: "Au moins un autre membre est requis" });
+    const convType = type === "PROJECT" ? "PROJECT" : "DIRECT";
+    const t = convType === "PROJECT" ? String(title || "").trim() : null;
+    if (convType === "PROJECT" && !t) return res.status(400).json({ error: "Le nom du projet est requis" });
+    const conversation = await prisma_default.conversation.create({
+      data: {
+        title: t || null,
+        type: convType,
+        members: { create: ids.map((userId) => ({ userId })) }
+      },
+      include: {
+        members: { include: { user: { select: { id: true, name: true, email: true, image: true, role: true } } } }
+      }
+    });
+    res.status(201).json(conversation);
+  } catch (error) {
+    logger.error("createConversation error", "chat", error);
+    res.status(500).json({ error: "Erreur lors de la cr\xE9ation de la conversation" });
+  }
+};
+var listContactableUsers = async (req, res) => {
+  try {
+    const myId = req.user.id;
+    const staff = await prisma_default.user.findMany({
+      where: { role: { in: ["ADMIN", "TEACHER", "SECRETARY", "ACCOUNTANT"] }, isActive: true },
+      select: { id: true, name: true, email: true, role: true, image: true },
+      take: 200
+    });
+    const mySubs = await prisma_default.subscription.findMany({
+      where: { userId: myId, status: "ACTIVE" },
+      select: { courseId: true }
+    });
+    const courseIds = mySubs.map((s) => s.courseId);
+    let classmates = [];
+    if (courseIds.length > 0) {
+      const mateSubs = await prisma_default.subscription.findMany({
+        where: { courseId: { in: courseIds }, status: "ACTIVE", userId: { not: myId } },
+        select: { userId: true },
+        distinct: ["userId"],
+        take: 200
+      });
+      const mateIds = mateSubs.map((s) => s.userId);
+      if (mateIds.length > 0) {
+        classmates = await prisma_default.user.findMany({
+          where: { id: { in: mateIds }, isActive: true },
+          select: { id: true, name: true, email: true, role: true, image: true },
+          take: 200
+        });
+      }
+    }
+    const seen = /* @__PURE__ */ new Set();
+    res.json([...staff, ...classmates].filter((u) => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    }));
+  } catch (error) {
+    logger.error("listContactableUsers error", "chat", error);
+    res.status(500).json({ error: "Erreur lors du chargement des contacts" });
+  }
+};
+var listMessages = async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!await requireMembership(req, id)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit) || "50", 10)));
+    const before = req.query.before ? new Date(String(req.query.before)) : void 0;
+    const messages = await prisma_default.message.findMany({
+      where: { conversationId: id, ...before ? { createdAt: { lt: before } } : {} },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: {
+        sender: { select: { id: true, name: true, image: true, role: true } },
+        attachments: { select: { id: true, fileName: true, mimeType: true, size: true } }
+      }
+    });
+    res.json(messages.reverse());
+  } catch (error) {
+    logger.error("listMessages error", "chat", error);
+    res.status(500).json({ error: "Erreur lors du chargement des messages" });
+  }
+};
+var postMessage = async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!await requireMembership(req, id)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    const content = String(req.body?.content || "").trim();
+    if (!content) return res.status(400).json({ error: "Message vide" });
+    const message = await prisma_default.message.create({
+      data: { conversationId: id, senderId: req.user.id, content },
+      include: {
+        sender: { select: { id: true, name: true, image: true, role: true } },
+        attachments: true
+      }
+    });
+    await prisma_default.conversation.update({ where: { id }, data: { updatedAt: /* @__PURE__ */ new Date() } });
+    res.status(201).json(message);
+  } catch (error) {
+    logger.error("postMessage error", "chat", error);
+    res.status(500).json({ error: "Erreur lors de l\u2019envoi du message" });
+  }
+};
+var uploadChatAttachment = async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!await requireMembership(req, id)) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    if (!req.file) return res.status(400).json({ error: "Fichier requis" });
+    const caption = String(req.body?.caption || "").trim();
+    const message = await prisma_default.message.create({
+      data: {
+        conversationId: id,
+        senderId: req.user.id,
+        content: caption || null,
+        attachments: {
+          create: {
+            fileName: req.file.originalname || "fichier",
+            mimeType: req.file.mimetype || "application/octet-stream",
+            data: req.file.buffer,
+            size: req.file.size || req.file.buffer.length
+          }
+        }
+      },
+      include: {
+        sender: { select: { id: true, name: true, image: true, role: true } },
+        attachments: { select: { id: true, fileName: true, mimeType: true, size: true } }
+      }
+    });
+    await prisma_default.conversation.update({ where: { id }, data: { updatedAt: /* @__PURE__ */ new Date() } });
+    res.status(201).json(message);
+  } catch (error) {
+    logger.error("uploadChatAttachment error", "chat", error);
+    res.status(500).json({ error: "Erreur lors de l\u2019envoi du fichier" });
+  }
+};
+var downloadAttachment = async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const attachment = await prisma_default.messageAttachment.findUnique({ where: { id } });
+    if (!attachment) return res.status(404).json({ error: "Fichier introuvable" });
+    const message = await prisma_default.message.findUnique({
+      where: { id: attachment.messageId },
+      select: { conversationId: true }
+    });
+    if (!message || !await requireMembership(req, message.conversationId)) {
+      return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    }
+    const buffer = Buffer.from(attachment.data);
+    res.setHeader("Content-Type", attachment.mimeType);
+    res.setHeader("Content-Length", String(buffer.length));
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(attachment.fileName)}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.status(200).end(buffer);
+  } catch (error) {
+    logger.error("downloadAttachment error", "chat", error);
+    res.status(500).json({ error: "Erreur lors du t\xE9l\xE9chargement" });
+  }
+};
+
+// server/controllers/libraryController.ts
+import multer9 from "multer";
+var libraryUpload2 = multer9({
+  storage: multer9.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }
+});
+var listLibraryDocuments = async (req, res) => {
+  try {
+    const { q, courseId } = req.query;
+    const where = {};
+    if (courseId && String(courseId) !== "all") where.courseId = String(courseId);
+    if (q) where.title = { contains: String(q), mode: "insensitive" };
+    const documents = await prisma_default.libraryDocument.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        courseId: true,
+        courseTitle: true,
+        fileName: true,
+        mimeType: true,
+        size: true,
+        uploadedById: true,
+        createdAt: true
+      }
+    });
+    res.json(documents);
+  } catch (error) {
+    logger.error("listLibraryDocuments error", "library", error);
+    res.status(500).json({ error: "Erreur lors du chargement de la biblioth\xE8que" });
+  }
+};
+var uploadLibraryDocument = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Fichier requis" });
+    const { title, description, courseId, courseTitle } = req.body || {};
+    if (!title) return res.status(400).json({ error: "Le titre est requis" });
+    const doc = await prisma_default.libraryDocument.create({
+      data: {
+        title: String(title),
+        description: description ? String(description) : null,
+        courseId: courseId ? String(courseId) : null,
+        courseTitle: courseTitle ? String(courseTitle) : null,
+        fileName: req.file.originalname || "document",
+        mimeType: req.file.mimetype || "application/octet-stream",
+        data: req.file.buffer,
+        size: req.file.size || req.file.buffer.length,
+        uploadedById: req.user.id
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        courseId: true,
+        courseTitle: true,
+        fileName: true,
+        mimeType: true,
+        size: true,
+        uploadedById: true,
+        createdAt: true
+      }
+    });
+    res.status(201).json(doc);
+  } catch (error) {
+    logger.error("uploadLibraryDocument error", "library", error);
+    res.status(500).json({ error: "Erreur lors de l'ajout du document" });
+  }
+};
+var downloadLibraryDocument = async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const doc = await prisma_default.libraryDocument.findUnique({ where: { id } });
+    if (!doc) return res.status(404).json({ error: "Document introuvable" });
+    const buffer = Buffer.from(doc.data);
+    res.setHeader("Content-Type", doc.mimeType);
+    res.setHeader("Content-Length", String(buffer.length));
+    res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(doc.fileName)}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.status(200).end(buffer);
+  } catch (error) {
+    logger.error("downloadLibraryDocument error", "library", error);
+    res.status(500).json({ error: "Erreur lors du t\xE9l\xE9chargement" });
+  }
+};
+var deleteLibraryDocument = async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const doc = await prisma_default.libraryDocument.findUnique({ where: { id } });
+    if (!doc) return res.status(404).json({ error: "Document introuvable" });
+    const isAdmin = req.user?.role === "ADMIN";
+    const isUploader = doc.uploadedById === req.user?.id;
+    if (!isAdmin && !isUploader) return res.status(403).json({ error: "Acc\xE8s refus\xE9" });
+    await prisma_default.libraryDocument.delete({ where: { id } });
+    res.json({ message: "Document supprim\xE9" });
+  } catch (error) {
+    logger.error("deleteLibraryDocument error", "library", error);
+    res.status(500).json({ error: "Erreur lors de la suppression" });
+  }
+};
+
+// server/routes/chatRoutes.ts
+var router24 = Router24();
+router24.use(authenticateToken);
+var chatLimiter = rateLimit7({
+  windowMs: 60 * 1e3,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de messages. R\xE9essayez dans une minute." }
+});
+router24.get("/conversations/users", listContactableUsers);
+router24.get("/conversations", listConversations);
+router24.post("/conversations", createConversation);
+router24.get("/conversations/:id/messages", listMessages);
+router24.post("/conversations/:id/messages", chatLimiter, postMessage);
+router24.post("/conversations/:id/attachments", chatLimiter, chatUpload.single("file"), uploadChatAttachment);
+router24.get("/conversations/attachments/:id/download", downloadAttachment);
+router24.get("/library", requireRole(["ADMIN", "TEACHER", "SECRETARY", "ACCOUNTANT", "STUDENT"]), listLibraryDocuments);
+router24.post("/library", requireRole(["ADMIN", "TEACHER", "SECRETARY", "ACCOUNTANT"]), libraryUpload2.single("file"), uploadLibraryDocument);
+router24.get("/library/:id/download", requireRole(["ADMIN", "TEACHER", "SECRETARY", "ACCOUNTANT", "STUDENT"]), downloadLibraryDocument);
+router24.delete("/library/:id", requireRole(["ADMIN", "TEACHER", "SECRETARY", "ACCOUNTANT"]), deleteLibraryDocument);
+var chatRoutes_default = router24;
+
 // server/seed-courses.ts
 var DEFAULT_FORMATIONS = [
   {
@@ -7017,7 +7398,7 @@ if (!process.env.JWT_SECRET) {
   console.error("\u274C FATAL: JWT_SECRET est manquant dans les variables d'environnement.");
   process.exit(1);
 }
-var globalLimiter = rateLimit7({
+var globalLimiter = rateLimit8({
   windowMs: 15 * 60 * 1e3,
   // 15 minutes
   max: Number(process.env.GLOBAL_RATE_MAX) || 1500,
@@ -7026,7 +7407,7 @@ var globalLimiter = rateLimit7({
   legacyHeaders: false,
   message: { error: "Trop de requ\xEAtes. R\xE9essayez dans 15 minutes." }
 });
-var authLimiter = rateLimit7({
+var authLimiter = rateLimit8({
   windowMs: 15 * 60 * 1e3,
   max: 100,
   // 100 requêtes auth par fenêtre (GET /me, login, etc.)
@@ -7036,7 +7417,7 @@ var authLimiter = rateLimit7({
   // Ne compter que les échecs
   message: { error: "Trop de tentatives. R\xE9essayez dans 15 minutes." }
 });
-var webhookLimiter2 = rateLimit7({
+var webhookLimiter2 = rateLimit8({
   windowMs: 1 * 60 * 1e3,
   max: 30,
   // 30 webhooks par minute
@@ -7044,7 +7425,7 @@ var webhookLimiter2 = rateLimit7({
   legacyHeaders: false,
   message: { error: "Trop de requ\xEAtes webhook." }
 });
-var uploadLimiter2 = rateLimit7({
+var uploadLimiter2 = rateLimit8({
   windowMs: 60 * 60 * 1e3,
   max: 100,
   // 100 uploads par heure (20 bloquait la création d'un catalogue)
@@ -7150,6 +7531,7 @@ app.use("/api/banners", bannerRoutes_default);
 app.use("/api/blog", blogRoutes_default);
 app.use("/api/siteconfig", siteConfigRoutes_default);
 app.use("/api/app-settings", appSettingsRoutes_default);
+app.use("/api", chatRoutes_default);
 var onlineUsers = /* @__PURE__ */ new Map();
 var PRESENCE_TIMEOUT_MS = 6e4;
 app.post("/api/presence/heartbeat", (req, res) => {
@@ -7318,6 +7700,37 @@ async function initDatabaseDefaults() {
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "titleStyle" TEXT`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "audience" TEXT NOT NULL DEFAULT 'MEMBERS'`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "BlogPost_audience_idx" ON "BlogPost"("audience")`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "discountNote" TEXT`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "discountDate" TIMESTAMP(3)`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Conversation" (
+        "id" TEXT PRIMARY KEY, "title" TEXT, "type" TEXT NOT NULL DEFAULT 'DIRECT',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ConversationMember" (
+        "id" TEXT PRIMARY KEY,
+        "conversationId" TEXT NOT NULL REFERENCES "Conversation"("id") ON DELETE CASCADE,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ConversationMember_conversationId_userId_key" ON "ConversationMember"("conversationId", "userId")`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Message" (
+        "id" TEXT PRIMARY KEY,
+        "conversationId" TEXT NOT NULL REFERENCES "Conversation"("id") ON DELETE CASCADE,
+        "senderId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "content" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "MessageAttachment" (
+        "id" TEXT PRIMARY KEY,
+        "messageId" TEXT NOT NULL REFERENCES "Message"("id") ON DELETE CASCADE,
+        "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL, "size" INTEGER NOT NULL
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "LibraryDocument" (
+        "id" TEXT PRIMARY KEY, "title" TEXT NOT NULL, "description" TEXT, "courseId" TEXT, "courseTitle" TEXT,
+        "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL, "size" INTEGER NOT NULL,
+        "uploadedById" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
       await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogRating" (
         "id" TEXT PRIMARY KEY,
         "postId" TEXT NOT NULL REFERENCES "BlogPost"("id") ON DELETE CASCADE,

@@ -263,7 +263,7 @@ export const fetchSubscriptionsByUser = async (userId: string): Promise<Subscrip
 };
 
 // Encaissements espèces (admin) — OTP exigé
-export const initCashPayment = async (data: { subscriptionId: string; months: number; paidAt?: string }) => {
+export const initCashPayment = async (data: { subscriptionId: string; months: number; paidAt?: string; remiseAmount?: number; remiseNote?: string; remiseDate?: string }) => {
   const res = await authFetch(`${API_BASE_URL}/subscriptions/cash/init`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -304,7 +304,7 @@ export const resendCashRegistrationOtp = async (data: { email: string }) => {
 };
 
 // Finaliser l'inscription d'un étudiant (paiement rattrapable, OTP requis)
-export const initRegistrationCompletion = async (data: { userId: string; courseIds: string[]; mode?: string; paidAt?: string }) => {
+export const initRegistrationCompletion = async (data: { userId: string; courseIds: string[]; mode?: string; paidAt?: string; remiseAmount?: number; remiseNote?: string; remiseDate?: string }) => {
   const res = await authFetch(`${API_BASE_URL}/subscriptions/complete-registration/init`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -748,6 +748,10 @@ export const registerAndPay = async (data: {
   telephone?: string; pays?: string; ville?: string;
   courseIds: string[]; mode?: string; coursParticuliers?: boolean;
   paymentMethod?: string; geniusPhone?: string; dateNaissance?: string;
+  dateInscription?: string;
+  remiseAmount?: number;
+  remiseNote?: string;
+  remiseDate?: string | null;
 }) => {
   const res = await fetch(`${API_BASE_URL}/auth/register-and-pay`, {
     method: 'POST',
@@ -1161,6 +1165,79 @@ export const incrementBlogView = async (slug: string) => {
   if (!res.ok) return null;
   return res.json() as Promise<{ views: number }>;
 };
+
+// ─── Messagerie ──────────────────────────────────────────────────
+const chatUploadFetch = async (url: string, form: FormData) => {
+  const res = await fetch(`${API_BASE_URL}${url}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  });
+  if (!res.ok) {
+    const b = await res.json().catch(() => null);
+    throw new Error(b?.error || 'Échec de l’envoi');
+  }
+  return res.json();
+};
+
+export const fetchContactableUsers = async () => {
+  const res = await authFetch(`${API_BASE_URL}/conversations/users`);
+  if (!res.ok) throw new Error('Failed to fetch contacts');
+  return res.json();
+};
+export const fetchConversations = async () => {
+  const res = await authFetch(`${API_BASE_URL}/conversations`);
+  if (!res.ok) throw new Error('Failed to fetch conversations');
+  return res.json();
+};
+export const createConversation = async (data: { type: string; title?: string; memberIds: string[] }) => {
+  const res = await authFetch(`${API_BASE_URL}/conversations`, { method: 'POST', body: JSON.stringify(data) });
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error || 'Failed to create conversation'); }
+  return res.json();
+};
+export const fetchConversationMessages = async (id: string, before?: string) => {
+  const q = before ? `?before=${encodeURIComponent(before)}` : '';
+  const res = await authFetch(`${API_BASE_URL}/conversations/${id}/messages${q}`);
+  if (!res.ok) throw new Error('Failed to fetch messages');
+  return res.json();
+};
+export const postConversationMessage = async (id: string, content: string) => {
+  const res = await authFetch(`${API_BASE_URL}/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) });
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error || 'Échec de l’envoi'); }
+  return res.json();
+};
+export const uploadConversationAttachment = async (id: string, file: File, caption?: string) => {
+  const form = new FormData();
+  form.append('file', file);
+  if (caption) form.append('caption', caption);
+  return chatUploadFetch(`/conversations/${id}/attachments`, form);
+};
+export const conversationAttachmentUrl = (id: string) => `${API_BASE_URL}/conversations/attachments/${id}/download`;
+
+// ─── Bibliothèque ─────────────────────────────────────────────────
+export const fetchLibraryDocuments = async (params?: { q?: string; courseId?: string }) => {
+  const q = params && (params.q || params.courseId)
+    ? '?' + new URLSearchParams(Object.entries(params).filter(([_, v]) => v) as [string, string][]).toString()
+    : '';
+  const res = await authFetch(`${API_BASE_URL}/library${q}`);
+  if (!res.ok) throw new Error('Failed to fetch library');
+  return res.json();
+};
+export const uploadLibraryDocument = async (file: File, data: { title: string; description?: string; courseId?: string; courseTitle?: string }) => {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('title', data.title);
+  if (data.description) form.append('description', data.description);
+  if (data.courseId) form.append('courseId', data.courseId);
+  if (data.courseTitle) form.append('courseTitle', data.courseTitle);
+  return chatUploadFetch('/library', form);
+};
+export const deleteLibraryDocument = async (id: string) => {
+  const res = await authFetch(`${API_BASE_URL}/library/${id}`, { method: 'DELETE' });
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error || 'Failed to delete'); }
+  return res.json();
+};
+export const libraryDocumentUrl = (id: string) => `${API_BASE_URL}/library/${id}/download`;
 
 export const subscribeBlogAlerts = async (email: string) => {
   const res = await fetch(`${API_BASE_URL}/blog/subscribe`, {

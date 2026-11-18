@@ -201,9 +201,9 @@ function FormationsView() {
       return;
     }
 
-    const regFee = Number(form.registrationFee) || 45000;
+    const regFee = Number(form.registrationFee) || 50000;
     const mFee = Number(form.monthlyFee) || 30000;
-    const regFeeInt = Number(form.registrationFeeInterieur) || 35000;
+    const regFeeInt = Number(form.registrationFeeInterieur) || 40000;
     const mFeeInt = Number(form.monthlyFeeInterieur) || 25000;
     const regFeeDias = Number(form.registrationFeeDiaspora) || 100000;
     const mFeeDias = Number(form.monthlyFeeDiaspora) || 35000;
@@ -969,9 +969,9 @@ function FormationsView() {
             const cat = c.category || 'Général';
             const style = CATEGORY_COLORS[cat] || DEFAULT_CATEGORY_COLOR;
             const studentsCount = c._count?.subscriptions || c._count?.payments || 0;
-            const regFee = c.registrationFee !== undefined && c.registrationFee !== null ? Number(c.registrationFee) : (c.price ? Number(c.price) : 45000);
+            const regFee = c.registrationFee !== undefined && c.registrationFee !== null ? Number(c.registrationFee) : (c.price ? Number(c.price) : 50000);
             const mFee = c.monthlyFee !== undefined && c.monthlyFee !== null ? Number(c.monthlyFee) : 30000;
-            const regFeeInt = c.registrationFeeInterieur !== undefined && c.registrationFeeInterieur !== null ? Number(c.registrationFeeInterieur) : 35000;
+            const regFeeInt = c.registrationFeeInterieur !== undefined && c.registrationFeeInterieur !== null ? Number(c.registrationFeeInterieur) : 40000;
             const regFeeDias = c.registrationFeeDiaspora !== undefined && c.registrationFeeDiaspora !== null ? Number(c.registrationFeeDiaspora) : 100000;
             const hasPres = c.hasPresentiel !== false;
             const hasOnl = c.hasOnline !== false;

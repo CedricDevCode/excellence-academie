@@ -60,6 +60,9 @@ function StudentsView() {
   const [cashPayMonths, setCashPayMonths] = useState(1);
   const [cashPayPaidAt, setCashPayPaidAt] = useState(() => new Date().toISOString().split('T')[0]);
   const [cashPayAmount, setCashPayAmount] = useState(0);
+  const [cashPayRemiseAmount, setCashPayRemiseAmount] = useState(0);
+  const [cashPayRemiseNote, setCashPayRemiseNote] = useState('');
+  const [cashPayRemiseDate, setCashPayRemiseDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [cashPayOtpSent, setCashPayOtpSent] = useState(false);
   const [cashPayOtp, setCashPayOtp] = useState("");
   const [cashPayExpiresAt, setCashPayExpiresAt] = useState(0);
@@ -72,6 +75,9 @@ function StudentsView() {
   const [completionCourseIds, setCompletionCourseIds] = useState<string[]>([]);
   const [completionMode, setCompletionMode] = useState<'presentiel' | 'en_ligne' | 'les_deux'>('presentiel');
   const [completionPaidAt, setCompletionPaidAt] = useState(() => new Date().toISOString().split('T')[0]);
+  const [completionRemiseAmount, setCompletionRemiseAmount] = useState(0);
+  const [completionRemiseNote, setCompletionRemiseNote] = useState('');
+  const [completionRemiseDate, setCompletionRemiseDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [completionOtpSent, setCompletionOtpSent] = useState(false);
   const [completionOtp, setCompletionOtp] = useState("");
   const [completionExpiresAt, setCompletionExpiresAt] = useState(0);
@@ -84,6 +90,9 @@ function StudentsView() {
     setCompletionCourseIds([]);
     setCompletionMode('presentiel');
     setCompletionPaidAt(new Date().toISOString().split('T')[0]);
+    setCompletionRemiseAmount(0);
+    setCompletionRemiseNote('');
+    setCompletionRemiseDate(new Date().toISOString().split('T')[0]);
     setCompletionOtpSent(false);
     setCompletionOtp("");
     setCompletionExpiresAt(0);
@@ -101,7 +110,7 @@ function StudentsView() {
   const completionDiaspora = isDiaspora(completionTarget?.pays || '');
   const completionRegPrice = calcRegistrationTotal(selectedCompletionCourses, false, completionTarget?.pays || '', completionTarget?.ville || '');
   const completionMonthly = calcMonthlyTotal(selectedCompletionCourses, false, completionTarget?.pays || '', completionMode);
-  const completionAmount = completionRegPrice + completionMonthly;
+  const completionAmount = Math.max(0, completionRegPrice - Math.max(0, Math.min(completionRegPrice, completionRemiseAmount))) + completionMonthly;
 
   const toggleCompletionCourse = (id: string) => {
     setCompletionCourseIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
@@ -110,6 +119,7 @@ function StudentsView() {
   const startCompletion = async () => {
     if (!completionTarget) return;
     if (completionCourseIds.length === 0) { setCompletionError('Sélectionnez au moins une formation.'); return; }
+    if (completionRemiseAmount > 0 && !completionRemiseNote.trim()) { setCompletionError('Un justificatif de remise est requis.'); return; }
     setCompletionError(null);
     setCompletionLoading(true);
     try {
@@ -118,7 +128,10 @@ function StudentsView() {
         courseIds: completionCourseIds,
         mode: completionMode,
         paidAt: completionPaidAt,
-      });
+        remiseAmount: completionRemiseAmount,
+        remiseNote: completionRemiseNote,
+        remiseDate: completionRemiseDate,
+      } as any);
       setCompletionExpiresAt(typeof res?.expiresAt === 'number' ? res.expiresAt : Date.now() + 15 * 60 * 1000);
       setCompletionOtp("");
       setCompletionOtpSent(true);
@@ -174,6 +187,9 @@ function StudentsView() {
     setCashPayMonths(1);
     setCashPayPaidAt(new Date().toISOString().split('T')[0]);
     setCashPayAmount(Number(sub.amount || 0));
+    setCashPayRemiseAmount(0);
+    setCashPayRemiseNote('');
+    setCashPayRemiseDate(new Date().toISOString().split('T')[0]);
     setCashPayOtpSent(false);
     setCashPayOtp("");
     setCashPayExpiresAt(0);
@@ -189,10 +205,18 @@ function StudentsView() {
 
   const startCashPay = async () => {
     if (!cashPaySub) return;
+    if (cashPayRemiseAmount > 0 && !cashPayRemiseNote.trim()) { setCashPayError('Un justificatif de remise est requis.'); return; }
     setCashPayError(null);
     setCashPayLoading(true);
     try {
-      const res = await initCashPayment({ subscriptionId: cashPaySub.id, months: cashPayMonths, paidAt: cashPayPaidAt });
+      const res = await initCashPayment({
+        subscriptionId: cashPaySub.id,
+        months: cashPayMonths,
+        paidAt: cashPayPaidAt,
+        remiseAmount: cashPayRemiseAmount,
+        remiseNote: cashPayRemiseNote,
+        remiseDate: cashPayRemiseDate,
+      } as any);
       setCashPayAmount(Number(res?.amount ?? Number(cashPaySub.amount || 0) * cashPayMonths));
       setCashPayExpiresAt(typeof res?.expiresAt === 'number' ? res.expiresAt : Date.now() + 15 * 60 * 1000);
       setCashPayOtp("");
@@ -1188,9 +1212,34 @@ function StudentsView() {
                     </div>
                   </div>
 
+                  {/* Remise (optionnel) */}
+                  <div className="rounded border border-dashed border-surface-300 p-3 bg-surface-50/40">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2">Remise (optionnel)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cp-remise-amount">Montant (F)</label>
+                        <input id="cp-remise-amount" type="number" min={0} step={1000} value={cashPayRemiseAmount} onChange={e => setCashPayRemiseAmount(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs num focus:border-primary-600 focus:outline-none" placeholder="0" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cp-remise-note">Justificatif {cashPayRemiseAmount > 0 && '*'}</label>
+                        <input id="cp-remise-note" type="text" value={cashPayRemiseNote} onChange={e => setCashPayRemiseNote(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" placeholder="Ex: Remise sur promesse écrite du 17/11/2026" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cp-remise-date">Date de remise</label>
+                        <input id="cp-remise-date" type="date" value={cashPayRemiseDate} max={new Date().toISOString().split('T')[0]} onChange={e => setCashPayRemiseDate(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" />
+                      </div>
+                    </div>
+                    {cashPayRemiseAmount > 0 && (
+                      <p className="text-[11px] text-accent-700 font-semibold mt-2">Remise de {cashPayRemiseAmount.toLocaleString('fr-FR')} F — enregistrement avec justificatif et date.</p>
+                    )}
+                  </div>
+
                   <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 flex items-center justify-between gap-3">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-surface-500">Montant à encaisser</span>
-                    <span className="text-2xl font-black text-primary-800 tabular-nums">{Number(cashPayAmount || 0).toLocaleString('fr-FR')} <span className="text-sm">FCFA</span></span>
+                    <span className="text-2xl font-black text-primary-800 tabular-nums">{Math.max(0, Number(cashPaySub?.amount || 0) * cashPayMonths - cashPayRemiseAmount).toLocaleString('fr-FR')} <span className="text-sm">FCFA</span></span>
                   </div>
                   <p className="text-[11px] text-surface-400">La prochaine mensualité sera définie à partir de cette date de paiement (+{cashPayMonths} mois).</p>
 
@@ -1292,12 +1341,41 @@ function StudentsView() {
                     <input id="completion-paidat" type="date" value={completionPaidAt} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
                   </div>
 
+                  {/* Remise (optionnel) */}
+                  <div className="rounded border border-dashed border-surface-300 p-3 bg-surface-50/40">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2">Remise sur l'inscription (optionnel)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-amount">Montant (F)</label>
+                        <input id="cr-remise-amount" type="number" min={0} step={1000} value={completionRemiseAmount} onChange={e => setCompletionRemiseAmount(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs num focus:border-primary-600 focus:outline-none" placeholder="0" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-note">Justificatif {completionRemiseAmount > 0 && '*'}</label>
+                        <input id="cr-remise-note" type="text" value={completionRemiseNote} onChange={e => setCompletionRemiseNote(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" placeholder="Ex: remise 10 % accordée le 17/11/2026" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-date">Date de remise</label>
+                        <input id="cr-remise-date" type="date" value={completionRemiseDate} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionRemiseDate(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" />
+                      </div>
+                    </div>
+                    {completionRemiseAmount > 0 && <p className="text-[11px] text-accent-700 font-semibold mt-2">Remise de {completionRemiseAmount.toLocaleString('fr-FR')} F — enregistrée sur le paiement.</p>}
+                  </div>
+
                   {selectedCompletionCourses.length > 0 ? (
                     <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 space-y-1.5">
                       <div className="flex items-center justify-between gap-3 text-xs">
                         <span className="text-surface-500">Frais d'inscription</span>
                         <span className="font-bold text-surface-900 tabular-nums">{completionRegPrice.toLocaleString('fr-FR')} FCFA</span>
                       </div>
+                      {completionRemiseAmount > 0 && (
+                        <div className="flex items-center justify-between gap-3 text-xs text-accent-700">
+                          <span>Remise</span>
+                          <span className="font-bold tabular-nums">− {Math.min(completionRegPrice, completionRemiseAmount).toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-3 text-xs">
                         <span className="text-surface-500">1ère mensualité</span>
                         <span className="font-bold text-surface-900 tabular-nums">{completionMonthly.toLocaleString('fr-FR')} FCFA</span>

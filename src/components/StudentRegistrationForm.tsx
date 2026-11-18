@@ -104,6 +104,9 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     geniusPhone: "",
     cgu: false,
     dateInscription: new Date().toISOString().split("T")[0],
+    remiseAmount: 0,
+    remiseNote: "",
+    remiseDate: new Date().toISOString().split("T")[0],
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +134,9 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
       if (form.courseIds.length === 0) { setError("Veuillez sélectionner au moins un concours."); return false; }
       if (!isDiaspora(form.pays) && !form.mode) { setError("Veuillez choisir un mode de formation."); return false; }
     }
+    if (s === 3) {
+      if (embedded && form.remiseAmount > 0 && !form.remiseNote.trim()) { setError("Un justificatif de remise est requis si une remise est appliquée."); return false; }
+    }
     return true;
   };
 
@@ -144,6 +150,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     if (!form.paymentMethod) { setError("Veuillez choisir un moyen de paiement."); return; }
     if (form.paymentMethod !== "especes" && !form.geniusPhone) { setError("Veuillez entrer votre numéro de téléphone pour le paiement."); return; }
     if (!embedded && !form.cgu) { setError("Vous devez accepter les conditions générales."); return; }
+    if (embedded && form.remiseAmount > 0 && !form.remiseNote.trim()) { setError("Un justificatif de remise est requis si une remise est appliquée."); return; }
 
     setSubmitting(true);
     try {
@@ -164,7 +171,7 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
             mode: form.mode,
             coursParticuliers: form.coursParticuliers,
             dateNaissance: form.dateNaissance,
-            ...(embedded ? { dateInscription: form.dateInscription } : {}),
+            ...(embedded ? { dateInscription: form.dateInscription, remiseAmount: Number(form.remiseAmount || 0), remiseNote: form.remiseNote.trim(), remiseDate: form.remiseDate || null } : {}),
           }),
         });
         const data = await res.json();
@@ -192,7 +199,8 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         paymentMethod: form.paymentMethod,
         geniusPhone: form.geniusPhone,
         dateNaissance: form.dateNaissance,
-      });
+        ...(embedded ? { dateInscription: form.dateInscription, remiseAmount: Number(form.remiseAmount || 0), remiseNote: form.remiseNote.trim(), remiseDate: form.remiseDate || null } : {}),
+      } as any);
       if (payment.checkoutUrl) {
         sessionStorage.setItem('geniuspay_reference', payment.reference);
         sessionStorage.setItem('geniuspay_email', form.email);
@@ -262,7 +270,9 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
   const selectedCourses = courses.filter((c) => form.courseIds.includes(c.id));
   const inscPrice = calcRegistrationTotal(selectedCourses, form.coursParticuliers, form.pays, form.ville);
   const monthlyAmount = calcMonthlyTotal(selectedCourses, form.coursParticuliers, form.pays, form.mode);
-  const totalAmount = inscPrice + monthlyAmount;
+  const remiseApplied = Math.min(Math.max(0, Number(form.remiseAmount || 0)), inscPrice);
+  const inscNet = Math.max(0, inscPrice - remiseApplied);
+  const totalAmount = inscNet + monthlyAmount;
 
   if (successMsg) {
     return (
@@ -392,7 +402,8 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
                 { label: "Ville / Centre", val: form.ville },
                 { label: "Concours", val: selectedCourses.map((c) => c.title).join(", ") || "—" },
                 ...(form.mode ? [{ label: "Mode", val: MODES.find(m => m.id === form.mode)?.name || form.mode }] : []),
-                ...(form.coursParticuliers ? [{ label: "Formule", val: "Cours particuliers (forfait)" }] : []),
+                 ...(form.coursParticuliers ? [{ label: "Formule", val: "Cours particuliers (forfait)" }] : []),
+                ...(embedded && remiseApplied > 0 ? [{ label: "Remise", val: `−${formatPrice(remiseApplied)} FCFA${form.remiseNote ? ` — ${form.remiseNote}` : ''}` }] : []),
               ].map((item, i) => (
                 <div key={i} className="min-w-0">
                   <dt className="text-[10px] font-bold uppercase tracking-wider text-surface-400">{item.label}</dt>
@@ -403,10 +414,16 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
           </div>
 
           <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-5">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-surface-500">Frais d'inscription</span>
-              <span className="font-bold text-surface-900 tabular-nums">{formatPrice(inscPrice)} FCFA</span>
-            </div>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-surface-500">Frais d'inscription</span>
+                <span className="font-bold text-surface-900 tabular-nums">{formatPrice(inscPrice)} FCFA</span>
+              </div>
+              {remiseApplied > 0 && (
+                <div className="flex items-center justify-between gap-3 text-sm text-accent-700">
+                  <span>Remise</span>
+                  <span className="font-bold tabular-nums">− {formatPrice(remiseApplied)} FCFA</span>
+                </div>
+              )}
             {!form.coursParticuliers && (
               <div className="flex items-center justify-between gap-3 text-sm mt-2">
                 <span className="text-surface-500">1ère mensualité</span>
@@ -419,6 +436,32 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
               <span className="font-black text-2xl text-primary-800 tabular-nums">{formatPrice(totalAmount)} FCFA</span>
             </div>
           </div>
+
+          {embedded && (
+            <div className="rounded border border-dashed border-surface-300 p-4 bg-surface-50/40">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2">Remise (optionnel)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="remise-amount">Montant (FCFA)</label>
+                  <input id="remise-amount" type="number" min={0} step={1000} value={form.remiseAmount} onChange={e => update("remiseAmount", Math.max(0, Number(e.target.value) || 0))}
+                    className="w-full px-3 py-2 bg-white border border-surface-300 rounded-xl text-sm num focus:border-primary-600 focus:outline-none" placeholder="0" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="remise-note">Justificatif *</label>
+                  <input id="remise-note" type="text" value={form.remiseNote} onChange={e => update("remiseNote", e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-surface-300 rounded-xl text-sm focus:border-primary-600 focus:outline-none" placeholder="Ex: Remise 10 % accordée par la direction le 17/11/2026" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="remise-date">Date de la remise</label>
+                  <input id="remise-date" type="date" value={form.remiseDate} max={new Date().toISOString().split('T')[0]} onChange={e => update("remiseDate", e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-surface-300 rounded-xl text-sm focus:border-primary-600 focus:outline-none" />
+                </div>
+              </div>
+              {form.remiseAmount > 0 && (
+                <p className="text-[11px] text-accent-700 font-semibold mt-2">La remise sera enregistrée sur le paiement avec son justificatif et sa date.</p>
+              )}
+            </div>
+          )}
 
           <p className="text-[11px] text-surface-400 text-center">Vérifiez vos informations — vous pourrez modifier l'inscription en contactant le secrétariat.</p>
         </div>

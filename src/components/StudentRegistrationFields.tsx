@@ -3,7 +3,7 @@ import {
   User, Mail, Phone, Calendar, Globe, MapPin, Lock, BookOpen,
   Building2, Monitor, Layers, Sparkles, Check, ChevronDown,
 } from "lucide-react";
-import { MODES, VILLES, PAYS, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora, isAbidjan, courseRegistrationFee, courseMonthlyFee } from "../constants/student";
+import { MODES, VILLES, PAYS, Mode, calcRegistrationTotal, calcMonthlyTotal, formatPrice, isDiaspora, isAbidjan, courseMonthlyFee } from "../constants/student";
 
 export interface StudentFormState {
   nom: string;
@@ -314,7 +314,6 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
                     <div className="grid grid-cols-1 gap-2">
                       {catCourses.map((c) => {
                         const isSelected = form.courseIds.includes(c.id);
-                        const regFee = courseRegistrationFee(c, form.pays, form.ville);
                         const mFee = courseMonthlyFee(c, form.pays, form.mode);
                         const hasPres = c.hasPresentiel !== false;
                         const hasOnl = c.hasOnline !== false;
@@ -359,9 +358,6 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
                             </div>
 
                             <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 pl-9 sm:pl-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-surface-100">
-                              <span className="text-[11px] text-surface-400 font-medium whitespace-nowrap">
-                                Inscription : <strong className="text-surface-800 tabular-nums">{regFee.toLocaleString('fr-FR')} F</strong>
-                              </span>
                               <span className="text-[13px] font-black text-primary-700 tabular-nums whitespace-nowrap">
                                 {mFee.toLocaleString('fr-FR')} F<span className="text-[10px] font-semibold text-surface-400">/mois</span>
                               </span>
@@ -471,7 +467,7 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
           <p className="text-[11px] text-surface-400 italic mt-2">
             {form.coursParticuliers
               ? "Paiement unique, sans mensualité"
-              : "Total = somme des frais d'inscription et mensualités des formations sélectionnées"}
+              : "Inscription unique (flat) + mensualité — 30 000 F de base + 10 000 F par concours supplémentaire"}
           </p>
         </div>
       )}

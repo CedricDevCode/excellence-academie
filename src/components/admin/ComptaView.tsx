@@ -43,6 +43,7 @@ import {
 import { useToast } from "../Toast";
 import LoadingSpinner from "./LoadingSpinner";
 import { formatPrice, EXPENSE_CATEGORIES } from "./helpers";
+import { generatePaymentsReport } from "../../utils/pdf";
 import TeacherSalariesView from "../TeacherSalariesView";
 
 function ComptaView() {
@@ -154,6 +155,28 @@ function ComptaView() {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handlePrintPoint = () => {
+    const periodLabel = startDate || endDate
+      ? `${startDate || 'Début'} au ${endDate || "Aujourd'hui"}`
+      : 'Toutes les dates';
+    const title = `Bilan financier — ${periodLabel}`;
+    const filename = `bilan-${startDate || 'debut'}-${endDate || 'aujourdhui'}.pdf`;
+    const data = dateFilteredPaidPayments.map((p: any) => ({
+      id: p.id,
+      userName: p.user?.name || '—',
+      type: p.type || 'PAIEMENT',
+      amount: Number(p.amount),
+      createdAt: p.createdAt,
+      course: p.course?.title || '',
+      ville: p.user?.ville || '',
+      receiptNumber: p.receiptNumber || '',
+      discountAmount: p.discountAmount || 0,
+      discountNote: p.discountNote || '',
+    }));
+    generatePaymentsReport(data as any[], title, filename);
+    toast('success', 'Bilan téléchargé');
   };
 
   const dateFilteredPaidPayments = useMemo(() => {
@@ -290,6 +313,14 @@ function ComptaView() {
         <button onClick={() => { setStartDate(''); setEndDate(''); }}
           className="text-xs text-gray-500 hover:text-gray-700 underline">Réinitialiser</button>
       )}
+      <button
+        type="button"
+        onClick={handlePrintPoint}
+        title="Imprimer le point financier selon la période choisie"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-900 text-gold-300 text-xs font-bold hover:bg-ink-800 transition-colors"
+      >
+        <FileText size={13} /> Imprimer le point
+      </button>
     </div>
   );
 
@@ -432,6 +463,11 @@ function ComptaView() {
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${p.type === 'INSCRIPTION' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
                           {p.type === 'INSCRIPTION' ? 'Inscription' : 'Mensualité'}
                         </span>
+                        {Number(p.discountAmount || 0) > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800" title={`Remise de ${formatPrice(Number(p.discountAmount))} FCFA — ${p.discountNote || 'sans justificatif'}${p.discountDate ? ' — remise le ' + new Date(p.discountDate).toLocaleDateString('fr-FR') : ''}`}>
+                            Remise −{formatPrice(Number(p.discountAmount))} F
+                          </span>
+                        )}
                         {p.formule && (
                           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
                             {p.formule === 'en_ligne' ? 'En ligne' : p.formule === 'les_deux' ? 'Hybride' : p.coursParticuliers ? 'Particulier' : 'Présentiel'}

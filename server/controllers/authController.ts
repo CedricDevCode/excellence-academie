@@ -250,7 +250,7 @@ async function sendOtpMail(to: string, cleanEmail: string, otp: string) {
 
 export const registerCash = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance, dateInscription } = req.body;
+    const { email, password, name, nom, prenom, telephone, pays, ville, courseIds, mode, coursParticuliers, dateNaissance, dateInscription, remiseAmount, remiseNote, remiseDate } = req.body;
 
     if (!email || !password || !courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
       return res.status(400).json({ error: 'Email, mot de passe et au moins un concours sont requis' });
@@ -282,6 +282,9 @@ export const registerCash = async (req: Request, res: Response) => {
       email: cleanEmail, passwordHash, password, name, nom, prenom, telephone, pays, ville,
       courseIds, mode, coursParticuliers, dateNaissance,
       dateInscription: parsedDateInscription ? parsedDateInscription.toISOString() : null,
+      remiseAmount: Math.max(0, Math.floor(Number(remiseAmount || 0))) || 0,
+      remiseNote: String(remiseNote || '').trim(),
+      remiseDate: remiseDate ? new Date(remiseDate).toISOString() : null,
     };
 
     cashOtpStore.set(cleanEmail, { data: regData, otp, expiresAt: Date.now() + OTP_TTL_MS });
@@ -351,7 +354,12 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
     // Montants calculés sur les concours réellement sélectionnés et le mode de formation.
     // (L'ancien appel passait les mauvais arguments : la mensualité tombait à 0 et
     // les frais d'inscription ne correspondaient pas au concours choisi.)
-    const regPrice = calcRegistrationTotal(courses, cParticuliers, d.pays, d.ville);
+    const regPriceRaw = calcRegistrationTotal(courses, cParticuliers, d.pays, d.ville);
+    const remise = Math.max(0, Math.min(regPriceRaw, Number(d.remiseAmount || 0)));
+    if (remise > 0 && !String(d.remiseNote || '').trim()) {
+      return res.status(400).json({ error: "Un justificatif de remise est requis si une remise est appliquée." });
+    }
+    const regPrice = regPriceRaw - remise;
     const monthly = calcMonthlyTotal(courses, cParticuliers, d.pays, cMode);
     const paymentCourseId = courses.length === 1 ? courses[0].id : null;
     const matricule = await generateMatricule();
@@ -378,7 +386,10 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
             type: 'REGISTRATION',
             receiptNumber: generateReceiptNumber(),
             createdAt: inscriptionDate,
-          },
+            discountAmount: remise || null,
+            discountNote: remise > 0 ? String(d.remiseNote || '').trim() : null,
+            discountDate: remise > 0 ? (d.remiseDate ? new Date(d.remiseDate) : inscriptionDate) : null,
+          } as any,
         });
         regPaymentId = regPayment.id;
       }

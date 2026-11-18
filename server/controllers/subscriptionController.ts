@@ -198,7 +198,7 @@ export const paySubscription = async (req: Request, res: Response) => {
 // l’établissement, et la prochaine mensualité est recalculée à partir de la
 // date effective du paiement.
 const CASH_PAYMENT_OTP_TTL_MS = 15 * 60 * 1000;
-const cashPaymentOtpStore = new Map<string, { subscriptionId: string; months: number; paidAt: string; amount: number; otp: string; expiresAt: number }>();
+const cashPaymentOtpStore = new Map<string, { subscriptionId: string; months: number; paidAt: string; amount: number; otp: string; expiresAt: number; discountAmount?: number; discountNote?: string; discountDate?: string }>();
 const CASH_PAYMENT_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || 'ea@exacademie.com';
 
 function buildCashPaymentOtpEmail(otp: string, studentName: string, courseTitle: string, amount: number): string {
@@ -242,7 +242,7 @@ async function loadActiveSubscription(subscriptionId: string) {
 // Étape 1 : initie l’encaissement (crée l’OTP et l’envoie à l’établissement)
 export const initCashPayment = async (req: Request, res: Response) => {
   try {
-    const { subscriptionId, months, paidAt } = req.body || {};
+    const { subscriptionId, months, paidAt, remiseAmount, remiseNote, remiseDate } = req.body || {};
     if (!subscriptionId) return res.status(400).json({ error: 'subscriptionId requis' });
 
     const nbMonths = Math.max(1, Math.min(24, parseInt(String(months), 10) || 1));
@@ -255,7 +255,12 @@ export const initCashPayment = async (req: Request, res: Response) => {
     if (sub.status !== 'ACTIVE') return res.status(400).json({ error: "Cet abonnement n'est pas actif" });
     if (sub.coursParticuliers) return res.status(400).json({ error: "Les cours particuliers n'ont pas de mensualité" });
 
-    const amount = Number(sub.amount || 0) * nbMonths;
+    const gross = Number(sub.amount || 0) * nbMonths;
+    const remise = Math.max(0, Math.min(gross, Math.floor(Number(remiseAmount || 0))));
+    if (remise > 0 && !String(remiseNote || '').trim()) {
+      return res.status(400).json({ error: "Un justificatif de remise est requis si une remise est appliquée" });
+    }
+    const amount = gross - remise;
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + CASH_PAYMENT_OTP_TTL_MS;
 
@@ -266,6 +271,9 @@ export const initCashPayment = async (req: Request, res: Response) => {
       amount,
       otp,
       expiresAt,
+      discountAmount: remise || undefined,
+      discountNote: remise > 0 ? String(remiseNote).trim() : undefined,
+      discountDate: remise > 0 ? (remiseDate ? new Date(remiseDate).toISOString() : paidDate.toISOString()) : undefined,
     });
 
     const studentName = sub.user.name || sub.user.email;
@@ -341,7 +349,10 @@ export const confirmCashPayment = async (req: Request, res: Response) => {
           type: 'MONTHLY',
           receiptNumber: generateReceiptNumber(),
           createdAt: paidDate,
-        },
+          discountAmount: stored.discountAmount || null,
+          discountNote: stored.discountNote || null,
+          discountDate: stored.discountDate ? new Date(stored.discountDate) : null,
+        } as any,
       });
 
       // La prochaine mensualité est définie à partir de la date effective du paiement (échéance le 05)
@@ -368,7 +379,7 @@ export const confirmCashPayment = async (req: Request, res: Response) => {
 // encaisse en espèces (OTP obligatoire) → crée paiements, abonnements et
 // contrat en attente. La prochaine mensualité est définie à partir de la
 // date de paiement choisie.
-const registrationOtpStore = new Map<string, { userId: string; courseIds: string[]; mode: string; paidAt: string; regPrice: number; monthly: number; amount: number; otp: string; expiresAt: number }>();
+const registrationOtpStore = new Map<string, { userId: string; courseIds: string[]; mode: string; paidAt: string; regPrice: number; monthly: number; amount: number; otp: string; expiresAt: number; discountAmount?: number; discountNote?: string; discountDate?: string }>();
 const REGISTRATION_OTP_EMAIL = process.env.CASH_OTP_EMAIL?.trim() || 'ea@exacademie.com';
 
 async function sendRegistrationOtpMail(to: string, otp: string, studentName: string, studentEmail: string, courseTitles: string[], amount: number): Promise<boolean> {
@@ -408,7 +419,7 @@ function resolvePaidAt(paidAt: any): Date | null {
 // Étape 1 : initie la finalisation (crée l’OTP et l’envoie)
 export const initRegistrationCompletion = async (req: Request, res: Response) => {
   try {
-    const { userId, courseIds, mode, paidAt } = req.body || {};
+    const { userId, courseIds, mode, paidAt, remiseAmount, remiseNote, remiseDate } = req.body || {};
     if (!userId) return res.status(400).json({ error: 'userId requis' });
     if (!Array.isArray(courseIds) || courseIds.length === 0) return res.status(400).json({ error: 'Au moins une formation est requise' });
 
@@ -423,8 +434,13 @@ export const initRegistrationCompletion = async (req: Request, res: Response) =>
     if (!paidDate) return res.status(400).json({ error: 'Date de paiement invalide' });
 
     const cMode = String(mode || 'presentiel');
-    const regPrice = calcRegistrationTotal(courses as any[], false, user.pays || '', user.ville || '');
+    const regPriceRaw = calcRegistrationTotal(courses as any[], false, user.pays || '', user.ville || '');
     const monthly = calcMonthlyTotal(courses as any[], false, user.pays || '', cMode as any);
+    const remise = Math.max(0, Math.min(regPriceRaw, Math.floor(Number(remiseAmount || 0))));
+    if (remise > 0 && !String(remiseNote || '').trim()) {
+      return res.status(400).json({ error: "Un justificatif de remise est requis si une remise est appliquée" });
+    }
+    const regPrice = regPriceRaw - remise;
     const amount = regPrice + monthly;
 
     const otp = String(Math.floor(100000 + Math.random() * 900000));
@@ -440,6 +456,9 @@ export const initRegistrationCompletion = async (req: Request, res: Response) =>
       amount,
       otp,
       expiresAt,
+      discountAmount: remise || undefined,
+      discountNote: remise > 0 ? String(remiseNote).trim() : undefined,
+      discountDate: remise > 0 ? (remiseDate ? new Date(remiseDate).toISOString() : paidDate.toISOString()) : undefined,
     });
 
     const studentName = user.name || user.email;
@@ -511,10 +530,13 @@ export const confirmRegistrationCompletion = async (req: Request, res: Response)
             courseId: regPaymentCourseId,
             amount: stored.regPrice,
             status: 'SUCCESS',
-            type: 'REGISTRATION',
-            receiptNumber: generateReceiptNumber(),
-            createdAt: paidDate,
-          },
+              type: 'REGISTRATION',
+              receiptNumber: generateReceiptNumber(),
+              createdAt: paidDate,
+              discountAmount: stored.discountAmount || null,
+              discountNote: stored.discountNote || null,
+              discountDate: stored.discountDate ? new Date(stored.discountDate) : null,
+            } as any,
         });
         regPaymentId = regPayment.id;
       }

@@ -32,6 +32,7 @@ import categoryRoutes from './routes/categoryRoutes';
 import pushRoutes from './routes/pushRoutes';
 import appSettingsRoutes from './routes/appSettingsRoutes';
 import mediaRoutes from './routes/mediaRoutes';
+import chatRoutes from './routes/chatRoutes';
 import { seedFormations } from './seed-courses';
 import { ensureSessionTables } from './controllers/sessionController';
 import { normalizeSubscriptionDueDates } from './controllers/subscriptionController';
@@ -335,6 +336,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/blog', blogRoutes);
 app.use('/api/siteconfig', siteConfigRoutes);
 app.use('/api/app-settings', appSettingsRoutes);
+app.use('/api', chatRoutes);
 
 // ─── Presence Tracking (online users) ────────────────────────────────────────
 const onlineUsers = new Map<string, number>(); // userId -> lastHeartbeat timestamp
@@ -549,6 +551,37 @@ async function initDatabaseDefaults() {
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "titleStyle" TEXT`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "BlogPost" ADD COLUMN IF NOT EXISTS "audience" TEXT NOT NULL DEFAULT 'MEMBERS'`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "BlogPost_audience_idx" ON "BlogPost"("audience")`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "discountNote" TEXT`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS "discountDate" TIMESTAMP(3)`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Conversation" (
+        "id" TEXT PRIMARY KEY, "title" TEXT, "type" TEXT NOT NULL DEFAULT 'DIRECT',
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ConversationMember" (
+        "id" TEXT PRIMARY KEY,
+        "conversationId" TEXT NOT NULL REFERENCES "Conversation"("id") ON DELETE CASCADE,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ConversationMember_conversationId_userId_key" ON "ConversationMember"("conversationId", "userId")`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Message" (
+        "id" TEXT PRIMARY KEY,
+        "conversationId" TEXT NOT NULL REFERENCES "Conversation"("id") ON DELETE CASCADE,
+        "senderId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "content" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "MessageAttachment" (
+        "id" TEXT PRIMARY KEY,
+        "messageId" TEXT NOT NULL REFERENCES "Message"("id") ON DELETE CASCADE,
+        "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL, "size" INTEGER NOT NULL
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "LibraryDocument" (
+        "id" TEXT PRIMARY KEY, "title" TEXT NOT NULL, "description" TEXT, "courseId" TEXT, "courseTitle" TEXT,
+        "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL, "size" INTEGER NOT NULL,
+        "uploadedById" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
       await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogRating" (
         "id" TEXT PRIMARY KEY,
         "postId" TEXT NOT NULL REFERENCES "BlogPost"("id") ON DELETE CASCADE,

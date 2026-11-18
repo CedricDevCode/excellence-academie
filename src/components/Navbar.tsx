@@ -44,6 +44,8 @@ const baseNavLinks = [
   { label: "Boutique", href: "/shop" },
   { label: "Actualités", href: "/actualites" },
   { label: "Blog", href: "/blog" },
+  { label: "Messages", href: "/messages", auth: true },
+  { label: "Bibliothèque", href: "/bibliotheque", auth: true },
 ];
 
 const POPULAR_SEARCHES = [
@@ -176,7 +178,7 @@ export default function Navbar() {
   // Le blog est réservé aux membres actifs : masqué aux visiteurs non connectés.
   const navLinks = currentUser
     ? baseNavLinks
-    : baseNavLinks.filter((link) => link.href !== "/blog");
+    : baseNavLinks.filter((link) => !(link as any).auth && link.href !== "/blog");
 
   useEffect(() => {
     const updateCount = () => setCartCount(getCartCount(readCart()));

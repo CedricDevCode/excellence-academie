@@ -48,6 +48,9 @@ export default function MensualitesView() {
   const [cashPayOtp, setCashPayOtp] = useState("");
   const [cashPayExpiresAt, setCashPayExpiresAt] = useState(0);
   const [cashPayAmount, setCashPayAmount] = useState(0);
+  const [cashPayRemiseAmount, setCashPayRemiseAmount] = useState(0);
+  const [cashPayRemiseNote, setCashPayRemiseNote] = useState("");
+  const [cashPayRemiseDate, setCashPayRemiseDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [cashPayLoading, setCashPayLoading] = useState(false);
   const [cashPayResending, setCashPayResending] = useState(false);
   const [cashPayError, setCashPayError] = useState<string | null>(null);
@@ -150,6 +153,9 @@ export default function MensualitesView() {
     setCashPayMonths(1);
     setCashPayPaidAt(new Date().toISOString().split("T")[0]);
     setCashPayAmount(Number(row.sub.amount || 0));
+    setCashPayRemiseAmount(0);
+    setCashPayRemiseNote("");
+    setCashPayRemiseDate(new Date().toISOString().split("T")[0]);
     setCashPayOtpSent(false);
     setCashPayOtp("");
     setCashPayError(null);
@@ -163,10 +169,18 @@ export default function MensualitesView() {
   };
   const startCashPay = async () => {
     if (!cashPaySub) return;
+    if (cashPayRemiseAmount > 0 && !cashPayRemiseNote.trim()) { setCashPayError('Un justificatif de remise est requis.'); return; }
     setCashPayError(null);
     setCashPayLoading(true);
     try {
-      const res = await initCashPayment({ subscriptionId: cashPaySub.id, months: cashPayMonths, paidAt: cashPayPaidAt });
+      const res = await initCashPayment({
+        subscriptionId: cashPaySub.id,
+        months: cashPayMonths,
+        paidAt: cashPayPaidAt,
+        remiseAmount: cashPayRemiseAmount,
+        remiseNote: cashPayRemiseNote,
+        remiseDate: cashPayRemiseDate,
+      } as any);
       setCashPayAmount(Number(res?.amount ?? Number(cashPaySub.amount || 0) * cashPayMonths));
       setCashPayExpiresAt(typeof res?.expiresAt === 'number' ? res.expiresAt : Date.now() + 15 * 60 * 1000);
       setCashPayOtp("");
@@ -364,9 +378,32 @@ export default function MensualitesView() {
                       <input id="mp-paidat" type="date" value={cashPayPaidAt} max={new Date().toISOString().split("T")[0]} onChange={e => setCashPayPaidAt(e.target.value)} className="w-full px-3 py-2.5 bg-surface-50/60 border border-surface-300 rounded-xl text-sm focus:bg-white focus:border-primary-600 focus:outline-none" />
                     </div>
                   </div>
+                  {/* Remise (optionnel) */}
+                  <div className="rounded border border-dashed border-surface-300 p-3 bg-surface-50/40">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2">Remise (optionnel)</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="mp-remise-amount">Montant (F)</label>
+                        <input id="mp-remise-amount" type="number" min={0} step={1000} value={cashPayRemiseAmount} onChange={e => setCashPayRemiseAmount(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs num focus:border-primary-600 focus:outline-none" placeholder="0" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="mp-remise-note">Justificatif {cashPayRemiseAmount > 0 && '*'}</label>
+                        <input id="mp-remise-note" type="text" value={cashPayRemiseNote} onChange={e => setCashPayRemiseNote(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" placeholder="Ex: Remise 10 % accordée le 17/11/2026" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="mp-remise-date">Date de remise</label>
+                        <input id="mp-remise-date" type="date" value={cashPayRemiseDate} max={new Date().toISOString().split('T')[0]} onChange={e => setCashPayRemiseDate(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" />
+                      </div>
+                    </div>
+                    {cashPayRemiseAmount > 0 && <p className="text-[11px] text-accent-700 font-semibold mt-2">Remise de {cashPayRemiseAmount.toLocaleString('fr-FR')} F — enregistrée avec justificatif et date.</p>}
+                  </div>
+
                   <div className="rounded border border-primary-200 bg-gradient-to-br from-primary-50 to-amber-50/50 p-4 flex items-center justify-between gap-3">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-surface-500">Montant</span>
-                    <span className="text-2xl font-black text-primary-800 tabular-nums">{Number(cashPayAmount || 0).toLocaleString('fr-FR')} <span className="text-xs">FCFA</span></span>
+                    <span className="text-2xl font-black text-primary-800 tabular-nums">{Math.max(0, Number(cashPaySub?.amount || 0) * cashPayMonths - cashPayRemiseAmount).toLocaleString('fr-FR')} <span className="text-xs">FCFA</span></span>
                   </div>
                   <p className="text-[11px] text-surface-400">Prochaine mensualité recalculée à partir de cette date (+{cashPayMonths} mois), échéance le 05.</p>
                   <button type="button" onClick={startCashPay} disabled={cashPayLoading}
