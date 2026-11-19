@@ -13,7 +13,7 @@ export default function StudentRegister() {
       <SEOHead
         title="Inscription Étudiant"
         description="Inscrivez-vous à Excellence Académie et préparez vos concours avec les meilleurs formateurs de Côte d'Ivoire."
-        url="/register"
+        url="/students/new"
       />
       <div className="absolute -top-32 -right-24 w-[420px] h-[420px] bg-primary-500/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -left-24 w-[420px] h-[420px] bg-accent-500/15 rounded-full blur-3xl pointer-events-none" />

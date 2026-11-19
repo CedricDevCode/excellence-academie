@@ -421,7 +421,7 @@ export const fetchTestimonials = async () => {
   return res.json();
 };
 
-export const createTestimonial = async (data: { name: string; course: string; message: string; rating: number; images?: string[] }) => {
+export const createTestimonial = async (data: { name: string; course: string; message: string; rating: number; images?: string[]; _hp?: string; _ts?: number }) => {
   const res = await fetch(`${API_BASE_URL}/testimonials`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1239,11 +1239,11 @@ export const deleteLibraryDocument = async (id: string) => {
 };
 export const libraryDocumentUrl = (id: string) => `${API_BASE_URL}/library/${id}/download`;
 
-export const subscribeBlogAlerts = async (email: string) => {
+export const subscribeBlogAlerts = async (email: string, meta?: { _hp?: string; _ts?: number }) => {
   const res = await fetch(`${API_BASE_URL}/blog/subscribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, ...(meta || {}) }),
   });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new Error(body?.message || body?.error || "Erreur lors de l'inscription aux alertes");

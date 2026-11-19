@@ -2,32 +2,48 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, User, Mail, Lock, Phone, Eye, EyeOff, AlertCircle, Loader2, ShoppingBag } from "lucide-react";
 import api from "../utils/api";
+import SEOHead from "../components/SEOHead";
 
 export default function ShopRegister() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/checkout';
   const [showPass, setShowPass] = useState(false);
-  const [form, setForm] = useState({ prenom: '', nom: '', email: '', password: '', telephone: '' });
+  const [form, setForm] = useState({ prenom: '', nom: '', email: '', password: '', telephone: '', website: '' });
+  const [startedAt] = useState(() => Date.now());
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!form.prenom || !form.nom || !form.email || !form.password || !form.telephone) {
+    if (!form.prenom.trim() || !form.nom.trim() || !form.email.trim() || !form.password || !form.telephone.trim()) {
       setError('Tous les champs sont obligatoires.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setError('Adresse email invalide.');
+      return;
+    }
+    if (form.password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    if (!/^\+?[0-9\s.-]{8,20}$/.test(form.telephone.trim())) {
+      setError('Numéro de téléphone invalide.');
       return;
     }
     setLoading(true);
     try {
       await api.post('/auth/register', {
-        prenom: form.prenom,
-        nom: form.nom,
-        email: form.email,
+        prenom: form.prenom.trim(),
+        nom: form.nom.trim(),
+        email: form.email.trim(),
         password: form.password,
-        telephone: form.telephone,
+        telephone: form.telephone.trim(),
         role: 'STUDENT',
+        _hp: form.website,
+        _ts: startedAt,
       });
       navigate(redirectTo);
     } catch (err: any) {
@@ -39,6 +55,12 @@ export default function ShopRegister() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <SEOHead
+        title="Créer un compte boutique"
+        description="Créez votre compte Excellence Académie pour commander et suivre vos achats sur la boutique en ligne."
+        url="/shop/register"
+        noindex
+      />
       <div className="w-full max-w-md">
         <Link to="/student/login" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-600 mb-6 transition-colors">
           <ArrowLeft size={16} /> Retour à la connexion
@@ -61,6 +83,11 @@ export default function ShopRegister() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
+              <label htmlFor="shop-website">Site web</label>
+              <input id="shop-website" name="website" type="text" tabIndex={-1} autoComplete="off"
+                value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Prénom *</label>

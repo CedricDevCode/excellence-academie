@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import SEOHead from "../components/SEOHead";
 import {
   Calendar,
   User,
@@ -234,6 +235,39 @@ export default function BlogDetail() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
+      <SEOHead
+        title={post.title}
+        description={String(post.excerpt || post.content || post.title).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 158)}
+        url={`/blog/${post.slug}`}
+        image={post.coverImage || undefined}
+        imageAlt={post.title}
+        type="article"
+        publishedTime={post.publishedAt || post.createdAt}
+        modifiedTime={post.updatedAt}
+        rss
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          headline: post.title,
+          description: String(post.excerpt || post.title).replace(/<[^>]*>/g, " ").slice(0, 158),
+          image: post.coverImage || "https://www.exacademie.net/og-image.png",
+          datePublished: post.publishedAt || post.createdAt,
+          dateModified: post.updatedAt || post.publishedAt || post.createdAt,
+          author: {
+            "@type": "Person",
+            name: post.author?.name || "Excellence Académie",
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "Excellence Académie",
+            logo: {
+              "@type": "ImageObject",
+              url: "https://www.exacademie.net/icons/icon-512.png",
+            },
+          },
+          mainEntityOfPage: `https://www.exacademie.net/blog/${post.slug}`,
+        }}
+      />
       {/* ─── Breadcrumbs & Action Bar ─── */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20 backdrop-blur-md bg-white/90">
         <Container className="py-3.5">
@@ -327,6 +361,8 @@ export default function BlogDetail() {
                 <img
                   src={post.author.avatar}
                   alt={post.author.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-12 h-12 rounded-full object-cover ring-2 ring-accent-500/20"
                 />
               ) : (
@@ -396,6 +432,8 @@ export default function BlogDetail() {
               <img
                 src={post.coverImage}
                 alt={post.title}
+                loading="eager"
+                decoding="async"
                 className="w-full max-h-[480px] object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = "/images/image2.jpeg";
@@ -435,6 +473,8 @@ export default function BlogDetail() {
               <img
                 src={post.author.avatar}
                 alt={post.author.name}
+                loading="lazy"
+                decoding="async"
                 className="w-16 h-16 rounded-2xl object-cover ring-2 ring-accent-400"
               />
             ) : (

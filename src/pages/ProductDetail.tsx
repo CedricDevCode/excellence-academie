@@ -5,6 +5,7 @@ import api, { fetchProductById } from '../utils/api';
 import { addProductToCart, readCart, writeCart, type CartItem } from '../utils/cart';
 import { openCartDrawer } from '../components/CartDrawer';
 import type { Product } from './Shop';
+import SEOHead from '../components/SEOHead';
 
 const TYPE_LABELS: Record<string, string> = {
   DOCUMENT: 'Document',
@@ -104,9 +105,48 @@ export default function ProductDetail() {
   if (!product) return null;
 
   const imgs = getImgs();
+  const seoDescription = (
+    product.description
+      ? String(product.description).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+      : `${product.title} disponible sur la boutique Excellence Académie. Livraison à Abidjan et paiement sécurisé.`
+  ).slice(0, 158);
+  const productImage = imgs[0] || '/og-image.png';
 
   return (
     <div className="min-h-screen bg-surface-50 pb-12 animate-fadeIn">
+      <SEOHead
+        title={product.title}
+        description={seoDescription}
+        url={`/shop/product/${product.id}`}
+        image={productImage}
+        imageAlt={product.title}
+        type="product"
+        structuredData={{
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: product.title,
+          description: seoDescription,
+          image: [productImage],
+          brand: { '@type': 'Brand', name: 'Excellence Académie' },
+          offers: {
+            '@type': 'Offer',
+            price: Number(product.price) || 0,
+            priceCurrency: 'XOF',
+            availability:
+              product.stock === 0 ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+            url: `https://www.exacademie.net/shop/product/${product.id}`,
+          },
+          ...(reviewCount > 0
+            ? {
+                aggregateRating: {
+                  '@type': 'AggregateRating',
+                  ratingValue: avgRating,
+                  reviewCount,
+                },
+              }
+            : {}),
+        }}
+      />
       <div className="pt-6">
       {/* Back link */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-4">
@@ -123,7 +163,7 @@ export default function ProductDetail() {
               <div className="bg-gray-50 p-6 md:p-10">
                 <div className="aspect-square rounded overflow-hidden bg-white mb-4 flex items-center justify-center shadow-sm border border-gray-100">
                   {imgs[selectedImageIdx] ? (
-                    <img src={imgs[selectedImageIdx]} alt={product.title} className="w-full h-full object-contain p-6" />
+                    <img src={imgs[selectedImageIdx]} alt={product.title} loading="eager" decoding="async" className="w-full h-full object-contain p-6" />
                   ) : (
                     <Package size={100} className="text-gray-200" />
                   )}
@@ -337,7 +377,7 @@ export default function ProductDetail() {
                 <Link key={rp.id} to={`/shop/product/${rp.id}`} className="bg-white rounded border border-gray-100 p-4 hover:shadow-md transition-shadow group">
                   <div className="aspect-square rounded-lg bg-gray-50 mb-3 flex items-center justify-center overflow-hidden">
                     {img ? (
-                      <img src={img} alt={rp.title} className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform" />
+                      <img src={img} alt={rp.title} loading="lazy" decoding="async" className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform" />
                     ) : (
                       <Package size={40} className="text-gray-200" />
                     )}

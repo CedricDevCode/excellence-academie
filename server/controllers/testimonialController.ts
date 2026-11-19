@@ -74,6 +74,14 @@ export const createTestimonial = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Nom, formation et message sont requis.' });
     }
 
+    if (String(name).trim().length < 2 || String(course).trim().length < 2) {
+      return res.status(400).json({ error: 'Le nom et la formation doivent contenir au moins 2 caractères.' });
+    }
+
+    if (String(message).trim().length < 10) {
+      return res.status(400).json({ error: 'Le message doit contenir au moins 10 caractères.' });
+    }
+
     if (message.length > 500) {
       return res.status(400).json({ error: 'Le message ne peut pas dépasser 500 caractères.' });
     }

@@ -107,7 +107,9 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
     remiseAmount: 0,
     remiseNote: "",
     remiseDate: new Date().toISOString().split("T")[0],
+    website: "",
   });
+  const [startedAt] = useState(() => Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -171,6 +173,8 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
             mode: form.mode,
             coursParticuliers: form.coursParticuliers,
             dateNaissance: form.dateNaissance,
+            _hp: form.website,
+            _ts: startedAt,
             ...(embedded ? { dateInscription: form.dateInscription, remiseAmount: Number(form.remiseAmount || 0), remiseNote: form.remiseNote.trim(), remiseDate: form.remiseDate || null } : {}),
           }),
         });
@@ -199,6 +203,8 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
         paymentMethod: form.paymentMethod,
         geniusPhone: form.geniusPhone,
         dateNaissance: form.dateNaissance,
+        _hp: form.website,
+        _ts: startedAt,
         ...(embedded ? { dateInscription: form.dateInscription, remiseAmount: Number(form.remiseAmount || 0), remiseNote: form.remiseNote.trim(), remiseDate: form.remiseDate || null } : {}),
       } as any);
       if (payment.checkoutUrl) {
@@ -317,6 +323,11 @@ export default function StudentRegistrationForm({ onSuccess, onCancel, embedded,
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
+        <label htmlFor="student-website">Site web</label>
+        <input id="student-website" name="website" type="text" tabIndex={-1} autoComplete="off"
+          value={form.website} onChange={e => update("website", e.target.value)} />
+      </div>
       <Stepper step={step} />
 
       {/* Banner if already logged in */}

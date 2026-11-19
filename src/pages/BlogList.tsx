@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { fetchBlogPosts, fetchCourses, getMe, subscribeBlogAlerts } from "../utils/api";
 import { Card, Badge, Button, Container } from "../components/ui";
 import BlogRestricted from "../components/BlogRestricted";
+import SEOHead from "../components/SEOHead";
 import { BlogPostItem } from "../types/blog";
 
 const TOPIC_CATEGORIES = [
@@ -162,6 +163,12 @@ export default function BlogList() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-gray-800">
+      <SEOHead
+        title="Actualités & Conseils Concours"
+        description="Conseils de préparation, méthodologie, annonces de concours et retours d'expérience : le journal d'Excellence Académie pour réussir votre concours en Côte d'Ivoire."
+        url="/blog"
+        rss
+      />
       {/* ─── Hero Header ─── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-slate-900 text-white pt-16 pb-20 sm:pb-24">
         {/* Subtle decorative mesh background */}
@@ -263,6 +270,8 @@ export default function BlogList() {
                   <img
                     src={featuredPost.coverImage || "/images/image2.jpeg"}
                     alt={featuredPost.title}
+                    loading="eager"
+                    decoding="async"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/images/image2.jpeg";
@@ -322,6 +331,8 @@ export default function BlogList() {
                         <img
                           src={featuredPost.author.avatar}
                           alt={featuredPost.author.name}
+                          loading="lazy"
+                          decoding="async"
                           className="w-10 h-10 rounded-full object-cover ring-2 ring-accent-500/20"
                         />
                       ) : (
@@ -410,6 +421,8 @@ export default function BlogList() {
                             <img
                               src={post.coverImage || "/images/image2.jpeg"}
                               alt={post.title}
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = "/images/image2.jpeg";
@@ -452,6 +465,8 @@ export default function BlogList() {
                                   <img
                                     src={post.author.avatar}
                                     alt={post.author.name}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-6 h-6 rounded-full object-cover"
                                   />
                                 ) : (

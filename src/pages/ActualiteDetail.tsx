@@ -84,7 +84,7 @@ export default function ActualiteDetail() {
         image={post.coverImage || undefined}
         type="article"
       />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
       {/* Barre d'actions */}
       <div className="bg-white/95 backdrop-blur border-b border-surface-200 sticky top-0 z-10">
@@ -114,7 +114,7 @@ export default function ActualiteDetail() {
 
         {post.coverImage && (
           <figure className="mt-6 rounded-2xl overflow-hidden border border-surface-200 shadow-md">
-            <img src={post.coverImage} alt={post.title} className="w-full max-h-[460px] object-cover" />
+            <img src={post.coverImage} alt={post.title} loading="eager" decoding="async" className="w-full max-h-[460px] object-cover" />
           </figure>
         )}
 

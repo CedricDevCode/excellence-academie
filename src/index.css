@@ -34,9 +34,9 @@
   --color-primary-300: #ffce45;
   --color-primary-400: #fdb827;
   --color-primary-500: #f5a623;
-  --color-primary-600: #c97e00;
-  --color-primary-700: #a36200;
-  --color-primary-800: #7a4b00;
+  --color-primary-600: #a36200;
+  --color-primary-700: #8a5600;
+  --color-primary-800: #6b4300;
   --color-primary-900: #573500;
 
   /* Vert Côte d'Ivoire (accent / succès) */
@@ -246,6 +246,28 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  img, video, svg {
+    max-width: 100%;
+  }
+  img {
+    height: auto;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-gold-700);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-primary-200);
+    color: var(--color-ink-950);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 

@@ -257,7 +257,7 @@ export default function CheckoutPage() {
                       <div key={item.id} className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-surface-100 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-surface-200">
                           {getProductImg(item.imageUrl) ? (
-                            <img src={getProductImg(item.imageUrl)} alt={item.title} className="w-full h-full object-contain" />
+                            <img src={getProductImg(item.imageUrl)} alt={item.title} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                           ) : (
                             <ShoppingCart size={18} className="text-gray-200" />
                           )}

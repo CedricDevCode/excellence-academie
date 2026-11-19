@@ -24,6 +24,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { fetchCourseById, fetchCourses } from "../utils/api";
+import SEOHead from "../components/SEOHead";
 import { formatPrice, isDiaspora, isAbidjan } from "../constants/student";
 import { courseRegistrationFee, courseMonthlyFee, type FeeSource } from "../constants/student";
 
@@ -191,8 +192,40 @@ export default function CourseDetail() {
     { icon: <CreditCard size={18} />, text: "Paiement en plusieurs fois" },
   ];
 
+  const seoDescription = (
+    course.description
+      ? String(course.description).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ")
+      : `Formation ${course.title} avec Excellence Académie à Abidjan : préparation intensive aux concours, encadrement par des experts et suivi personnalisé.`
+  ).slice(0, 158);
+
   return (
     <div className="min-h-screen bg-surface-50 pb-16">
+      <SEOHead
+        title={course.title}
+        description={seoDescription}
+        url={`/formation/${course.id}`}
+        image="/images/image2.jpeg"
+        imageAlt={`Formation ${course.title} – Excellence Académie`}
+        type="website"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "Course",
+          name: course.title,
+          description: seoDescription,
+          provider: {
+            "@type": "EducationalOrganization",
+            name: "Excellence Académie",
+            sameAs: "https://www.exacademie.net",
+          },
+          offers: {
+            "@type": "Offer",
+            price: Number(course.price) || 0,
+            priceCurrency: "XOF",
+            availability: "https://schema.org/InStock",
+            url: `https://www.exacademie.net/formation/${course.id}`,
+          },
+        }}
+      />
       {/* Hero */}
       <div className={`bg-linear-to-br ${catColor} border-b`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">

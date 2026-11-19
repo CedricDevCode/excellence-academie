@@ -193,7 +193,7 @@ export default function CartPage() {
                             className="w-4 h-4 accent-accent-500 rounded cursor-pointer shrink-0" />
                           <div className="w-24 h-24 bg-surface-100 rounded overflow-hidden flex items-center justify-center shrink-0 border border-surface-200">
                             {getProductImg(item.imageUrl) ? (
-                              <img src={getProductImg(item.imageUrl)} alt={item.title} className="w-full h-full object-contain p-1" />
+                              <img src={getProductImg(item.imageUrl)} alt={item.title} loading="lazy" decoding="async" className="w-full h-full object-contain p-1" />
                             ) : (
                               <Package size={36} className="text-gray-200" />
                             )}
@@ -317,7 +317,7 @@ export default function CartPage() {
                       className="min-w-[160px] max-w-[160px] bg-white rounded border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer group shrink-0">
                       <div className="aspect-square bg-surface-100 flex items-center justify-center p-3">
                         {img ? (
-                          <img src={img} alt={product.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                          <img src={img} alt={product.title} loading="lazy" decoding="async" className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
                         ) : (
                           <Package size={36} className="text-gray-200" />
                         )}

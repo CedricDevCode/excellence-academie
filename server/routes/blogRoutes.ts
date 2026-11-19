@@ -5,6 +5,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
+import { antiSpam } from '../middleware/antiSpam';
 import {
   getBlogPosts, getBlogPostBySlug, createBlogPost, updateBlogPost, deleteBlogPost,
   uploadPostAttachment,
@@ -56,7 +57,7 @@ const subscribeLimiter = rateLimit({
 const router = Router();
 
 // ─── Abonnement aux alertes concours (public, rate-limité) ──────────
-router.post('/subscribe', subscribeLimiter, subscribeBlog);
+router.post('/subscribe', subscribeLimiter, antiSpam, subscribeBlog);
 
 // ─── Journal public (SEO, indexable, sans authentification) ───────────
 router.get('/public', getPublicPosts);

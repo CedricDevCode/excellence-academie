@@ -159,7 +159,7 @@ export default function MyOrders() {
                         <div key={item.id} className="flex items-center gap-3">
                           <div className="w-12 h-12 bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-gray-50">
                             {item.product?.imageUrl ? (
-                              <img src={getProductImg(item.product.imageUrl)} alt={item.product.title} className="w-full h-full object-contain" />
+                              <img src={getProductImg(item.product.imageUrl)} alt={item.product.title} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                             ) : (
                               <Package size={20} className="text-gray-200" />
                             )}

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { AnimatePresence } from "framer-motion";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -10,6 +11,7 @@ import { ToastProvider } from "./components/Toast";
 import PwaInstallBanner from "./components/PwaInstallBanner";
 import PushAutoSubscribe from "./components/PushAutoSubscribe";
 import { CookieProvider } from "./components/CookieConsent";
+import { trackPageview } from "./utils/analytics";
 
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const StudentLogin = lazy(() => import("./pages/StudentLogin"));
@@ -21,6 +23,8 @@ const AccountantDashboard = lazy(() => import("./pages/AccountantDashboard"));
 const SecretaryDashboard = lazy(() => import("./pages/SecretaryDashboard"));
 const ParentDashboard = lazy(() => import("./pages/ParentDashboard"));
 const CGU = lazy(() => import("./pages/CGU"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const PreferencesCookies = lazy(() => import("./pages/PreferencesCookies"));
 const PaymentCallback = lazy(() => import("./pages/PaymentCallback"));
 const Shop = lazy(() => import("./pages/Shop"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
@@ -62,6 +66,50 @@ function ScrollToTop() {
     window.scrollTo(0, 0);
   }, [pathname]);
   return null;
+}
+
+function AnalyticsTracker() {
+  const { pathname, search } = useLocation();
+  useEffect(() => {
+    const timer = window.setTimeout(() => trackPageview(`${pathname}${search}`), 300);
+    return () => window.clearTimeout(timer);
+  }, [pathname, search]);
+  return null;
+}
+
+const PRIVATE_PREFIXES = [
+  "/admin",
+  "/student/",
+  "/teacher",
+  "/accountant",
+  "/secretary",
+  "/parent",
+  "/cart",
+  "/checkout",
+  "/my-orders",
+  "/messages",
+  "/bibliotheque",
+  "/blog/new",
+  "/blog/edit",
+  "/blog/exercises",
+  "/shop/register",
+  "/shop/payment",
+  "/payment",
+  "/reset-password",
+  "/forgot-password",
+];
+
+function RouteMeta() {
+  const { pathname } = useLocation();
+  const isPrivate = PRIVATE_PREFIXES.some(
+    (prefix) => pathname === prefix.replace(/\/$/, "") || pathname.startsWith(prefix)
+  );
+  if (!isPrivate) return null;
+  return (
+    <Helmet>
+      <meta name="robots" content="noindex, nofollow" />
+    </Helmet>
+  );
 }
 
 function AppRoutes() {
@@ -119,24 +167,14 @@ function AppRoutes() {
             <Route path="/blog/:slug" element={<PageTransition><BlogDetail /></PageTransition>} />
             <Route path="/blog/exercises/:exerciseId/submissions" element={<PageTransition><BlogSubmissions /></PageTransition>} />
             <Route path="/cgu" element={<PageTransition><CGU /></PageTransition>} />
+            <Route path="/conditions-generales" element={<PageTransition><CGU /></PageTransition>} />
+            <Route path="/preferences-cookies" element={<PageTransition><PreferencesCookies /></PageTransition>} />
             <Route path="/mentions-legales" element={<PageTransition><MentionsLegales /></PageTransition>} />
             <Route path="/politique-de-confidentialite" element={<PageTransition><PolitiqueConfidentialite /></PageTransition>} />
             <Route path="/accessibilite" element={<PageTransition><Accessibilite /></PageTransition>} />
             <Route path="/catalogue" element={<PageTransition><CataloguePage /></PageTransition>} />
             <Route path="/formation/:id" element={<PageTransition><CourseDetail /></PageTransition>} />
-            <Route path="*" element={
-              <PageTransition>
-                <div className="min-h-[70vh] flex items-center justify-center p-8">
-                  <div className="text-center">
-                    <h1 className="text-6xl font-black text-primary-900 mb-4">404</h1>
-                    <p className="text-lg text-gray-500 mb-6">Page introuvable</p>
-                    <Link to="/" className="px-6 py-3 bg-primary-500 text-[#3a2600] font-bold rounded hover:bg-primary-400 transition-colors">
-                      Retour à l'accueil
-                    </Link>
-                  </div>
-                </div>
-              </PageTransition>
-            } />
+            <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
           </Routes>
         </Suspense>
         </ErrorBoundary>
@@ -150,6 +188,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <AnalyticsTracker />
+      <RouteMeta />
       <CookieProvider>
         <ToastProvider>
           <AppRoutes />

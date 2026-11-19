@@ -165,6 +165,33 @@ const isProduction = process.env.NODE_ENV === 'production';
 // ─── Trust proxy (derrière un reverse proxy Hostinger) ────────────────────────
 app.set('trust proxy', 1);
 
+// ─── Forcer HTTPS + domaine canonique (SEO & sécurité) ────────────────────────
+if (isProduction) {
+  app.use((req, res, next) => {
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+      .split(',')[0]
+      .trim()
+      .toLowerCase();
+    const host = String(req.headers.host || '').split(':')[0].toLowerCase();
+
+    // Environnements de prévisualisation / local : ne pas rediriger
+    if (host.endsWith('.hostingersite.com') || host === 'localhost' || host === '127.0.0.1') return next();
+
+    const isSecure = req.secure || forwardedProto === 'https';
+    if (!isSecure) {
+      // 308 conserve la méthode HTTP (POST) et le corps de la requête
+      return res.redirect(308, `https://www.exacademie.net${req.originalUrl}`);
+    }
+
+    // Apex → www (une seule version canonique indexée)
+    if (host === 'exacademie.net') {
+      return res.redirect(308, `https://www.exacademie.net${req.originalUrl}`);
+    }
+
+    next();
+  });
+}
+
 // ─── Vérification critique des variables d'environnement ──────────────────────
 if (!process.env.JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET est manquant dans les variables d\'environnement.');
@@ -231,15 +258,35 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://www.googletagmanager.com'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
       workerSrc: ["'self'", 'blob:'],
-      connectSrc: ["'self'", 'https://exacademie.net', 'https://www.exacademie.net', 'https://*.hostingersite.com', ...(frontendUrl ? [frontendUrl] : [])],
+      connectSrc: [
+        "'self'",
+        'https://exacademie.net',
+        'https://www.exacademie.net',
+        'https://*.hostingersite.com',
+        'https://www.google-analytics.com',
+        'https://*.google-analytics.com',
+        'https://*.analytics.google.com',
+        'https://stats.g.doubleclick.net',
+        ...(frontendUrl ? [frontendUrl] : []),
+      ],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: isProduction ? [] : null,
     },
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: isProduction
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
 }));
 
 // ─── Compression ──────────────────────────────────────────────────────────────
@@ -435,6 +482,11 @@ app.use(express.static(distPath, {
     // Assets fingerprintés Vite (hash dans le nom) → cache immuable
     if (/\/assets\/.+\-[A-Za-z0-9_-]{8,}\./.test(normalized)) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/\/(images|icons)\//.test(normalized)) {
+      // Images de marque et photos : cache d'une semaine
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    } else if (/\.(woff2?|ttf|eot)$/.test(normalized)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (/(index\.html|sw\.js|manifest\.json)$/.test(normalized)) {
       // Jamais de cache pour le point d'entrée et le service worker
       res.setHeader('Cache-Control', 'no-cache, must-revalidate');
@@ -458,27 +510,50 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/sitemap.xml', async (_req, res) => {
   const site = 'https://www.exacademie.net';
   try {
-    const posts = await prisma.blogPost.findMany({
-      where: { published: true, audience: 'PUBLIC' },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-      select: { slug: true, updatedAt: true, createdAt: true },
-    });
+    const [posts, courses, products] = await Promise.all([
+      prisma.blogPost.findMany({
+        where: { published: true, audience: 'PUBLIC' },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+        select: { slug: true, updatedAt: true, createdAt: true },
+      }),
+      prisma.course.findMany({
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, updatedAt: true },
+      }),
+      prisma.product.findMany({
+        where: { isActive: true },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, updatedAt: true },
+      }),
+    ]);
     const staticUrls = [
       { loc: '/', priority: '1.0', changefreq: 'weekly' },
       { loc: '/catalogue', priority: '0.9', changefreq: 'weekly' },
+      { loc: '/students/new', priority: '0.9', changefreq: 'monthly' },
       { loc: '/shop', priority: '0.8', changefreq: 'weekly' },
       { loc: '/actualites', priority: '0.8', changefreq: 'daily' },
       { loc: '/cgu', priority: '0.3', changefreq: 'yearly' },
+      { loc: '/conditions-generales', priority: '0.3', changefreq: 'yearly' },
       { loc: '/mentions-legales', priority: '0.3', changefreq: 'yearly' },
       { loc: '/politique-de-confidentialite', priority: '0.3', changefreq: 'yearly' },
+      { loc: '/preferences-cookies', priority: '0.2', changefreq: 'yearly' },
+      { loc: '/accessibilite', priority: '0.2', changefreq: 'yearly' },
     ];
     const today = new Date().toISOString().split('T')[0];
     const urls = [
       ...staticUrls.map(u => `  <url><loc>${site}${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority><lastmod>${today}</lastmod></url>`),
+      ...courses.map(c => {
+        const lastmod = c.updatedAt.toISOString().split('T')[0];
+        return `  <url><loc>${site}/formation/${c.id}</loc><changefreq>monthly</changefreq><priority>0.8</priority><lastmod>${lastmod}</lastmod></url>`;
+      }),
       ...posts.map(p => {
         const lastmod = (p.updatedAt || p.createdAt).toISOString().split('T')[0];
         return `  <url><loc>${site}/actualites/${p.slug}</loc><changefreq>monthly</changefreq><priority>0.7</priority><lastmod>${lastmod}</lastmod></url>`;
+      }),
+      ...products.map(p => {
+        const lastmod = p.updatedAt.toISOString().split('T')[0];
+        return `  <url><loc>${site}/shop/product/${p.id}</loc><changefreq>weekly</changefreq><priority>0.6</priority><lastmod>${lastmod}</lastmod></url>`;
       }),
     ];
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');

@@ -284,6 +284,8 @@ export default function Shop() {
                                 <div className="flex justify-center md:justify-end items-center">
                                   {imgSrc ? (
                                     <img src={imgSrc} alt={banner.title}
+                                      loading={idx === 0 ? 'eager' : 'lazy'}
+                                      decoding="async"
                                       className={`max-w-full max-h-48 md:max-h-64 object-contain drop-shadow-2xl transition-all duration-1000 delay-200 ${
                                         idx === bannerIdx ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
                                       }`} />
@@ -414,7 +416,7 @@ export default function Shop() {
                         {/* Image */}
                         <div className="relative w-full aspect-square bg-gray-50 overflow-hidden">
                           {imgs[0] ? (
-                            <img src={imgs[0]} alt={product.title} className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300" />
+                            <img src={imgs[0]} alt={product.title} loading="lazy" decoding="async" className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center"><Package size={36} className="text-gray-200" /></div>
                           )}

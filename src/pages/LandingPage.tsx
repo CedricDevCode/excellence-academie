@@ -89,7 +89,7 @@ function Hero({ config, currentUser }: { config: HeroConfig; currentUser?: any }
       {/* Background image overlay */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center opacity-20"
-        style={{ backgroundImage: "url('/images/hero_bg.png')" }}
+        style={{ backgroundImage: "url('/images/hero_bg.jpg')" }}
       />
 
       <Container className="relative z-10 w-full py-16 sm:py-20">
@@ -122,7 +122,7 @@ function Hero({ config, currentUser }: { config: HeroConfig; currentUser?: any }
               {config.subtitle}
             </motion.p>
 
-            <motion.div variants={staggerItem} className="flex flex-col sm:flex-row gap-4 mb-10">
+            <motion.div variants={staggerItem} className="flex flex-col sm:flex-row sm:items-center gap-5 mb-10">
               {currentUser ? (
                 <>
                   <Link to={getDashboardUrl(currentUser)}>
@@ -130,23 +130,25 @@ function Hero({ config, currentUser }: { config: HeroConfig; currentUser?: any }
                       Mon Espace
                     </Button>
                   </Link>
-                  <Link to="/catalogue">
-                    <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
-                      Découvrir les formations
-                    </Button>
+                  <Link
+                    to="/catalogue"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/80 hover:text-white underline-offset-4 hover:underline transition-colors"
+                  >
+                    Découvrir les formations <ArrowRight size={14} />
                   </Link>
                 </>
               ) : (
                 <>
-                  <Link to="/catalogue">
+                  <Link to="/students/new">
                     <Button variant="accent" size="lg" iconRight={<ArrowRight size={18} />}>
                       {config.ctaPrimary}
                     </Button>
                   </Link>
-                  <Link to="/students/new">
-                    <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 hover:text-white">
-                      {config.ctaSecondary}
-                    </Button>
+                  <Link
+                    to="/catalogue"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/80 hover:text-white underline-offset-4 hover:underline transition-colors"
+                  >
+                    {config.ctaSecondary} <ArrowRight size={14} />
                   </Link>
                 </>
               )}
@@ -393,6 +395,8 @@ function Actualite({ config }: { config?: SectionConfig }) {
                         <img
                           src={src}
                           alt={slide.title || `Actualité ${i + 1}`}
+                          loading={i === 0 ? "eager" : "lazy"}
+                          decoding="async"
                           className="w-full h-full object-cover cursor-pointer"
                           onClick={() => setLightboxOpen(true)}
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -627,7 +631,7 @@ function AdmisSection({ config }: { config: SectionConfig }) {
                       <div className="relative shrink-0">
                         {hasPhoto ? (
                           <div className="w-16 h-16 rounded-2xl overflow-hidden ring-3 ring-accent-500/30 shadow-md">
-                            <img src={admis.images[0]} alt={admis.name} className="w-full h-full object-cover"
+                            <img src={admis.images[0]} alt={admis.name} loading="lazy" decoding="async" className="w-full h-full object-cover"
                               onError={(e) => { (e.target as HTMLImageElement).src = '/images/image2.jpeg'; }} />
                           </div>
                         ) : (
@@ -881,7 +885,7 @@ function Tarifs({ config }: { config: TarifsConfig }) {
                 {paymentMethods.map((m, i) => (
                   <div key={i} className="flex flex-col items-center justify-center bg-surface-50 p-3 rounded-xl border border-gray-100 w-24 hover:shadow-card transition-shadow">
                     <div className="h-10 flex items-center justify-center mb-2">
-                      {m.icon ? m.icon : <img src={m.logo} alt={m.name} className="h-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.25'; }} />}
+                      {m.icon ? m.icon : <img src={m.logo} alt={m.name} loading="lazy" decoding="async" className="h-full object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0.25'; }} />}
                     </div>
                     <span className="text-[10px] font-bold text-gray-600 text-center leading-tight">{m.name}</span>
                   </div>
@@ -911,6 +915,7 @@ function Testimonials({ config }: { config: SectionConfig }) {
   const [images, setImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
+  const [formStartedAt, setFormStartedAt] = useState<number>(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -926,7 +931,7 @@ function Testimonials({ config }: { config: SectionConfig }) {
     return () => clearInterval(interval);
   }, [data.length, isPaused]);
 
-  const resetForm = () => { setFormError(null); setFormSuccess(false); setImages([]); setMessageCount(0); };
+  const resetForm = () => { setFormError(null); setFormSuccess(false); setImages([]); setMessageCount(0); setFormStartedAt(Date.now()); };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -942,10 +947,27 @@ function Testimonials({ config }: { config: SectionConfig }) {
   const removeImage = (index: number) => setImages(prev => prev.filter((_, i) => i !== index));
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); setFormError(null); setFormSuccess(false); setFormSubmitting(true);
+    e.preventDefault(); setFormError(null); setFormSuccess(false);
     const form = e.currentTarget; const formData = new FormData(form);
+    const name = String(formData.get('name') || '').trim();
+    const course = String(formData.get('course') || '').trim();
+    const message = String(formData.get('message') || '').trim();
+    if (name.length < 2 || course.length < 2 || message.length < 10) {
+      setFormError("Merci de renseigner un nom, une formation et un avis d'au moins 10 caractères.");
+      return;
+    }
+    if (message.length > 500) { setFormError("Votre avis ne doit pas dépasser 500 caractères."); return; }
+    setFormSubmitting(true);
     try {
-      await createTestimonial({ name: formData.get('name') as string, course: formData.get('course') as string, message: formData.get('message') as string, rating: parseInt(formData.get('rating') as string) || 5, images });
+      await createTestimonial({
+        name,
+        course,
+        message,
+        rating: parseInt(formData.get('rating') as string) || 5,
+        images,
+        _hp: String(formData.get('website') || ''),
+        _ts: formStartedAt,
+      });
       setFormSuccess(true); form.reset(); setImages([]); setMessageCount(0);
       setTimeout(() => { setModalOpen(false); setTimeout(() => setFormSuccess(false), 300); }, 2500);
     } catch (err: any) { setFormError(err.message); } finally { setFormSubmitting(false); }
@@ -989,7 +1011,7 @@ function Testimonials({ config }: { config: SectionConfig }) {
                           <div className="relative mb-6">
                             {t.images && t.images.length > 0 ? (
                               <div className="w-20 h-20 rounded-full overflow-hidden shadow-lg">
-                                <img src={t.images[0]} alt={t.name} className="w-full h-full object-cover" />
+                                <img src={t.images[0]} alt={t.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                               </div>
                             ) : (
                               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center text-white text-xl font-bold shadow-lg">
@@ -1055,6 +1077,10 @@ function Testimonials({ config }: { config: SectionConfig }) {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+                <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
+                  <label htmlFor="testimonial-website">Site web</label>
+                  <input id="testimonial-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+                </div>
                 {formError && (
                   <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl flex items-start gap-2">
                     <AlertCircle size={16} className="shrink-0 mt-0.5" /> <span>{formError}</span>
@@ -1100,7 +1126,7 @@ function Testimonials({ config }: { config: SectionConfig }) {
                     )}
                     {images.map((url, i) => (
                       <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 group">
-                        <img src={url} className="w-full h-full object-cover" alt={`Photo ${i + 1}`} />
+                        <img src={url} className="w-full h-full object-cover" alt={`Photo ${i + 1}`} loading="lazy" decoding="async" />
                         <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">
                           <XIcon size={10} />
                         </button>

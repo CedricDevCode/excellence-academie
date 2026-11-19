@@ -380,7 +380,7 @@ export default function ShopProductsView() {
               {/* Image */}
               <div className="relative h-24 bg-linear-to-br from-primary-50 to-amber-50 flex items-center justify-center overflow-hidden">
                 {imgs[0] ? (
-                  <img src={imgs[0]} alt={p.title} className="w-full h-full object-cover" />
+                  <img src={imgs[0]} alt={p.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 ) : (
                   <Package size={32} className="text-primary-200" />
                 )}

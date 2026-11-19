@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { getTestimonials, createTestimonial, createTestimonialAdmin, getAllTestimonials, updateTestimonial, deleteTestimonial, uploadTestimonialImage } from '../controllers/testimonialController';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware';
+import { antiSpam } from '../middleware/antiSpam';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,9 +36,18 @@ const testimonialUploadLimiter = rateLimit({
   message: { error: 'Trop d\'uploads. Réessayez dans une heure.' },
 });
 
+// Rate limiting pour les avis publics (10/heure)
+const testimonialCreateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop d\'avis envoyés. Réessayez dans une heure.' },
+});
+
 // Public routes
 router.get('/', getTestimonials);
-router.post('/', createTestimonial);
+router.post('/', testimonialCreateLimiter, antiSpam, createTestimonial);
 router.post('/upload', authenticateToken, testimonialUploadLimiter, upload.array('images', 3), uploadTestimonialImage);
 
 // Admin routes

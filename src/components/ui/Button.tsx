@@ -29,7 +29,7 @@ function Button({
     secondary: "bg-surface-100 text-surface-800 hover:bg-surface-200 active:bg-surface-300",
     ghost: "bg-transparent text-surface-700 hover:bg-surface-100 hover:text-surface-900",
     outline: "border-2 border-surface-300 text-surface-800 hover:border-primary-600 hover:text-primary-700",
-    accent: "bg-accent-500 text-white hover:bg-accent-600 active:bg-accent-700",
+    accent: "bg-accent-600 text-white hover:bg-accent-700 active:bg-accent-800",
   };
 
   const sizes = {

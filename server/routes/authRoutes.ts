@@ -4,6 +4,7 @@ import { register, registerAndPay, confirmPayment, registerCash, confirmCashRegi
 import { forgotPassword, resetPassword } from '../controllers/passwordResetController';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { validateBody, loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from '../middleware/validate';
+import { antiSpam } from '../middleware/antiSpam';
 
 const router = Router();
 
@@ -61,13 +62,13 @@ const paymentInitLimiter = rateLimit({
 // ─── Routes publiques ─────────────────────────────────────────────────────────
 router.post('/login', loginLimiter, validateBody(loginSchema), login);
 router.post('/logout', logout);
-router.post('/register', registerLimiter, validateBody(registerSchema), register);
-router.post('/register-and-pay', registerLimiter, paymentInitLimiter, validateBody(registerSchema), registerAndPay);
-router.post('/register-cash', cashRegisterLimiter, registerCash);
+router.post('/register', registerLimiter, antiSpam, validateBody(registerSchema), register);
+router.post('/register-and-pay', registerLimiter, paymentInitLimiter, antiSpam, validateBody(registerSchema), registerAndPay);
+router.post('/register-cash', cashRegisterLimiter, antiSpam, registerCash);
 router.post('/resend-cash-registration-otp', cashRegisterLimiter, resendCashRegistrationOtp);
 router.post('/confirm-cash-registration', confirmCashRegistration);
-router.post('/forgot-password', loginLimiter, validateBody(forgotPasswordSchema), forgotPassword);
-router.post('/reset-password', validateBody(resetPasswordSchema), resetPassword);
+router.post('/forgot-password', loginLimiter, antiSpam, validateBody(forgotPasswordSchema), forgotPassword);
+router.post('/reset-password', antiSpam, validateBody(resetPasswordSchema), resetPassword);
 
 // ─── Routes protégées ─────────────────────────────────────────────────────────
 router.get('/me', authenticateToken, getMe);

@@ -1,5 +1,45 @@
-﻿User-agent: *
+﻿# Excellence Académie – robots.txt
+User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /admin/
+Disallow: /student/
+Disallow: /teacher/
+Disallow: /accountant/
+Disallow: /secretary/
+Disallow: /parent/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /my-orders
+Disallow: /messages
+Disallow: /bibliotheque
+Disallow: /blog/new
+Disallow: /blog/edit/
+Disallow: /blog/exercises/
+Disallow: /uploads/
+Disallow: /media/
 
+# Fichiers statiques et pages publiques autorisés
+Allow: /assets/
+Allow: /images/
+Allow: /icons/
+Allow: /actualites
+Allow: /catalogue
+Allow: /formation/
+Allow: /shop
+Allow: /student/login
+Allow: /students/new
+Allow: /preferences-cookies
+
+# Robots d'aperçu social
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+Host: www.exacademie.net
 Sitemap: https://www.exacademie.net/sitemap.xml
