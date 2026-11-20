@@ -278,16 +278,32 @@ model Evaluation {
 }
 
 model Contract {
-  id            String   @id @default(uuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
-  paymentId     String?
-  signatureData String?
-  signedAt      DateTime?
-  ipAddress     String?
-  userAgent     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id])
+  paymentId          String?
+  contractDocumentId String?
+  signatureData      String?
+  signedAt           DateTime?
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Contrat officiel importé par l'administrateur (une version par import)
+model ContractDocument {
+  id           String   @id @default(uuid())
+  fileName     String
+  mimeType     String
+  data         Bytes
+  size         Int
+  version      Int      @default(1)
+  uploadedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model TeacherSession {

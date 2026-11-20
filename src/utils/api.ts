@@ -1072,6 +1072,42 @@ export const getDownloadUrl = (fileId: string) => {
 };
 
 // ─── Contracts ────────────────────────────────────────────
+export interface ContractDocumentMeta {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  version: number;
+  uploadedById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const fetchContractDocument = async (): Promise<ContractDocumentMeta | null> => {
+  const res = await authFetch(`${API_BASE_URL}/contracts/document`);
+  if (!res.ok) throw new Error('Impossible de charger le contrat officiel');
+  return res.json();
+};
+
+export const getContractDocumentUrl = (documentId?: string) => {
+  return `${API_BASE_URL}/contracts/document/file${documentId ? `?id=${encodeURIComponent(documentId)}` : ''}`;
+};
+
+export const uploadContractDocument = async (file: File): Promise<ContractDocumentMeta> => {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE_URL}/contracts/document`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || "Erreur lors de l'import du contrat");
+  }
+  return res.json();
+};
+
 export const signContract = async (data: { signatureData: string; paymentId?: string }) => {
   const res = await authFetch(`${API_BASE_URL}/contracts/sign`, {
     method: 'POST',

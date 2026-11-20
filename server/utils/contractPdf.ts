@@ -1,21 +1,14 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function base64ToBytes(base64: string): Uint8Array {
   return Buffer.from(base64, 'base64');
 }
 
 export async function generateSignedContractPdf(
+  pdfBytes: Uint8Array,
   signatureDataUrl: string,
   studentName?: string
 ): Promise<Uint8Array> {
-  const pdfPath = path.resolve(__dirname, '..', '..', 'public', 'doc', 'contrat_exacademy.pdf');
-  const pdfBytes = fs.readFileSync(pdfPath);
-
   const pdfDoc = await PDFDocument.load(pdfBytes);
 
   const base64Data = signatureDataUrl.split(',')[1];
@@ -27,7 +20,6 @@ export async function generateSignedContractPdf(
 
   const pages = pdfDoc.getPages();
   const lastPage = pages[pages.length - 1];
-  const { width, height } = lastPage.getSize();
 
   const sigWidth = 160;
   const sigHeight = 55;

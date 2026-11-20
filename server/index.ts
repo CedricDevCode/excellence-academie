@@ -667,6 +667,13 @@ async function initDatabaseDefaults() {
         "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL, "size" INTEGER NOT NULL,
         "uploadedById" TEXT NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Contract" ADD COLUMN IF NOT EXISTS "contractDocumentId" TEXT`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ContractDocument" (
+        "id" TEXT PRIMARY KEY, "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL,
+        "size" INTEGER NOT NULL, "version" INTEGER NOT NULL DEFAULT 1, "uploadedById" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
       await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "BlogRating" (
         "id" TEXT PRIMARY KEY,
         "postId" TEXT NOT NULL REFERENCES "BlogPost"("id") ON DELETE CASCADE,

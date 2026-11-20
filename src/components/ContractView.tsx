@@ -6,11 +6,13 @@ interface ContractViewProps {
   signatureData?: string;
   studentName?: string;
   readOnly?: boolean;
+  documentUrl?: string;
+  documentName?: string;
 }
 
-export default function ContractView({ onSign, signatureData, studentName, readOnly }: ContractViewProps) {
+export default function ContractView({ onSign, signatureData, studentName, readOnly, documentUrl, documentName }: ContractViewProps) {
   const [localSignature, setLocalSignature] = useState(signatureData || "");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(documentUrl));
   const [pdfError, setPdfError] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -29,6 +31,11 @@ export default function ContractView({ onSign, signatureData, studentName, readO
 
   const handlePdfLoad = () => setLoading(false);
   const handlePdfError = () => { setPdfError(true); setLoading(false); };
+
+  useEffect(() => {
+    setLoading(Boolean(documentUrl));
+    setPdfError(false);
+  }, [documentUrl]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -182,12 +189,21 @@ export default function ContractView({ onSign, signatureData, studentName, readO
         )}
       </div>
 
+      {!documentUrl && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded p-8 text-center">
+          <AlertCircle size={32} className="mx-auto text-amber-600 mb-3" />
+          <p className="font-bold text-amber-900 text-sm">Contrat officiel non encore disponible</p>
+          <p className="text-amber-800 text-xs mt-1">L'administration doit importer le contrat validé dans Paramètres généraux avant la signature.</p>
+        </div>
+      )}
+
       {/* PDF Viewer — native rendering for Safari compatibility */}
+      {documentUrl && (
       <div className="bg-white border-2 border-gray-200 rounded overflow-hidden">
         <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <span className="font-semibold text-gray-700 text-sm flex items-center gap-2">
             <FileText size={16} className="text-gray-400" />
-            contrat_exacademy.pdf
+            {documentName || 'Contrat de formation.pdf'}
             {localSignature && <span className="text-green-600 text-xs font-bold ml-2 flex items-center gap-1"><CheckCircle size={12} /> Signé</span>}
           </span>
           {!scrolledToBottom && !readOnly && !localSignature && !loading && (
@@ -210,10 +226,12 @@ export default function ContractView({ onSign, signatureData, studentName, readO
               <AlertCircle size={20} />
               <span className="text-sm font-semibold">Impossible de charger le contrat.</span>
             </div>
-            <a href="/doc/contrat_exacademy.pdf" target="_blank" rel="noopener noreferrer"
-              className="ml-3 text-sm text-[#c97e00] underline font-semibold">
-              Ouvrir le PDF directement
-            </a>
+            {documentUrl && (
+              <a href={documentUrl} target="_blank" rel="noopener noreferrer"
+                className="ml-3 text-sm text-[#c97e00] underline font-semibold">
+                Ouvrir le PDF directement
+              </a>
+            )}
           </div>
         )}
 
@@ -223,7 +241,7 @@ export default function ContractView({ onSign, signatureData, studentName, readO
           style={{ maxHeight: "70vh", display: (loading || pdfError) ? "none" : "block" }}
         >
           <iframe
-            src="/doc/contrat_exacademy.pdf"
+            src={documentUrl}
             onLoad={handlePdfLoad}
             onError={handlePdfError}
             title="Contrat de formation"
@@ -232,9 +250,10 @@ export default function ContractView({ onSign, signatureData, studentName, readO
           />
         </div>
       </div>
+      )}
 
       {/* Signature Pad Section */}
-      {!readOnly && !localSignature && (
+      {documentUrl && !readOnly && !localSignature && (
         <div
           className="bg-white border-2 border-gray-200 rounded overflow-hidden"
           style={{

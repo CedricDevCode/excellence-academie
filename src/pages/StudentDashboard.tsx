@@ -5,7 +5,7 @@ import {
   CheckCircle, Clock, Download, GraduationCap,
   Calendar, ChevronRight, BookOpen, Phone, AlertCircle, Loader2, Camera, Save, Printer, Eye, FileText, ShoppingCart, Globe, Plus, Sparkles, MessageSquare
 } from "lucide-react";
-import { getMe, logout as apiLogout, fetchMyPayments, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchEvents, updateMyProfile, fetchMySubscriptions, fetchOverdueItems, paySubscription, fetchMyContract, signContract, getSignedContractPdfUrl, fetchBlogPosts } from "../utils/api";
+import { getMe, logout as apiLogout, fetchMyPayments, fetchNotifications, markNotificationRead, markAllNotificationsRead, fetchEvents, updateMyProfile, fetchMySubscriptions, fetchOverdueItems, paySubscription, fetchMyContract, signContract, getSignedContractPdfUrl, fetchContractDocument, getContractDocumentUrl, fetchBlogPosts } from "../utils/api";
 import { useLiveNotifications } from "../hooks/useLiveNotifications";
 import { generatePaymentReceipt, generatePaymentsReport } from "../utils/pdf";
 import StudentSessionsView from "../components/StudentSessionsView";
@@ -1003,6 +1003,13 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
   const [signatureData, setSignatureData] = useState("");
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
+  const [contractDoc, setContractDoc] = useState<any>(null);
+
+  useEffect(() => {
+    fetchContractDocument()
+      .then(setContractDoc)
+      .catch(() => setContractDoc(null));
+  }, []);
 
   const handleSignContract = async () => {
     if (!signatureData) return;
@@ -1065,14 +1072,20 @@ function ContractsPage({ contract, user, onRefresh }: { contract: any; user: any
         </div>
       ) : (
         <div className="space-y-4">
-          <ContractView onSign={setSignatureData} signatureData={signatureData} studentName={user?.name} />
+          <ContractView
+            onSign={setSignatureData}
+            signatureData={signatureData}
+            studentName={user?.name}
+            documentUrl={contractDoc ? getContractDocumentUrl() : undefined}
+            documentName={contractDoc?.fileName}
+          />
           {signatureData && (
             <div className="flex justify-end">
               <Button
                 variant="primary"
                 size="lg"
                 onClick={handleSignContract}
-                disabled={signing}
+                disabled={signing || !contractDoc}
                 icon={signing ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
               >
                 {signing ? 'Signature en cours...' : 'Signer le contrat'}

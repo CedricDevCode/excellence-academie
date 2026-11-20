@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { User, MapPin, BookOpen, Plus, Edit, Trash2, Loader2, X, Save, CheckCircle, Camera, DollarSign, Info } from "lucide-react";
-import { fetchCities, createCity, updateCity, deleteCity, updateUser, uploadProfileImage, fetchAppSettings, updateAppSettings } from "../../utils/api";
+import { User, MapPin, BookOpen, Plus, Edit, Trash2, Loader2, X, Save, CheckCircle, Camera, DollarSign, Info, FileText, UploadCloud } from "lucide-react";
+import { fetchCities, createCity, updateCity, deleteCity, updateUser, uploadProfileImage, fetchAppSettings, updateAppSettings, fetchContractDocument, uploadContractDocument, getContractDocumentUrl } from "../../utils/api";
 import { useToast } from "../Toast";
 import FormationsView from "./FormationsView";
 import { AFRICA_COUNTRIES, EUROPE_COUNTRIES } from "./helpers";
@@ -9,6 +9,7 @@ const SETTINGS_TABS = [
   { id: 'account', label: 'Compte', icon: <User size={16} /> },
   { id: 'concours', label: 'Concours', icon: <BookOpen size={16} /> },
   { id: 'tarifs', label: 'Tarification & Inscriptions', icon: <DollarSign size={16} /> },
+  { id: 'contract', label: 'Contrat', icon: <FileText size={16} /> },
   { id: 'cities', label: 'Villes couvertes', icon: <MapPin size={16} /> },
 ];
 
@@ -37,6 +38,10 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
   const [tarifsLoading, setTarifsLoading] = useState(false);
   const [tarifsSaving, setTarifsSaving] = useState(false);
 
+  const [contractDoc, setContractDoc] = useState<any>(null);
+  const [contractLoading, setContractLoading] = useState(false);
+  const [contractUploading, setContractUploading] = useState(false);
+
   const { toast, confirm } = useToast();
 
   const loadCities = async () => {
@@ -63,7 +68,40 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
     }
   };
 
-  useEffect(() => { loadCities(); loadTarifs(); }, []);
+  const loadContract = async () => {
+    setContractLoading(true);
+    try {
+      setContractDoc(await fetchContractDocument());
+    } catch {
+      setContractDoc(null);
+    } finally {
+      setContractLoading(false);
+    }
+  };
+
+  const handleContractUpload = async (file?: File) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast('error', 'Seuls les fichiers PDF sont acceptés');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast('error', 'Le fichier ne doit pas dépasser 25 Mo');
+      return;
+    }
+    setContractUploading(true);
+    try {
+      const doc = await uploadContractDocument(file);
+      setContractDoc(doc);
+      toast('success', `Contrat importé (version ${doc.version})`);
+    } catch (err: any) {
+      toast('error', err?.message || "Erreur lors de l'import du contrat");
+    } finally {
+      setContractUploading(false);
+    }
+  };
+
+  useEffect(() => { loadCities(); loadTarifs(); loadContract(); }, []);
   useEffect(() => { localStorage.setItem('adminSettingsTab', activeSettingsTab); }, [activeSettingsTab]);
 
   const handleSave = async () => {
@@ -489,6 +527,64 @@ export default function SettingsView({ currentUser, onRefresh }: { currentUser: 
                   </button>
                 </div>
 
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Contrat officiel */}
+      {activeSettingsTab === 'contract' && (
+        <div className="bg-white rounded shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-linear-to-r from-amber-50/70 to-white">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded bg-[#c97e00] flex items-center justify-center text-white"><FileText size={22} /></div>
+              <div>
+                <h2 className="font-black text-gray-900">Contrat de formation officiel</h2>
+                <p className="text-gray-500 text-sm">Importez le contrat validé : il sera consultable par tous les étudiants inscrits avant signature.</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6 space-y-5">
+            {contractLoading ? (
+              <div className="flex justify-center py-12"><Loader2 size={28} className="animate-spin text-[#c97e00]" /></div>
+            ) : contractDoc ? (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-50/60 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <FileText size={22} className="text-[#c97e00] shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-900 text-sm truncate">{contractDoc.fileName}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Version {contractDoc.version} · {Math.round(contractDoc.size / 1024)} Ko · importée le {new Date(contractDoc.createdAt).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="inline-flex items-center justify-center gap-2 bg-[#c97e00] text-white px-5 py-2.5 rounded-lg text-sm font-bold cursor-pointer hover:bg-[#7a4b00] shrink-0">
+                    {contractUploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                    {contractUploading ? 'Import...' : 'Remplacer le contrat'}
+                    <input type="file" accept="application/pdf,.pdf" className="hidden"
+                      onChange={e => { handleContractUpload(e.target.files?.[0]); e.target.value = ''; }} />
+                  </label>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm mb-2">Aperçu du contrat diffusé aux étudiants</p>
+                  <div className="h-[500px] border border-gray-200 rounded overflow-hidden">
+                    <iframe src={getContractDocumentUrl(contractDoc.id)} className="w-full h-full" title="Contrat officiel" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl">
+                <FileText size={40} className="mx-auto text-gray-300 mb-3" />
+                <p className="font-bold text-gray-800 text-sm">Aucun contrat officiel importé</p>
+                <p className="text-gray-500 text-xs mt-1 mb-5">Le PDF en dur a été supprimé : importez le contrat réel et validé.</p>
+                <label className="inline-flex items-center justify-center gap-2 bg-[#c97e00] text-white px-6 py-3 rounded-lg text-sm font-bold cursor-pointer hover:bg-[#7a4b00]">
+                  {contractUploading ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
+                  {contractUploading ? 'Import...' : 'Importer le contrat PDF'}
+                  <input type="file" accept="application/pdf,.pdf" className="hidden"
+                    onChange={e => { handleContractUpload(e.target.files?.[0]); e.target.value = ''; }} />
+                </label>
               </div>
             )}
           </div>
