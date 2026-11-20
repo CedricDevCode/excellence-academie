@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { AnimatePresence } from "framer-motion";
 import Navbar from "./components/Navbar";
@@ -114,6 +114,35 @@ function RouteMeta() {
 
 function AppRoutes() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    if (!standalone || location.pathname !== '/') return;
+
+    let user: any = null;
+    try {
+      user = JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      user = null;
+    }
+
+    let target = '/student/login';
+    if (user) {
+      switch (user.role) {
+        case 'ADMIN': target = '/admin/dashboard'; break;
+        case 'TEACHER': target = '/teacher/dashboard'; break;
+        case 'ACCOUNTANT': target = '/accountant/dashboard'; break;
+        case 'SECRETARY': target = '/secretary/dashboard'; break;
+        case 'PARENT': target = '/parent/dashboard'; break;
+        default: target = '/student/dashboard';
+      }
+    }
+    navigate(target, { replace: true });
+  }, [location.pathname, navigate]);
+
   const hideNavFooter = [
     "/admin/dashboard",
     "/student/dashboard",

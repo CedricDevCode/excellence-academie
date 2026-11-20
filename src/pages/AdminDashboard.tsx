@@ -169,7 +169,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!authChecked) return;
     localStorage.setItem('adminTab', activeTab);
-    if (activeTab === 'dashboard') loadStats();
+    if (activeTab === 'dashboard' || activeTab === 'reports') loadStats();
   }, [authChecked, activeTab]);
 
   useEffect(() => { localStorage.setItem('adminSidebar', sidebarCollapsed ? 'collapsed' : ''); }, [sidebarCollapsed]);

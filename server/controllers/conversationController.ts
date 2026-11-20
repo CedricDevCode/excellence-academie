@@ -141,8 +141,10 @@ export const listMessages = async (req: Request, res: Response) => {
     const id = String(req.params.id);
     if (!(await requireMembership(req, id))) return res.status(403).json({ error: 'Accès refusé' });
 
-    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit) || '50', 10)));
-    const before = req.query.before ? new Date(String(req.query.before)) : undefined;
+    const requestedLimit = parseInt(String(req.query.limit ?? ''), 10);
+    const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(100, requestedLimit) : 50;
+    const parsedBefore = req.query.before ? new Date(String(req.query.before)) : undefined;
+    const before = parsedBefore && !Number.isNaN(parsedBefore.getTime()) ? parsedBefore : undefined;
 
     const messages = await prisma.message.findMany({
       where: {
