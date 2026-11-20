@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import prisma from '../utils/prisma';
-import { calcRegistrationTotal, METHOD_TO_GP } from '../constants';
+import { calcRegistrationTotal, monthlyAmountForCourse, METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, GENIUSPAY_ENVIRONMENT, GENIUSPAY_WEBHOOK_SECRET, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { computeNextDueDate } from '../utils/dueDate';
@@ -32,7 +32,12 @@ export const initPayment = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Formation introuvable' });
     }
 
-    const amount = calcRegistrationTotal([course], isCoursParticuliers);
+    const amount = calcRegistrationTotal(
+      [course],
+      isCoursParticuliers,
+      pays || user.pays || undefined,
+      ville || user.ville || undefined
+    );
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
@@ -253,7 +258,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
       } else if (metadata.action === 'add_course' && metadata.user_id && metadata.course_ids) {
         const userId = metadata.user_id;
         const courseIdList = String(metadata.course_ids).split(',').filter(Boolean);
-        const monthlyAmt = Number(metadata.monthly_amount) || 0;
+        const supplement = Number(metadata.monthly_amount) || 0;
 
         const existingPayment = await prisma.payment.findFirst({
           where: { geniusPayReference: reference },
@@ -267,6 +272,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
+        let createdAny = false;
         for (const cId of courseIdList) {
           const existingSub = await prisma.subscription.findFirst({
             where: { userId, courseId: cId },
@@ -277,12 +283,27 @@ export const handleWebhook = async (req: Request, res: Response) => {
               data: {
                 userId,
                 courseId: cId,
-                amount: monthlyAmt / courseIdList.length,
+                amount: 0,
                 status: 'ACTIVE',
                 nextPayment: np,
                 formule: user?.pays && user.pays.toLowerCase() !== "côte d'ivoire" ? 'en_ligne' : 'presentiel',
                 coursParticuliers: false,
               },
+            });
+            createdAny = true;
+          }
+        }
+
+        // La mensualité totale est portée par l'abonnement principal.
+        if (createdAny && supplement > 0) {
+          const primary = await prisma.subscription.findFirst({
+            where: { userId, status: 'ACTIVE' },
+            orderBy: { amount: 'desc' },
+          });
+          if (primary) {
+            await prisma.subscription.update({
+              where: { id: primary.id },
+              data: { amount: { increment: supplement } },
             });
           }
         }
@@ -328,17 +349,17 @@ export const handleWebhook = async (req: Request, res: Response) => {
             await prisma.payment.update({ where: { id: payment.id }, data: { receiptNumber } });
           }
 
-          for (const cId of courseIdList) {
+          for (const [courseIndex, cId] of courseIdList.entries()) {
             const existingSub = await prisma.subscription.findFirst({
               where: { userId: user.id, courseId: cId },
             });
-              if (!existingSub) {
-                const np = computeNextDueDate(new Date(), 1);
+            if (!existingSub) {
+              const np = computeNextDueDate(new Date(), 1);
               await prisma.subscription.create({
                 data: {
                   userId: user.id,
                   courseId: cId,
-                  amount: monthlyAmt,
+                  amount: monthlyAmountForCourse(monthlyAmt, courseIndex),
                   status: 'ACTIVE',
                   nextPayment: np,
                   formule: pending.mode || 'presentiel',

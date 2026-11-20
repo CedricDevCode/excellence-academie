@@ -16,32 +16,29 @@ export function isAbidjan(ville?: string): boolean {
   return ville.trim().toLowerCase().startsWith("abidjan");
 }
 
+/** Montant ajouté à la mensualité pour chaque concours supplémentaire. */
+export const ADDITIONAL_COURSE_MONTHLY_FEE = 10000;
+
 export function calcRegistrationPrice(pays: string, mode: string, ville: string, coursParticuliers: boolean): number {
-  if (coursParticuliers) return 200000;
-  if (isDiaspora(pays)) return 100000;
-  if (mode === 'en_ligne' || mode === 'les_deux') return 45000;
-  if (isAbidjan(ville)) return 45000;
-  return 35000;
+  if (coursParticuliers) return COURS_PARTICULIERS_FEE;
+  if (isDiaspora(pays)) return DEFAULT_REGISTRATION_FEE_DIASPORA;
+  if (isAbidjan(ville)) return DEFAULT_REGISTRATION_FEE;
+  return DEFAULT_REGISTRATION_FEE_INTERIEUR;
 }
 
 export function calcMonthlyAmount(pays: string, mode: string, coursParticuliers: boolean, nbCourses: number): number {
   if (coursParticuliers) return 0;
-  if (isDiaspora(pays)) return 35000;
-  let base: number;
-  if (mode === 'en_ligne') {
-    base = 25000;
-  } else if (mode === 'les_deux') {
-    base = 35000;
-  } else {
-    base = 30000;
-  }
-  const extraCourses = Math.max(0, nbCourses - 1);
-  return base + extraCourses * 10000;
+  const extraCourses = Math.max(0, (Number(nbCourses) || 0) - 1);
+  const extra = extraCourses * ADDITIONAL_COURSE_MONTHLY_FEE;
+  if (isDiaspora(pays)) return 35000 + extra;
+  if (mode === 'en_ligne') return 25000 + extra;
+  if (mode === 'les_deux') return 35000 + extra;
+  return DEFAULT_MONTHLY_FEE + extra;
 }
 
 export const COURS_PARTICULIERS_FEE = 200000;
-export const DEFAULT_REGISTRATION_FEE = 45000;  // Abidjan/en ligne
-export const DEFAULT_REGISTRATION_FEE_INTERIEUR = 35000; // Intérieur CI
+export const DEFAULT_REGISTRATION_FEE = 50000;  // Abidjan
+export const DEFAULT_REGISTRATION_FEE_INTERIEUR = 40000; // Intérieur CI
 export const DEFAULT_REGISTRATION_FEE_DIASPORA = 100000; // Diaspora
 export const DEFAULT_MONTHLY_FEE = 30000;
 
@@ -57,68 +54,22 @@ interface CourseFees {
   monthlyFeeDiaspora?: number | null;
 }
 
-/** Retourne le frais d'inscription pour un cours selon la zone */
+/** Frais d'inscription : un seul montant, quel que soit le nombre de concours. */
 export function courseRegistrationFee(
   course?: CourseFees,
   pays?: string,
   ville?: string
 ): number {
-  if (!course) return DEFAULT_REGISTRATION_FEE;
-
-  // Diaspora (hors Côte d'Ivoire)
-  if (pays && isDiaspora(pays)) {
-    const diasFee = Number(course.registrationFeeDiaspora);
-    if (diasFee > 0) return diasFee;
-    return DEFAULT_REGISTRATION_FEE_DIASPORA;
-  }
-
-  // Intérieur CI (hors Abidjan)
-  if (ville && !isAbidjan(ville)) {
-    const intFee = Number(course.registrationFeeInterieur);
-    if (intFee > 0) return intFee;
-    return DEFAULT_REGISTRATION_FEE_INTERIEUR;
-  }
-
-  // Abidjan / en ligne (tarif standard)
-  const reg = Number(course.registrationFee);
-  if (reg > 0) return reg;
-  const price = Number(course.price);
-  if (price > 0) return price;
-  return DEFAULT_REGISTRATION_FEE;
+  return calcRegistrationPrice(pays || '', 'presentiel', ville || '', false);
 }
 
-/** Retourne la mensualité pour un cours selon la zone ET le mode */
+/** Mensualité de base d'un concours (le supplément éventuel est géré par calcMonthlyTotal). */
 export function courseMonthlyFee(
   course?: CourseFees,
   pays?: string,
   mode?: string
 ): number {
-  if (!course) return DEFAULT_MONTHLY_FEE;
-
-  // Diaspora: toujours en ligne
-  if (pays && isDiaspora(pays)) {
-    const diasFee = Number(course.monthlyFeeDiaspora);
-    if (diasFee > 0) return diasFee;
-    return 35000; // défaut diaspora
-  }
-
-  // Mode-specific pricing (pour la CI)
-  if (mode === 'en_ligne') {
-    const onlineFee = Number(course.monthlyFeeOnline);
-    if (onlineFee > 0) return onlineFee;
-    return 25000;
-  }
-
-  if (mode === 'les_deux') {
-    const bothFee = Number(course.monthlyFeeBoth);
-    if (bothFee > 0) return bothFee;
-    return 35000;
-  }
-
-  // Présentiel (défaut)
-  const monthly = Number(course.monthlyFee);
-  if (monthly > 0) return monthly;
-  return DEFAULT_MONTHLY_FEE;
+  return calcMonthlyAmount(pays || '', mode || 'presentiel', false, 1);
 }
 
 export function calcRegistrationTotal(
@@ -128,12 +79,9 @@ export function calcRegistrationTotal(
   ville?: string
 ): number {
   if (coursParticuliers) return COURS_PARTICULIERS_FEE;
-  if (!Array.isArray(courses) || courses.length === 0) {
-    if (pays && isDiaspora(pays)) return DEFAULT_REGISTRATION_FEE_DIASPORA;
-    if (ville && !isAbidjan(ville)) return DEFAULT_REGISTRATION_FEE_INTERIEUR;
-    return DEFAULT_REGISTRATION_FEE;
-  }
-  return courses.reduce((sum, c) => sum + courseRegistrationFee(c, pays, ville), 0);
+  if (pays && isDiaspora(pays)) return DEFAULT_REGISTRATION_FEE_DIASPORA;
+  if (ville && !isAbidjan(ville)) return DEFAULT_REGISTRATION_FEE_INTERIEUR;
+  return DEFAULT_REGISTRATION_FEE;
 }
 
 export function calcMonthlyTotal(
@@ -142,9 +90,17 @@ export function calcMonthlyTotal(
   pays?: string,
   mode?: string
 ): number {
-  if (coursParticuliers) return 0;
-  if (!Array.isArray(courses) || courses.length === 0) return DEFAULT_MONTHLY_FEE;
-  return courses.reduce((sum, c) => sum + courseMonthlyFee(c, pays, mode), 0);
+  const nb = Array.isArray(courses) ? courses.length : 0;
+  return calcMonthlyAmount(pays || '', mode || 'presentiel', coursParticuliers, nb);
+}
+
+/**
+ * Répartit la mensualité totale entre les abonnements d'un même étudiant.
+ * Le concours principal porte le montant total ; les concours supplémentaires sont
+ * inclus dans ce montant (0) afin de ne pas facturer la mensualité plusieurs fois.
+ */
+export function monthlyAmountForCourse(totalMonthly: number, index: number): number {
+  return index === 0 ? totalMonthly : 0;
 }
 
 export const METHOD_TO_GP: Record<string, string> = {

@@ -12,7 +12,7 @@ import {
   Info,
 } from "lucide-react";
 import { fetchCourses, fetchAppSettings, addCourseForExistingStudent } from "../utils/api";
-import { courseMonthlyFee, isDiaspora, formatPrice, Mode, MODES } from "../constants/student";
+import { isDiaspora, formatPrice, Mode, MODES } from "../constants/student";
 import { paymentMethods } from "../utils/payment";
 
 interface AddCourseModalProps {
@@ -76,12 +76,9 @@ export default function AddCourseModal({
 
   const pays = user?.pays || "";
   const diaspora = isDiaspora(pays);
-  const monthlyTotal = useMemo(() => {
-    return selectedCourses.reduce((sum, c) => sum + courseMonthlyFee(c, pays, mode), 0);
-  }, [selectedCourses, pays, mode]);
 
-  // Montant total = mensualité(s) + frais supplémentaire (10 000 FCFA)
-  const totalAmount = selectedCourses.length > 0 ? monthlyTotal + additionalAmount : 0;
+  // Aucun nouveau frais d'inscription : +10 000 FCFA par concours ajouté.
+  const totalAmount = selectedCourses.length > 0 ? additionalAmount * selectedCourses.length : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,7 +233,6 @@ export default function AddCourseModal({
               <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                 {availableCourses.map((c) => {
                   const isSelected = selectedCourseIds.includes(c.id);
-                  const mFee = courseMonthlyFee(c, pays, mode);
 
                   return (
                     <label
@@ -262,7 +258,7 @@ export default function AddCourseModal({
 
                       <div className="text-right">
                         <span className="text-xs font-bold text-[#c97e00] block">
-                          +{formatPrice(mFee)} FCFA/m
+                          +{formatPrice(additionalAmount)} FCFA/m
                         </span>
                         <span className="text-[10px] text-gray-400">mensualité</span>
                       </div>
@@ -277,12 +273,12 @@ export default function AddCourseModal({
           {selectedCourses.length > 0 && (
             <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
               <div className="text-xs font-bold text-gray-700 flex items-center justify-between">
-                <span>Mensualité cours choisi :</span>
-                <span className="font-semibold text-gray-900">{formatPrice(monthlyTotal)} FCFA</span>
+                <span>Supplément mensuel ({selectedCourses.length} cours) :</span>
+                <span className="font-semibold text-gray-900">{formatPrice(totalAmount)} FCFA</span>
               </div>
               <div className="text-xs font-bold text-gray-700 flex items-center justify-between">
-                <span>Frais forfaitaire formation supplémentaire :</span>
-                <span className="font-semibold text-emerald-700">+{formatPrice(additionalAmount)} FCFA</span>
+                <span>Frais d'inscription :</span>
+                <span className="font-semibold text-emerald-700">0 FCFA (inchangés)</span>
               </div>
               <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                 <span className="font-black text-gray-900 text-sm">Total à payer aujourd'hui :</span>

@@ -96,7 +96,9 @@ function DashboardOverview({
   const progress = totalPayments > 0 ? Math.round((paidCount / totalPayments) * 100) : 0;
   const totalPaidAmount = payments.filter((p: any) => p.status === "SUCCESS").reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
-  const activeSub = subscriptions.find((s: any) => s.status === 'ACTIVE');
+  const activeSub = subscriptions
+    .filter((s: any) => s.status === 'ACTIVE')
+    .reduce<any | null>((best, s) => (!best || Number(s.amount) > Number(best.amount) ? s : best), null);
   const nextPaymentDate = activeSub
     ? new Date(activeSub.nextPayment).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
     : "—";

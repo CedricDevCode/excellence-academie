@@ -4,7 +4,7 @@ import { METHOD_TO_GP } from '../constants';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
 import { generateReceiptNumber } from '../utils/generators';
 import { logger } from '../utils/logger';
-import { calcRegistrationTotal, calcMonthlyTotal } from '../constants';
+import { calcRegistrationTotal, calcMonthlyTotal, monthlyAmountForCourse } from '../constants';
 import { computeNextDueDate, normalizeDueDay } from '../utils/dueDate';
 
 /**
@@ -80,6 +80,7 @@ export const getOverdueItems = async (req: Request, res: Response) => {
     const allItems: any[] = [];
 
     for (const sub of subs) {
+      if (Number(sub.amount) <= 0) continue;
       const dueDate = new Date(sub.nextPayment);
       if (dueDate > now) continue;
 
@@ -556,8 +557,8 @@ export const confirmRegistrationCompletion = async (req: Request, res: Response)
       }
 
       const nextPayment = computeNextDueDate(paidDate, 1);
-      for (const course of courses) {
-        const amount = calcMonthlyTotal([course as any], false, user.pays || '', stored.mode as any);
+      for (const [courseIndex, course] of courses.entries()) {
+        const amount = monthlyAmountForCourse(stored.monthly, courseIndex);
         const existing = await tx.subscription.findFirst({ where: { userId: user.id, courseId: course.id } });
         if (existing) {
           await tx.subscription.update({

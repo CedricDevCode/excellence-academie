@@ -19,6 +19,22 @@ export const registerSchema = z.object({
   ville: z.string().max(100).optional(),
 });
 
+/** Schéma du parcours complet : conserve les champs d'inscription (concours, mode, remise…). */
+export const registerAndPaySchema = registerSchema.extend({
+  courseIds: z.array(z.string().min(1)).min(1, 'Au moins un concours est requis'),
+  mode: z.string().max(30).optional(),
+  coursParticuliers: z.union([z.boolean(), z.string()]).optional(),
+  paymentMethod: z.string().max(50).optional(),
+  geniusPhone: z.string().max(30).optional(),
+  dateNaissance: z.string().max(50).optional(),
+  dateInscription: z.string().max(50).optional(),
+  remiseAmount: z.union([z.number(), z.string()]).optional(),
+  remiseNote: z.string().max(500).optional(),
+  remiseDate: z.string().max(50).optional(),
+  _hp: z.string().max(200).optional(),
+  _ts: z.number().optional(),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Email invalide').max(255),
 });

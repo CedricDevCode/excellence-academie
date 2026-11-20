@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import prisma from '../utils/prisma';
 import { setAuthCookie, clearAuthCookie } from '../utils/jwt';
 import { GENIUSPAY_API_BASE, geniusPayHeaders, handleGeniusPayResponse } from '../utils/geniuspay';
-import { calcRegistrationTotal, calcMonthlyTotal, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
+import { ADDITIONAL_COURSE_MONTHLY_FEE, calcRegistrationTotal, calcMonthlyTotal, monthlyAmountForCourse, METHOD_TO_GP, COUNTRY_TO_ISO2 } from '../constants';
 import { generateMatricule, generateReceiptNumber } from '../utils/generators';
 import { computeNextDueDate } from '../utils/dueDate';
 import { sendNotification, sendNotificationToRole } from './notificationController';
@@ -409,15 +409,16 @@ export const confirmCashRegistration = async (req: Request, res: Response) => {
         });
       }
 
-      // Un abonnement par concours, avec la mensualité propre à chaque concours
-      for (const course of courses) {
+      // Un abonnement par concours. La mensualité totale n'est facturée qu'une fois :
+      // le concours principal la porte, les suivants sont inclus sans montant supplémentaire.
+      for (const [courseIndex, course] of courses.entries()) {
         // La prochaine mensualité est définie à partir de la date d'inscription (échéance le 05)
         const nextPayment = computeNextDueDate(inscriptionDate, 1);
         await tx.subscription.create({
           data: {
             userId: created.id,
             courseId: course.id,
-            amount: calcMonthlyTotal([course], cParticuliers, d.pays, cMode),
+            amount: monthlyAmountForCourse(monthly, courseIndex),
             status: 'ACTIVE',
             nextPayment,
             formule: cMode,
@@ -585,7 +586,7 @@ export const registerAndPay = async (req: Request, res: Response) => {
 
 // ─── Ajout formation supplémentaire (étudiant déjà connecté) ──────────────────
 // L'étudiant déjà inscrit peut ajouter une nouvelle formation depuis son dashboard.
-// Il paie uniquement : mensualité du cours + additionalCourseAmount (10 000 FCFA par défaut).
+// Il paie uniquement le supplément de mensualité : 10 000 FCFA par concours ajouté.
 
 export const addCourseForExistingStudent = async (req: Request, res: Response) => {
   try {
@@ -622,18 +623,18 @@ export const addCourseForExistingStudent = async (req: Request, res: Response) =
 
     const newCourses = courses.filter((c: any) => newCourseIds.includes(c.id));
 
-    // Récupérer le paramètre de frais supplémentaires
-    let additionalAmount = 10000;
+    // Frais additionnel par concours supplémentaire (10 000 FCFA par défaut)
+    let additionalAmount = ADDITIONAL_COURSE_MONTHLY_FEE;
     try {
       const settings = await prisma.appSettings.findUnique({ where: { key: 'global' } });
       if (settings) additionalAmount = settings.additionalCourseAmount;
     } catch { /* utiliser la valeur par défaut */ }
 
-    // Montant = mensualité de chaque nouveau cours + additionalCourseAmount
+    // Aucun nouveau frais d'inscription : seule la mensualité augmente de
+    // additionalAmount pour chaque concours ajouté.
     const pays = user.pays || '';
-    const effectiveMode = mode || 'presentiel';
-    const monthlyAmount = calcMonthlyTotal(newCourses, false, pays, effectiveMode);
-    const amount = monthlyAmount + additionalAmount;
+    const monthlyAmount = additionalAmount * newCourses.length;
+    const amount = monthlyAmount;
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const paymentPhone = geniusPhone || user.telephone || '';
@@ -802,7 +803,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
           await tx.contract.create({ data: { userId: user.id, paymentId } });
         }
 
-        for (const cId of courseIdList) {
+        for (const [courseIndex, cId] of courseIdList.entries()) {
           const existingSub = await tx.subscription.findFirst({
             where: { userId: user.id, courseId: cId },
           });
@@ -812,7 +813,7 @@ export const confirmPayment = async (req: Request, res: Response) => {
               data: {
                 userId: user.id,
                 courseId: cId,
-                amount: monthlyAmt,
+                amount: monthlyAmountForCourse(monthlyAmt, courseIndex),
                 status: 'ACTIVE',
                 nextPayment,
                 formule: pending.mode || 'presentiel',

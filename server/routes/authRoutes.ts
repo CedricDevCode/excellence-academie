@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { register, registerAndPay, confirmPayment, registerCash, confirmCashRegistration, resendCashRegistrationOtp, login, logout, getMe, addCourseForExistingStudent } from '../controllers/authController';
 import { forgotPassword, resetPassword } from '../controllers/passwordResetController';
 import { authenticateToken } from '../middleware/authMiddleware';
-import { validateBody, loginSchema, registerSchema, forgotPasswordSchema, resetPasswordSchema } from '../middleware/validate';
+import { validateBody, loginSchema, registerSchema, registerAndPaySchema, forgotPasswordSchema, resetPasswordSchema } from '../middleware/validate';
 import { antiSpam } from '../middleware/antiSpam';
 
 const router = Router();
@@ -63,7 +63,7 @@ const paymentInitLimiter = rateLimit({
 router.post('/login', loginLimiter, validateBody(loginSchema), login);
 router.post('/logout', logout);
 router.post('/register', registerLimiter, antiSpam, validateBody(registerSchema), register);
-router.post('/register-and-pay', registerLimiter, paymentInitLimiter, antiSpam, validateBody(registerSchema), registerAndPay);
+router.post('/register-and-pay', registerLimiter, paymentInitLimiter, antiSpam, validateBody(registerAndPaySchema), registerAndPay);
 router.post('/register-cash', cashRegisterLimiter, antiSpam, registerCash);
 router.post('/resend-cash-registration-otp', cashRegisterLimiter, resendCashRegistrationOtp);
 router.post('/confirm-cash-registration', confirmCashRegistration);
