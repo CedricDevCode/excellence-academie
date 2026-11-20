@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Home, CreditCard, Bell, LogOut, Menu, X, User,
   CheckCircle, Clock, AlertCircle, Loader2, Users,
-  ChevronRight, Eye, Calendar
+  ChevronRight, Eye, Calendar, BookOpen, MessageSquare
 } from "lucide-react";
 import { getMe, logout as apiLogout, fetchPaymentsByUser, fetchSubscriptionsByUser, fetchNotifications, markNotificationRead, markAllNotificationsRead } from "../utils/api";
 import { useLiveNotifications } from "../hooks/useLiveNotifications";
@@ -181,6 +181,12 @@ export default function ParentDashboard() {
                     {item.icon} {item.label}
                   </button>
                 ))}
+                <a href="/messages" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
+                  <MessageSquare size={18} /> Messages
+                </a>
+                <a href="/bibliotheque" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
+                  <BookOpen size={18} /> Bibliothèque
+                </a>
               </div>
             </motion.div>
           )}
@@ -198,6 +204,12 @@ export default function ParentDashboard() {
                   {item.icon} {item.label}
                 </button>
               ))}
+              <a href="/messages" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
+                <MessageSquare size={18} /> Messages
+              </a>
+              <a href="/bibliotheque" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
+                <BookOpen size={18} /> Bibliothèque
+              </a>
             </nav>
           </aside>
 

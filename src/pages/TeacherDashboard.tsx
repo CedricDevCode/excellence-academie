@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Home, Users, BookOpen, Bell, LogOut, Menu, X, Calendar,
   ChevronRight, CheckCircle, Clock, FileText, GraduationCap,
-  AlertCircle, Loader2, Search, Monitor, MapPin, Upload, Download, User, Globe, Trash2
+  AlertCircle, Loader2, Search, Monitor, MapPin, Upload, Download, User, Globe, Trash2, MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMe, logout as apiLogout, fetchUsers, fetchNotifications, markNotificationRead, fetchEvents, fetchEvaluations, createEvaluation, deleteEvaluation, fetchSessions, completeSession, uploadSessionFile, getSessionFiles, getDownloadUrl, fetchBlogPosts, deleteBlogPost } from "../utils/api";
@@ -795,6 +795,14 @@ export default function TeacherDashboard() {
               {activeTab === item.id && <ChevronRight size={16} className="ml-auto" />}
             </motion.button>
           ))}
+          <div className="pt-2 mt-2 border-t border-primary-500/30 space-y-1">
+            <a href="/messages" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all">
+              <MessageSquare size={18} /> Messages
+            </a>
+            <a href="/bibliotheque" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all">
+              <BookOpen size={18} /> Bibliothèque
+            </a>
+          </div>
         </nav>
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-primary-500/30 space-y-1">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-red-200 hover:text-white text-sm rounded hover:bg-red-500/20 transition-all" aria-label="Se déconnecter">

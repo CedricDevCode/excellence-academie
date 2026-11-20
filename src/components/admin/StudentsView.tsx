@@ -857,19 +857,19 @@ function StudentsView() {
                           </td>
                           <td className="px-5 py-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
-                              {studentCourses.length === 0 && (
-                                <button onClick={() => openCompletion(u)} className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors" title="Finaliser l'inscription (encaisser le paiement)">
-                                  <Banknote size={15} />
+                              {(studentCourses.length === 0 || !(u.payments || []).some((p: any) => p.status === 'SUCCESS')) && (
+                                <button onClick={() => openCompletion(u)} className="p-2 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors" title="Finaliser l'inscription (encaisser le paiement)">
+                                  <Banknote size={17} />
                                 </button>
                               )}
-                              <button onClick={() => openEditModal(u)} className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
-                                <Edit size={15} />
+                              <button onClick={() => openEditModal(u)} className="p-2 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
+                                <Edit size={17} />
                               </button>
-                              <button onClick={() => handleToggleActive(u)} className={`p-1.5 rounded-lg transition-colors ${u.isActive !== false ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`} title={u.isActive !== false ? 'Désactiver' : 'Activer'}>
-                                {u.isActive !== false ? <Clock size={15} /> : <CheckCircle size={15} />}
+                              <button onClick={() => handleToggleActive(u)} className={`p-2 rounded-lg transition-colors ${u.isActive !== false ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`} title={u.isActive !== false ? 'Désactiver' : 'Activer'}>
+                                {u.isActive !== false ? <Clock size={17} /> : <CheckCircle size={17} />}
                               </button>
-                              <button onClick={() => handleDeleteStudent(u)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors" title="Supprimer">
-                                <Trash2 size={15} />
+                              <button onClick={() => handleDeleteStudent(u)} className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors" title="Supprimer">
+                                <Trash2 size={17} />
                               </button>
                             </div>
                           </td>

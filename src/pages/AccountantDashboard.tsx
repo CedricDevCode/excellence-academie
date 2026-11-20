@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Home, DollarSign, TrendingUp, TrendingDown, FileText,
   Bell, LogOut, Menu, X, ChevronRight, Download, Filter,
-  CheckCircle, AlertCircle, Loader2, Calendar, Search, Plus, Printer, MapPin, PanelLeftClose, PanelLeftOpen, User, Clock, Globe
+  CheckCircle, AlertCircle, Loader2, Calendar, Search, Plus, Printer, MapPin, PanelLeftClose, PanelLeftOpen, User, Clock, Globe, BookOpen, MessageSquare
 } from "lucide-react";
 import {
   getMe, logout as apiLogout, fetchPayments, fetchExpenses, fetchNotifications,
@@ -945,6 +945,16 @@ export default function AccountantDashboard() {
               {!sidebarCollapsed && activeTab === item.id && <ChevronRight size={16} className="ml-auto shrink-0" />}
             </button>
           ))}
+          <div className={`pt-3 mt-1 border-t border-green-600/30 space-y-0.5 ${sidebarCollapsed ? "px-0" : "px-1"}`}>
+            <a href="/messages" title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
+              <MessageSquare size={18} className="shrink-0" />
+              {!sidebarCollapsed && <span className="truncate">Messages</span>}
+            </a>
+            <a href="/bibliotheque" title={sidebarCollapsed ? "Bibliothèque" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
+              <BookOpen size={18} className="shrink-0" />
+              {!sidebarCollapsed && <span className="truncate">Bibliothèque</span>}
+            </a>
+          </div>
         </nav>
         <div className={`absolute bottom-0 left-0 right-0 border-t border-green-600/30 ${sidebarCollapsed ? "p-2" : "p-4"} space-y-1`}>
           <Link

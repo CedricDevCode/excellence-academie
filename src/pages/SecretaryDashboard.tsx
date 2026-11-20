@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { LogOut, Menu, X, Clock, DollarSign, Bell, User, PanelLeftClose, PanelLeftOpen, Home, Loader2, ChevronRight, ShoppingCart, Globe } from "lucide-react";
+import { LogOut, Menu, X, Clock, DollarSign, Bell, User, PanelLeftClose, PanelLeftOpen, Home, Loader2, ChevronRight, ShoppingCart, Globe, BookOpen, MessageSquare } from "lucide-react";
 import { getMe, logout as apiLogout, fetchNotifications, markNotificationRead } from "../utils/api";
 import TeacherSessionsView from "../components/TeacherSessionsView";
 import TeacherSalariesView from "../components/TeacherSalariesView";
@@ -115,6 +115,16 @@ export default function SecretaryDashboard() {
               {!sidebarCollapsed && activeTab === item.id && <ChevronRight size={16} className="ml-auto shrink-0" />}
             </button>
           ))}
+          <div className={`pt-3 mt-1 border-t border-primary-400/30 space-y-0.5 ${sidebarCollapsed ? "px-0" : "px-1"}`}>
+            <a href="/messages" title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 hover:text-white transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
+              <MessageSquare size={18} className="shrink-0" />
+              {!sidebarCollapsed && <span className="truncate">Messages</span>}
+            </a>
+            <a href="/bibliotheque" title={sidebarCollapsed ? "Bibliothèque" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 hover:text-white transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
+              <BookOpen size={18} className="shrink-0" />
+              {!sidebarCollapsed && <span className="truncate">Bibliothèque</span>}
+            </a>
+          </div>
         </nav>
         <div className={`absolute bottom-0 left-0 right-0 border-t border-primary-400/30 ${sidebarCollapsed ? "p-2" : "p-4"} space-y-1`}>
           <Link

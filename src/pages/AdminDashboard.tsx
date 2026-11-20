@@ -5,7 +5,7 @@ import {
   Users, Bell, Settings, LogOut, BarChart3, BookOpen, Menu, X,
   Home, CreditCard, FileText, GraduationCap, ChevronRight, ChevronDown,
   CheckCircle, ShoppingCart, Layers, Award, Sparkles, PanelLeftClose, PanelLeftOpen, User, LayoutTemplate,
-  Globe, HelpCircle, ShieldCheck, BarChart2, Megaphone, PhoneCall, CalendarClock
+  Globe, HelpCircle, ShieldCheck, BarChart2, Megaphone, PhoneCall, CalendarClock, MessageSquare
 } from "lucide-react";
 import {
   fetchStats, getMe, logout as apiLogout,
@@ -341,6 +341,16 @@ case 'mensualites': return <MensualitesView />;
               </div>
             );
           })}
+          <div className={`pt-3 mt-1 border-t border-white/[0.06] space-y-0.5 ${sidebarCollapsed ? "px-0" : "px-1"}`}>
+            <a href="/messages" title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all text-[#d8cdb4] hover:bg-white/[0.05] hover:text-[#f3ead9] ${sidebarCollapsed ? "justify-center p-3" : "pl-4 pr-3 py-2"}`}>
+              <MessageSquare size={18} className="shrink-0" />
+              {!sidebarCollapsed && <span className="truncate text-left">Messages</span>}
+            </a>
+            <a href="/bibliotheque" title={sidebarCollapsed ? "Bibliothèque" : undefined} className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all text-[#d8cdb4] hover:bg-white/[0.05] hover:text-[#f3ead9] ${sidebarCollapsed ? "justify-center p-3" : "pl-4 pr-3 py-2"}`}>
+              <BookOpen size={18} className="shrink-0" />
+              {!sidebarCollapsed && <span className="truncate text-left">Bibliothèque</span>}
+            </a>
+          </div>
         </nav>
 
         <div className={`shrink-0 border-t border-white/[0.06] z-10 ${sidebarCollapsed ? "p-2" : "p-3"}`}
