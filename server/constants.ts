@@ -16,7 +16,7 @@ export function isAbidjan(ville?: string): boolean {
   return ville.trim().toLowerCase().startsWith("abidjan");
 }
 
-/** Montant ajouté à la mensualité pour chaque concours supplémentaire. */
+/** Montant de base du supplément de mensualité lié à plusieurs concours (10 000 FCFA). */
 export const ADDITIONAL_COURSE_MONTHLY_FEE = 10000;
 
 export function calcRegistrationPrice(pays: string, mode: string, ville: string, coursParticuliers: boolean): number {
@@ -28,12 +28,11 @@ export function calcRegistrationPrice(pays: string, mode: string, ville: string,
 
 export function calcMonthlyAmount(pays: string, mode: string, coursParticuliers: boolean, nbCourses: number): number {
   if (coursParticuliers) return 0;
-  const extraCourses = Math.max(0, (Number(nbCourses) || 0) - 1);
-  const extra = extraCourses * ADDITIONAL_COURSE_MONTHLY_FEE;
-  if (isDiaspora(pays)) return 35000 + extra;
-  if (mode === 'en_ligne') return 25000 + extra;
-  if (mode === 'les_deux') return 35000 + extra;
-  return DEFAULT_MONTHLY_FEE + extra;
+  const supplement = (Number(nbCourses) || 0) > 1 ? ADDITIONAL_COURSE_MONTHLY_FEE : 0;
+  if (isDiaspora(pays)) return 35000 + supplement;
+  if (mode === 'en_ligne') return 25000 + supplement;
+  if (mode === 'les_deux') return 35000 + supplement;
+  return DEFAULT_MONTHLY_FEE + supplement;
 }
 
 export const COURS_PARTICULIERS_FEE = 200000;

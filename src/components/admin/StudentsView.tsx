@@ -1380,7 +1380,7 @@ function StudentsView() {
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className="text-surface-500">1ère mensualité</span>
+                        <span className="text-surface-500">Mensualité (chaque mois)</span>
                         <span className="font-bold text-surface-900 tabular-nums">{completionMonthly.toLocaleString('fr-FR')} FCFA</span>
                       </div>
                       <div className="border-t border-primary-200/70 pt-1.5 flex items-center justify-between gap-3">

@@ -66,13 +66,15 @@ export function calcRegistrationPrice(pays: string, mode: string, ville: string,
   return 40000;
 }
 
+export const MULTI_COURSE_MONTHLY_SUPPLEMENT = 10000;
+
 export function calcMonthlyAmount(pays: string, mode: Mode, coursParticuliers: boolean, nbCourses: number): number {
   if (coursParticuliers) return 0;
-  const extraCourses = Math.max(0, nbCourses - 1);
-  if (isDiaspora(pays)) return 35000 + extraCourses * 10000;
-  if (mode === 'en_ligne') return 25000 + extraCourses * 10000;
-  if (mode === 'les_deux') return 35000 + extraCourses * 10000;
-  return 30000 + extraCourses * 10000;
+  const supplement = (Number(nbCourses) || 0) > 1 ? MULTI_COURSE_MONTHLY_SUPPLEMENT : 0;
+  if (isDiaspora(pays)) return 35000 + supplement;
+  if (mode === 'en_ligne') return 25000 + supplement;
+  if (mode === 'les_deux') return 35000 + supplement;
+  return 30000 + supplement;
 }
 
 export function formatPrice(amount: number): string {
@@ -108,7 +110,7 @@ export function courseRegistrationFee(
 }
 
 export function courseMonthlyFee(course?: FeeSource, pays?: string, mode?: Mode | string): number {
-  // Mensualité flat selon le mode (+10 000 FCFA par concours supplémentaire)
+  // Mensualité de base selon le mode (le supplément multi-concours est global)
   return calcMonthlyAmount(pays || '', (mode as Mode) || 'presentiel', false, 1);
 }
 
@@ -130,11 +132,6 @@ export function calcMonthlyTotal(
   pays?: string,
   mode?: Mode | string
 ): number {
-  if (coursParticuliers) return 0;
   const nb = Array.isArray(courses) ? courses.length : 0;
-  const extra = Math.max(0, nb - 1);
-  if (pays && isDiaspora(pays)) return 35000 + extra * 10000;
-  if (mode === 'en_ligne') return 25000 + extra * 10000;
-  if (mode === 'les_deux') return 35000 + extra * 10000;
-  return 30000 + extra * 10000;
+  return calcMonthlyAmount(pays || '', (mode as Mode) || 'presentiel', coursParticuliers, nb);
 }

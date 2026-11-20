@@ -467,7 +467,7 @@ export function StudentProgramFields({ form, courses, onChange }: StudentProgram
           <p className="text-[11px] text-surface-400 italic mt-2">
             {form.coursParticuliers
               ? "Paiement unique, sans mensualité"
-              : "Inscription unique (flat) + mensualité — 30 000 F de base + 10 000 F par concours supplémentaire"}
+              : "Inscription unique (flat) + mensualité — 30 000 F de base + 10 000 F une seule fois si plusieurs concours"}
           </p>
         </div>
       )}
