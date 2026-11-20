@@ -362,14 +362,14 @@ export default function BlogAdminView() {
                     <td className="py-3 px-4 text-sm text-gray-500">{new Date(p.createdAt).toLocaleDateString("fr-FR")}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => openEdit(p)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
-                          <Edit size={20} strokeWidth={2.2} className="shrink-0" />
+                        <button onClick={() => openEdit(p)} className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
+                          <Edit size={16} strokeWidth={2} className="shrink-0" />
                         </button>
-                        <a href={`/blog/${p.slug}`} target="_blank" rel="noopener noreferrer" className="w-10 h-10 flex items-center justify-center rounded-lg bg-accent-100 text-accent-800 border border-accent-300 hover:bg-accent-200 transition-colors shrink-0" title="Voir" aria-label="Voir">
-                          <Eye size={20} strokeWidth={2.2} className="shrink-0" />
+                        <a href={`/blog/${p.slug}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 flex items-center justify-center rounded-lg bg-accent-100 text-accent-800 border border-accent-300 hover:bg-accent-200 transition-colors shrink-0" title="Voir" aria-label="Voir">
+                          <Eye size={16} strokeWidth={2} className="shrink-0" />
                         </a>
-                        <button onClick={() => handleDelete(p.id)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
-                          <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />
+                        <button onClick={() => handleDelete(p.id)} className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                          <Trash2 size={16} strokeWidth={2} className="shrink-0" />
                         </button>
                       </div>
                     </td>

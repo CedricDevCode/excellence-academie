@@ -12,6 +12,7 @@ import {
 } from "../utils/api";
 import TeacherSessionsView from "../components/TeacherSessionsView";
 import TeacherSalariesView from "../components/TeacherSalariesView";
+import MessagesPanel from "../components/MessagesPanel";
 import { generateInvoiceReport } from "../utils/pdf";
 
 const EXPENSE_CATEGORIES = [
@@ -748,6 +749,9 @@ export default function AccountantDashboard() {
           </div>
         );
 
+      case "messages":
+        return <MessagesPanel embedded />;
+
       default:
         return (
           <>
@@ -946,10 +950,10 @@ export default function AccountantDashboard() {
             </button>
           ))}
           <div className={`pt-3 mt-1 border-t border-green-600/30 space-y-0.5 ${sidebarCollapsed ? "px-0" : "px-1"}`}>
-            <a href="/messages" title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
+            <button onClick={() => { setActiveTab('messages'); setSidebarOpen(false); }} title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'messages' ? 'bg-white/15 text-white font-bold' : 'text-amber-100 hover:bg-white/10'} ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`} aria-current={activeTab === 'messages' ? "page" : undefined}>
               <MessageSquare size={18} className="shrink-0" />
               {!sidebarCollapsed && <span className="truncate">Messages</span>}
-            </a>
+            </button>
             <a href="/bibliotheque" title={sidebarCollapsed ? "Bibliothèque" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
               <BookOpen size={18} className="shrink-0" />
               {!sidebarCollapsed && <span className="truncate">Bibliothèque</span>}

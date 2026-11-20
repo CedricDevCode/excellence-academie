@@ -75,7 +75,7 @@ function StudentsView() {
   const [completionCourseIds, setCompletionCourseIds] = useState<string[]>([]);
   const [completionMode, setCompletionMode] = useState<'presentiel' | 'en_ligne' | 'les_deux'>('presentiel');
   const [completionPaidAt, setCompletionPaidAt] = useState(() => new Date().toISOString().split('T')[0]);
-  const [completionRemiseAmount, setCompletionRemiseAmount] = useState(0);
+  const [completionRemiseAmount, setCompletionRemiseAmount] = useState('');
   const [completionRemiseNote, setCompletionRemiseNote] = useState('');
   const [completionRemiseDate, setCompletionRemiseDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [completionOtpSent, setCompletionOtpSent] = useState(false);
@@ -90,7 +90,7 @@ function StudentsView() {
     setCompletionCourseIds([]);
     setCompletionMode('presentiel');
     setCompletionPaidAt(new Date().toISOString().split('T')[0]);
-    setCompletionRemiseAmount(0);
+    setCompletionRemiseAmount('');
     setCompletionRemiseNote('');
     setCompletionRemiseDate(new Date().toISOString().split('T')[0]);
     setCompletionOtpSent(false);
@@ -110,7 +110,8 @@ function StudentsView() {
   const completionDiaspora = isDiaspora(completionTarget?.pays || '');
   const completionRegPrice = calcRegistrationTotal(selectedCompletionCourses, false, completionTarget?.pays || '', completionTarget?.ville || '');
   const completionMonthly = calcMonthlyTotal(selectedCompletionCourses, false, completionTarget?.pays || '', completionMode);
-  const completionAmount = Math.max(0, completionRegPrice - Math.max(0, Math.min(completionRegPrice, completionRemiseAmount))) + completionMonthly;
+  const completionRemiseValue = Number(completionRemiseAmount) || 0;
+  const completionAmount = Math.max(0, completionRegPrice - Math.max(0, Math.min(completionRegPrice, completionRemiseValue))) + completionMonthly;
 
   const toggleCompletionCourse = (id: string) => {
     setCompletionCourseIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
@@ -119,7 +120,7 @@ function StudentsView() {
   const startCompletion = async () => {
     if (!completionTarget) return;
     if (completionCourseIds.length === 0) { setCompletionError('Sélectionnez au moins une formation.'); return; }
-    if (completionRemiseAmount > 0 && !completionRemiseNote.trim()) { setCompletionError('Un justificatif de remise est requis.'); return; }
+    if (completionRemiseValue > 0 && !completionRemiseNote.trim()) { setCompletionError('Un justificatif de remise est requis.'); return; }
     setCompletionError(null);
     setCompletionLoading(true);
     try {
@@ -128,7 +129,7 @@ function StudentsView() {
         courseIds: completionCourseIds,
         mode: completionMode,
         paidAt: completionPaidAt,
-        remiseAmount: completionRemiseAmount,
+        remiseAmount: completionRemiseValue,
         remiseNote: completionRemiseNote,
         remiseDate: completionRemiseDate,
       } as any);
@@ -858,18 +859,18 @@ function StudentsView() {
                           <td className="px-5 py-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
                               {(studentCourses.length === 0 || !(u.payments || []).some((p: any) => p.status === 'SUCCESS')) && (
-                                <button onClick={() => openCompletion(u)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors shrink-0" title="Finaliser l'inscription (encaisser le paiement)" aria-label="Finaliser l'inscription">
-                                  <Banknote size={20} strokeWidth={2.2} className="shrink-0" />
+                                <button onClick={() => openCompletion(u)} className="w-9 h-9 flex items-center justify-center rounded-lg bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors shrink-0" title="Finaliser l'inscription (encaisser le paiement)" aria-label="Finaliser l'inscription">
+                                  <Banknote size={16} strokeWidth={2} className="shrink-0" />
                                 </button>
                               )}
-                              <button onClick={() => openEditModal(u)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
-                                <Edit size={20} strokeWidth={2.2} className="shrink-0" />
+                              <button onClick={() => openEditModal(u)} className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
+                                <Edit size={16} strokeWidth={2} className="shrink-0" />
                               </button>
-                              <button onClick={() => handleToggleActive(u)} className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors shrink-0 ${u.isActive !== false ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200' : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'}`} title={u.isActive !== false ? 'Désactiver' : 'Activer'} aria-label={u.isActive !== false ? 'Désactiver' : 'Activer'}>
-                                {u.isActive !== false ? <Clock size={20} strokeWidth={2.2} className="shrink-0" /> : <CheckCircle size={20} strokeWidth={2.2} className="shrink-0" />}
+                              <button onClick={() => handleToggleActive(u)} className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors shrink-0 ${u.isActive !== false ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200' : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'}`} title={u.isActive !== false ? 'Désactiver' : 'Activer'} aria-label={u.isActive !== false ? 'Désactiver' : 'Activer'}>
+                                {u.isActive !== false ? <Clock size={16} strokeWidth={2} className="shrink-0" /> : <CheckCircle size={16} strokeWidth={2} className="shrink-0" />}
                               </button>
-                              <button onClick={() => handleDeleteStudent(u)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
-                                <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />
+                              <button onClick={() => handleDeleteStudent(u)} className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                                <Trash2 size={16} strokeWidth={2} className="shrink-0" />
                               </button>
                             </div>
                           </td>
@@ -1041,7 +1042,7 @@ function StudentsView() {
                         <div className="space-y-2">
                           {paid.map(p => (
                             <div key={p.id} className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-green-50/30 hover:border-green-200 transition-all group">
-                              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                                 <CheckCircle size={18} className="text-green-600" />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1087,7 +1088,7 @@ function StudentsView() {
                         <div className="space-y-2">
                           {unpaid.map(p => (
                             <div key={p.id} className="flex items-center gap-4 p-3 rounded-xl border border-gray-100 hover:bg-red-50/30 hover:border-red-200 transition-all">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${p.status === 'FAILED' ? 'bg-red-100' : 'bg-yellow-100'}`}>
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${p.status === 'FAILED' ? 'bg-red-100' : 'bg-yellow-100'}`}>
                                 <X size={18} className={p.status === 'FAILED' ? 'text-red-600' : 'text-yellow-600'} />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1126,7 +1127,7 @@ function StudentsView() {
                             const daysUntil = Math.ceil((nextDate.getTime() - now.getTime()) / 86400000);
                             return (
                               <div key={sub.id} className={`flex items-center gap-4 p-3 rounded-xl border transition-all ${isOverdue ? 'bg-orange-50 border-orange-200' : 'bg-blue-50/50 border-blue-100 hover:border-blue-200'}`}>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isOverdue ? 'bg-orange-100' : 'bg-blue-100'}`}>
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isOverdue ? 'bg-orange-100' : 'bg-blue-100'}`}>
                                   <Clock size={18} className={isOverdue ? 'text-orange-600' : 'text-blue-600'} />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1344,24 +1345,26 @@ function StudentsView() {
                   {/* Remise (optionnel) */}
                   <div className="rounded border border-dashed border-surface-300 p-3 bg-surface-50/40">
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-surface-400 mb-2">Remise sur l'inscription (optionnel)</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-amount">Montant (F)</label>
-                        <input id="cr-remise-amount" type="number" min={0} step={1000} value={completionRemiseAmount} onChange={e => setCompletionRemiseAmount(Math.max(0, Number(e.target.value) || 0))}
-                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs num focus:border-primary-600 focus:outline-none" placeholder="0" />
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-amount">Montant (F)</label>
+                          <input id="cr-remise-amount" type="number" min={0} step={1000} value={completionRemiseAmount} onChange={e => setCompletionRemiseAmount(e.target.value)}
+                            className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs num focus:border-primary-600 focus:outline-none" placeholder="Ex: 5000" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-date">Date de remise</label>
+                          <input id="cr-remise-date" type="date" value={completionRemiseDate} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionRemiseDate(e.target.value)}
+                            className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" />
+                        </div>
                       </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-note">Justificatif {completionRemiseAmount > 0 && '*'}</label>
-                        <input id="cr-remise-note" type="text" value={completionRemiseNote} onChange={e => setCompletionRemiseNote(e.target.value)}
-                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" placeholder="Ex: remise 10 % accordée le 17/11/2026" />
-                      </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-date">Date de remise</label>
-                        <input id="cr-remise-date" type="date" value={completionRemiseDate} max={new Date().toISOString().split('T')[0]} onChange={e => setCompletionRemiseDate(e.target.value)}
-                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none" />
+                        <label className="block text-[10px] font-bold text-surface-500 mb-1" htmlFor="cr-remise-note">Justificatif {completionRemiseValue > 0 && '*'}</label>
+                        <textarea id="cr-remise-note" rows={3} value={completionRemiseNote} onChange={e => setCompletionRemiseNote(e.target.value)}
+                          className="w-full px-2.5 py-2 bg-white border border-surface-300 rounded-xl text-xs focus:border-primary-600 focus:outline-none resize-none" placeholder="Ex: remise 10 % accordée le 17/11/2026" />
                       </div>
                     </div>
-                    {completionRemiseAmount > 0 && <p className="text-[11px] text-accent-700 font-semibold mt-2">Remise de {completionRemiseAmount.toLocaleString('fr-FR')} F — enregistrée sur le paiement.</p>}
+                    {completionRemiseValue > 0 && <p className="text-[11px] text-accent-700 font-semibold mt-2">Remise de {completionRemiseValue.toLocaleString('fr-FR')} F — enregistrée sur le paiement.</p>}
                   </div>
 
                   {selectedCompletionCourses.length > 0 ? (
@@ -1370,10 +1373,10 @@ function StudentsView() {
                         <span className="text-surface-500">Frais d'inscription</span>
                         <span className="font-bold text-surface-900 tabular-nums">{completionRegPrice.toLocaleString('fr-FR')} FCFA</span>
                       </div>
-                      {completionRemiseAmount > 0 && (
+                      {completionRemiseValue > 0 && (
                         <div className="flex items-center justify-between gap-3 text-xs text-accent-700">
                           <span>Remise</span>
-                          <span className="font-bold tabular-nums">− {Math.min(completionRegPrice, completionRemiseAmount).toLocaleString('fr-FR')} FCFA</span>
+                          <span className="font-bold tabular-nums">− {Math.min(completionRegPrice, completionRemiseValue).toLocaleString('fr-FR')} FCFA</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-3 text-xs">

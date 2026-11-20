@@ -392,11 +392,11 @@ export default function ShopProductsView() {
                 <div className="absolute top-2 right-2 flex gap-1.5 opacity-100 transition-all duration-200">
                   <button onClick={() => openEdit(p)} title="Modifier" aria-label="Modifier"
                     className="w-9 h-9 rounded-full bg-primary-100 text-primary-800 border border-primary-300 shadow-md flex items-center justify-center hover:bg-primary-200 transition-colors shrink-0">
-                    <Edit size={18} strokeWidth={2.2} className="shrink-0" />
+                    <Edit size={16} strokeWidth={2} className="shrink-0" />
                   </button>
                   <button onClick={() => handleDelete(p.id)} disabled={deletingId === p.id} title="Supprimer" aria-label="Supprimer"
                     className="w-9 h-9 rounded-full bg-red-100 text-red-700 border border-red-300 shadow-md flex items-center justify-center hover:bg-red-200 transition-colors shrink-0">
-                    {deletingId === p.id ? <Loader2 size={18} className="animate-spin shrink-0" /> : <Trash2 size={18} strokeWidth={2.2} className="shrink-0" />}
+                    {deletingId === p.id ? <Loader2 size={16} className="animate-spin shrink-0" /> : <Trash2 size={16} strokeWidth={2} className="shrink-0" />}
                   </button>
                 </div>
                 <div className="absolute top-2 left-2">

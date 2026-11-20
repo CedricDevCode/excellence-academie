@@ -31,6 +31,7 @@ const ShopOrdersView = lazy(() => import("../components/ShopOrdersView"));
 const BannersView = lazy(() => import("../components/BannersView"));
 const TeacherSessionsView = lazy(() => import("../components/TeacherSessionsView"));
 const BlogAdminView = lazy(() => import("../components/admin/BlogAdminView"));
+const MessagesPanel = lazy(() => import("../components/MessagesPanel"));
 const SettingsView = lazy(() => import("../components/admin/SettingsView"));
 const SiteConfigView = lazy(() => import("../components/admin/SiteConfigView"));
 
@@ -98,6 +99,7 @@ const TAB_TITLES: Record<string, string> = {
   compta: "Comptabilité",
   sessions: "Séances",
   notifs: "Notifications",
+  messages: "Messages",
   users: "Utilisateurs",
   reports: "Rapports",
   testimonials: "Lauréats & Avis",
@@ -254,6 +256,7 @@ case 'mensualites': return <MensualitesView />;
       case 'compta': return <ComptaView />;
       case 'sessions': return <TeacherSessionsView />;
       case 'notifs': return <NotifsView />;
+      case 'messages': return <MessagesPanel embedded />;
       case 'users': return <UsersView />;
       case 'reports': return <ReportsView apiStats={apiStats} />;
       case 'testimonials': return <TestimonialsView />;
@@ -342,10 +345,10 @@ case 'mensualites': return <MensualitesView />;
             );
           })}
           <div className={`pt-3 mt-1 border-t border-white/[0.06] space-y-0.5 ${sidebarCollapsed ? "px-0" : "px-1"}`}>
-            <a href="/messages" title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all text-[#d8cdb4] hover:bg-white/[0.05] hover:text-[#f3ead9] ${sidebarCollapsed ? "justify-center p-3" : "pl-4 pr-3 py-2"}`}>
+            <button onClick={() => { setActiveTab('messages'); setSidebarOpen(false); }} title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all ${activeTab === 'messages' ? 'bg-white/[0.12] text-[#f3ead9]' : 'text-[#d8cdb4] hover:bg-white/[0.05] hover:text-[#f3ead9]'} ${sidebarCollapsed ? "justify-center p-3" : "pl-4 pr-3 py-2"}`} aria-current={activeTab === 'messages' ? "page" : undefined}>
               <MessageSquare size={18} className="shrink-0" />
               {!sidebarCollapsed && <span className="truncate text-left">Messages</span>}
-            </a>
+            </button>
             <a href="/bibliotheque" title={sidebarCollapsed ? "Bibliothèque" : undefined} className={`w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all text-[#d8cdb4] hover:bg-white/[0.05] hover:text-[#f3ead9] ${sidebarCollapsed ? "justify-center p-3" : "pl-4 pr-3 py-2"}`}>
               <BookOpen size={18} className="shrink-0" />
               {!sidebarCollapsed && <span className="truncate text-left">Bibliothèque</span>}

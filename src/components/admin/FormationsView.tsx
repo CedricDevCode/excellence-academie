@@ -278,8 +278,8 @@ function FormationsView() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowForm(false)}
-              className="w-10 h-10 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors font-bold text-base"
-              title="Retour à la liste"
+              className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 transition-colors font-bold text-base"
+              title="Retour à la liste" aria-label="Retour à la liste"
             >
               ←
             </button>

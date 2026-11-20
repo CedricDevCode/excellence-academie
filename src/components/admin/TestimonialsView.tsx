@@ -438,28 +438,28 @@ export default function TestimonialsView() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleToggleActive(t.id, t.isActive)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-lg border text-xs font-semibold transition-colors shrink-0 ${
+                      className={`w-9 h-9 flex items-center justify-center rounded-lg border text-xs font-semibold transition-colors shrink-0 ${
                         t.isActive ? "bg-green-100 text-green-800 border-green-300 hover:bg-green-200" : "bg-surface-100 text-surface-700 border-surface-300 hover:bg-surface-200"
                       }`}
                       title={t.isActive ? "Masquer ce profil" : "Publier sur le site"} aria-label={t.isActive ? "Masquer ce profil" : "Publier sur le site"}
                     >
-                      {t.isActive ? <Eye size={20} strokeWidth={2.2} className="shrink-0" /> : <EyeOff size={20} strokeWidth={2.2} className="shrink-0" />}
+                      {t.isActive ? <Eye size={16} strokeWidth={2} className="shrink-0" /> : <EyeOff size={16} strokeWidth={2} className="shrink-0" />}
                     </button>
 
                     <button
                       onClick={() => openEdit(t)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0"
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0"
                       title="Modifier" aria-label="Modifier"
                     >
-                      <Edit size={20} strokeWidth={2.2} className="shrink-0" />
+                      <Edit size={16} strokeWidth={2} className="shrink-0" />
                     </button>
 
                     <button
                       onClick={() => handleDelete(t.id)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0"
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0"
                       title="Supprimer" aria-label="Supprimer"
                     >
-                      <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />
+                      <Trash2 size={16} strokeWidth={2} className="shrink-0" />
                     </button>
                   </div>
                 </div>

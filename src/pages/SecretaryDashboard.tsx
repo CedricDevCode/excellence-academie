@@ -6,6 +6,7 @@ import TeacherSessionsView from "../components/TeacherSessionsView";
 import TeacherSalariesView from "../components/TeacherSalariesView";
 import ShopProductsView from "../components/ShopProductsView";
 import ShopOrdersView from "../components/ShopOrdersView";
+import MessagesPanel from "../components/MessagesPanel";
 import { useToast } from "../components/Toast";
 
 const NAV_ITEMS = [
@@ -83,6 +84,7 @@ export default function SecretaryDashboard() {
           </div>
         );
       case 'notifs': return <NotifsView />;
+      case 'messages': return <MessagesPanel embedded />;
       case 'shop_products': return <ShopProductsView />;
       case 'shop_orders': return <ShopOrdersView />;
       default: return <TeacherSessionsView />;
@@ -116,10 +118,10 @@ export default function SecretaryDashboard() {
             </button>
           ))}
           <div className={`pt-3 mt-1 border-t border-primary-400/30 space-y-0.5 ${sidebarCollapsed ? "px-0" : "px-1"}`}>
-            <a href="/messages" title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 hover:text-white transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
+            <button onClick={() => { setActiveTab('messages'); setSidebarOpen(false); }} title={sidebarCollapsed ? "Messages" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'messages' ? 'bg-white/15 text-white font-bold' : 'text-amber-100 hover:bg-white/10 hover:text-white'} ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`} aria-current={activeTab === 'messages' ? "page" : undefined}>
               <MessageSquare size={18} className="shrink-0" />
               {!sidebarCollapsed && <span className="truncate">Messages</span>}
-            </a>
+            </button>
             <a href="/bibliotheque" title={sidebarCollapsed ? "Bibliothèque" : undefined} className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 hover:text-white transition-all ${sidebarCollapsed ? "justify-center p-3" : "px-4 py-2.5"}`}>
               <BookOpen size={18} className="shrink-0" />
               {!sidebarCollapsed && <span className="truncate">Bibliothèque</span>}

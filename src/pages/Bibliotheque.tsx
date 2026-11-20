@@ -132,12 +132,12 @@ export default function Bibliotheque() {
                   </div>
                   <div className="flex items-center gap-2">
                     <a href={libraryDocumentUrl(d.id)} target="_blank" rel="noreferrer"
-                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-700 text-white hover:bg-primary-800 transition-colors shrink-0" title="Télécharger" aria-label="Télécharger">
-                      <Download size={20} strokeWidth={2.2} className="shrink-0" />
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-700 text-white hover:bg-primary-800 transition-colors shrink-0" title="Télécharger" aria-label="Télécharger">
+                      <Download size={16} strokeWidth={2} className="shrink-0" />
                     </a>
                     {(me?.role === 'ADMIN' || me?.id === d.uploadedById) && (
-                      <button onClick={() => handleDelete(d)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
-                        <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />
+                      <button onClick={() => handleDelete(d)} className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                        <Trash2 size={16} strokeWidth={2} className="shrink-0" />
                       </button>
                     )}
                   </div>

@@ -8,6 +8,7 @@ import {
 import { getMe, logout as apiLogout, fetchPaymentsByUser, fetchSubscriptionsByUser, fetchNotifications, markNotificationRead, markAllNotificationsRead } from "../utils/api";
 import { useLiveNotifications } from "../hooks/useLiveNotifications";
 import { motion, AnimatePresence } from "framer-motion";
+import MessagesPanel from "../components/MessagesPanel";
 
 const NAV_ITEMS = [
   { icon: <Home size={18} />, label: "Tableau de bord", id: "dashboard" },
@@ -181,9 +182,9 @@ export default function ParentDashboard() {
                     {item.icon} {item.label}
                   </button>
                 ))}
-                <a href="/messages" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
+                <button onClick={() => { setActiveTab('messages'); setMobileNavOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'messages' ? 'bg-accent-50 text-accent-700' : 'text-surface-600 hover:bg-surface-50'}`} aria-current={activeTab === 'messages' ? "page" : undefined}>
                   <MessageSquare size={18} /> Messages
-                </a>
+                </button>
                 <a href="/bibliotheque" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
                   <BookOpen size={18} /> Bibliothèque
                 </a>
@@ -204,9 +205,9 @@ export default function ParentDashboard() {
                   {item.icon} {item.label}
                 </button>
               ))}
-              <a href="/messages" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
+              <button onClick={() => { setActiveTab('messages'); setMobileNavOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'messages' ? 'bg-accent-50 text-accent-700' : 'text-surface-600 hover:bg-surface-50'}`} aria-current={activeTab === 'messages' ? "page" : undefined}>
                 <MessageSquare size={18} /> Messages
-              </a>
+              </button>
               <a href="/bibliotheque" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-surface-600 hover:bg-surface-50 transition-colors">
                 <BookOpen size={18} /> Bibliothèque
               </a>
@@ -505,6 +506,8 @@ export default function ParentDashboard() {
                 </div>
               </div>
             )}
+
+            {activeTab === 'messages' && <MessagesPanel embedded />}
           </main>
         </div>
       </div>

@@ -30,6 +30,11 @@ const DUE_LABEL: Record<FilterTab, string> = {
 
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
+function canCashCollect(row: Row) {
+  if (row.status !== "a_jour") return true;
+  return startOfDay(new Date()) >= new Date(row.due.getFullYear(), row.due.getMonth(), 1);
+}
+
 export default function MensualitesView() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -322,14 +327,16 @@ export default function MensualitesView() {
                   </td>
                   <td className="px-5 py-3.5 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => openCashPay(r)} title="Encaisser en espèces"
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-700 text-white text-xs font-bold hover:bg-primary-800 transition-colors">
-                        <Banknote size={20} strokeWidth={2.2} className="shrink-0" /> Encaisser
-                      </button>
+                      {canCashCollect(r) && (
+                        <button onClick={() => openCashPay(r)} title="Encaisser en espèces" aria-label="Encaisser en espèces"
+                          className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-700 text-white hover:bg-primary-800 transition-colors shrink-0">
+                          <Banknote size={16} strokeWidth={2} className="shrink-0" />
+                        </button>
+                      )}
                       {r.status === "retard" && (
                         <button onClick={() => remindOne(r)} title="Envoyer un rappel" aria-label="Envoyer un rappel"
-                          className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0">
-                          <Send size={20} strokeWidth={2.2} className="shrink-0" />
+                          className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0">
+                          <Send size={16} strokeWidth={2} className="shrink-0" />
                         </button>
                       )}
                     </div>

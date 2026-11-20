@@ -12,6 +12,7 @@ import StudentSessionsView from "../components/StudentSessionsView";
 import ContractView from "../components/ContractView";
 import StudentPurchasesView from "../components/StudentPurchasesView";
 import AddCourseModal from "../components/AddCourseModal";
+import MessagesPanel from "../components/MessagesPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton, Card, Badge, Button, ProgressBar } from "../components/ui";
 
@@ -1243,13 +1244,14 @@ export default function StudentDashboard() {
       case "purchases": return <StudentPurchasesView />;
       case "contract": return <ContractsPage contract={contract} user={user} onRefresh={loadData} />;
       case "notifs": return <NotificationsPage notifs={notifs} onRefresh={handleRefresh} />;
+      case "messages": return <MessagesPanel embedded />;
       case "profile": return <ProfilePage user={user} onRefresh={handleRefresh} />;
       case "blog": return <StudentBlogView />;
       default: return <DashboardOverview user={user} payments={payments} subscriptions={subscriptions} onRefresh={handleRefresh} onOpenAddCourse={() => setShowAddCourseModal(true)} />;
     }
   };
 
-  const activeTitle = NAV_ITEMS.find(item => item.id === activeTab)?.label || "Tableau de bord";
+  const activeTitle = NAV_ITEMS.find(item => item.id === activeTab)?.label || (activeTab === 'messages' ? 'Messages' : 'Tableau de bord');
   const initials = user?.name?.split(" ").map((s: string) => s[0]).join("").toUpperCase() || "E";
 
   if (loading) {
@@ -1291,9 +1293,9 @@ export default function StudentDashboard() {
             </button>
           ))}
           <div className="pt-2 mt-2 border-t border-white/15 space-y-1">
-            <a href="/messages" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all">
+            <button onClick={() => { setActiveTab('messages'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'messages' ? 'bg-white/15 text-white font-bold' : 'text-amber-100 hover:bg-white/10'}`} aria-current={activeTab === 'messages' ? "page" : undefined}>
               <MessageSquare size={18} /> Messages
-            </a>
+            </button>
             <a href="/bibliotheque" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all">
               <BookOpen size={18} /> Bibliothèque
             </a>

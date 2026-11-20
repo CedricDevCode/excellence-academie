@@ -181,7 +181,7 @@ export default function CategoriesView() {
                 <div className="flex items-start justify-between gap-2 mt-1">
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded flex items-center justify-center shrink-0 shadow-sm"
+                      className="w-9 h-9 rounded flex items-center justify-center shrink-0 shadow-sm"
                       style={{ backgroundColor: `${cat.color || '#c97e00'}18`, color: cat.color || '#c97e00' }}
                     >
                       <Tag size={18} />
@@ -194,14 +194,14 @@ export default function CategoriesView() {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => openEdit(cat)}
-                      className="w-10 h-10 rounded-lg bg-primary-100 text-primary-800 border border-primary-300 flex items-center justify-center hover:bg-primary-200 transition-colors shrink-0"
+                      className="w-9 h-9 rounded-lg bg-primary-100 text-primary-800 border border-primary-300 flex items-center justify-center hover:bg-primary-200 transition-colors shrink-0"
                       title="Modifier" aria-label="Modifier"
-                    ><Edit size={20} strokeWidth={2.2} className="shrink-0" /></button>
+                    ><Edit size={16} strokeWidth={2} className="shrink-0" /></button>
                     <button
                       onClick={() => setDeleteTarget(cat)}
-                      className="w-10 h-10 rounded-lg bg-red-100 text-red-700 border border-red-300 flex items-center justify-center hover:bg-red-200 transition-colors shrink-0"
+                      className="w-9 h-9 rounded-lg bg-red-100 text-red-700 border border-red-300 flex items-center justify-center hover:bg-red-200 transition-colors shrink-0"
                       title="Supprimer" aria-label="Supprimer"
-                    ><Trash2 size={20} strokeWidth={2.2} className="shrink-0" /></button>
+                    ><Trash2 size={16} strokeWidth={2} className="shrink-0" /></button>
                   </div>
                 </div>
 

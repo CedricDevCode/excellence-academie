@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getMe, logout as apiLogout, fetchUsers, fetchNotifications, markNotificationRead, fetchEvents, fetchEvaluations, createEvaluation, deleteEvaluation, fetchSessions, completeSession, uploadSessionFile, getSessionFiles, getDownloadUrl, fetchBlogPosts, deleteBlogPost } from "../utils/api";
 import { useToast } from "../components/Toast";
 import { Skeleton, Card, Badge, Button } from "../components/ui";
+import MessagesPanel from "../components/MessagesPanel";
 
 const NAV_ITEMS = [
   { icon: <Home size={18} />, label: "Tableau de bord", id: "dashboard" },
@@ -331,10 +332,10 @@ function EvalsView({ user }: { user: any }) {
                       <button
                         onClick={() => handleDelete(ev.id)}
                         disabled={deletingId === ev.id}
-                        className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors disabled:opacity-50 shrink-0"
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors disabled:opacity-50 shrink-0"
                         title="Supprimer" aria-label="Supprimer"
                       >
-                        {deletingId === ev.id ? <Loader2 size={20} className="animate-spin shrink-0" /> : <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />}
+                        {deletingId === ev.id ? <Loader2 size={16} className="animate-spin shrink-0" /> : <Trash2 size={16} strokeWidth={2} className="shrink-0" />}
                       </button>
                     </td>
                   </tr>
@@ -494,11 +495,11 @@ function BlogView() {
                     <td className="py-3 px-4 text-sm text-gray-500">{new Date(p.createdAt).toLocaleDateString("fr-FR")}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <Link to={`/blog/edit/${p.id}`} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
-                          <Edit size={20} strokeWidth={2.2} className="shrink-0" />
+                        <Link to={`/blog/edit/${p.id}`} className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
+                          <Edit size={16} strokeWidth={2} className="shrink-0" />
                         </Link>
-                        <Link to={`/blog/${p.slug}`} className="w-10 h-10 flex items-center justify-center rounded-lg bg-accent-100 text-accent-800 border border-accent-300 hover:bg-accent-200 transition-colors shrink-0" title="Voir" aria-label="Voir">
-                          <Eye size={20} strokeWidth={2.2} className="shrink-0" />
+                        <Link to={`/blog/${p.slug}`} className="w-9 h-9 flex items-center justify-center rounded-lg bg-accent-100 text-accent-800 border border-accent-300 hover:bg-accent-200 transition-colors shrink-0" title="Voir" aria-label="Voir">
+                          <Eye size={16} strokeWidth={2} className="shrink-0" />
                         </Link>
                       </div>
                     </td>
@@ -691,6 +692,9 @@ export default function TeacherDashboard() {
       case "blog":
         return <BlogView />;
 
+      case "messages":
+        return <MessagesPanel embedded />;
+
       default:
         return (
           <>
@@ -796,9 +800,9 @@ export default function TeacherDashboard() {
             </motion.button>
           ))}
           <div className="pt-2 mt-2 border-t border-primary-500/30 space-y-1">
-            <a href="/messages" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all">
+            <button onClick={() => { setActiveTab('messages'); setSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === 'messages' ? 'bg-white/15 text-white font-bold' : 'text-amber-100 hover:bg-white/10'}`} aria-current={activeTab === 'messages' ? "page" : undefined}>
               <MessageSquare size={18} /> Messages
-            </a>
+            </button>
             <a href="/bibliotheque" className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-amber-100 hover:bg-white/10 transition-all">
               <BookOpen size={18} /> Bibliothèque
             </a>

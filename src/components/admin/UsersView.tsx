@@ -311,17 +311,17 @@ export default function UsersView() {
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <button type="button" onClick={() => openModal(user)}
-                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
-                            <Edit size={20} strokeWidth={2.2} className="shrink-0" />
+                            className="w-9 h-9 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
+                            <Edit size={16} strokeWidth={2} className="shrink-0" />
                           </button>
                           <button type="button" onClick={() => handleToggleActive(user)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors shrink-0 ${isActive ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200' : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'}`}
+                            className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors shrink-0 ${isActive ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200' : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'}`}
                             title={isActive ? 'Desactiver' : 'Activer'} aria-label={isActive ? 'Desactiver' : 'Activer'}>
-                            {isActive ? <XCircle size={20} strokeWidth={2.2} className="shrink-0" /> : <CheckCircle size={20} strokeWidth={2.2} className="shrink-0" />}
+                            {isActive ? <XCircle size={16} strokeWidth={2} className="shrink-0" /> : <CheckCircle size={16} strokeWidth={2} className="shrink-0" />}
                           </button>
                           <button type="button" onClick={() => handleDelete(user)} disabled={deletingId === user.id}
-                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
-                            {deletingId === user.id ? <Loader2 size={20} className="animate-spin shrink-0" /> : <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                            {deletingId === user.id ? <Loader2 size={16} className="animate-spin shrink-0" /> : <Trash2 size={16} strokeWidth={2} className="shrink-0" />}
                           </button>
                         </div>
                       </td>
