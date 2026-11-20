@@ -856,20 +856,20 @@ function StudentsView() {
                             )}
                           </td>
                           <td className="px-5 py-4 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-2">
                               {(studentCourses.length === 0 || !(u.payments || []).some((p: any) => p.status === 'SUCCESS')) && (
-                                <button onClick={() => openCompletion(u)} className="p-2 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors" title="Finaliser l'inscription (encaisser le paiement)">
-                                  <Banknote size={17} />
+                                <button onClick={() => openCompletion(u)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors shrink-0" title="Finaliser l'inscription (encaisser le paiement)" aria-label="Finaliser l'inscription">
+                                  <Banknote size={20} strokeWidth={2.2} className="shrink-0" />
                                 </button>
                               )}
-                              <button onClick={() => openEditModal(u)} className="p-2 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
-                                <Edit size={17} />
+                              <button onClick={() => openEditModal(u)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
+                                <Edit size={20} strokeWidth={2.2} className="shrink-0" />
                               </button>
-                              <button onClick={() => handleToggleActive(u)} className={`p-2 rounded-lg transition-colors ${u.isActive !== false ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`} title={u.isActive !== false ? 'Désactiver' : 'Activer'}>
-                                {u.isActive !== false ? <Clock size={17} /> : <CheckCircle size={17} />}
+                              <button onClick={() => handleToggleActive(u)} className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors shrink-0 ${u.isActive !== false ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200' : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'}`} title={u.isActive !== false ? 'Désactiver' : 'Activer'} aria-label={u.isActive !== false ? 'Désactiver' : 'Activer'}>
+                                {u.isActive !== false ? <Clock size={20} strokeWidth={2.2} className="shrink-0" /> : <CheckCircle size={20} strokeWidth={2.2} className="shrink-0" />}
                               </button>
-                              <button onClick={() => handleDeleteStudent(u)} className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors" title="Supprimer">
-                                <Trash2 size={17} />
+                              <button onClick={() => handleDeleteStudent(u)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                                <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />
                               </button>
                             </div>
                           </td>

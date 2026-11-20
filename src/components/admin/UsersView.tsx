@@ -309,19 +309,19 @@ export default function UsersView() {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">{user.ville || '—'}</td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-2">
                           <button type="button" onClick={() => openModal(user)}
-                            className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
-                            <Edit size={15} />
+                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
+                            <Edit size={20} strokeWidth={2.2} className="shrink-0" />
                           </button>
                           <button type="button" onClick={() => handleToggleActive(user)}
-                            className={`p-1.5 rounded-lg transition-colors ${isActive ? 'hover:bg-yellow-50 text-yellow-600' : 'hover:bg-green-50 text-green-600'}`}
-                            title={isActive ? 'Desactiver' : 'Activer'}>
-                            {isActive ? <XCircle size={15} /> : <CheckCircle size={15} />}
+                            className={`w-10 h-10 flex items-center justify-center rounded-lg border transition-colors shrink-0 ${isActive ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200' : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'}`}
+                            title={isActive ? 'Desactiver' : 'Activer'} aria-label={isActive ? 'Desactiver' : 'Activer'}>
+                            {isActive ? <XCircle size={20} strokeWidth={2.2} className="shrink-0" /> : <CheckCircle size={20} strokeWidth={2.2} className="shrink-0" />}
                           </button>
                           <button type="button" onClick={() => handleDelete(user)} disabled={deletingId === user.id}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors" title="Supprimer">
-                            {deletingId === user.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                            className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                            {deletingId === user.id ? <Loader2 size={20} className="animate-spin shrink-0" /> : <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />}
                           </button>
                         </div>
                       </td>

@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import {
   Home, Users, BookOpen, Bell, LogOut, Menu, X, Calendar,
   ChevronRight, CheckCircle, Clock, FileText, GraduationCap,
-  AlertCircle, Loader2, Search, Monitor, MapPin, Upload, Download, User, Globe, Trash2, MessageSquare
+  AlertCircle, Loader2, Search, Monitor, MapPin, Upload, Download, User, Globe, Trash2, MessageSquare, Edit, Eye
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMe, logout as apiLogout, fetchUsers, fetchNotifications, markNotificationRead, fetchEvents, fetchEvaluations, createEvaluation, deleteEvaluation, fetchSessions, completeSession, uploadSessionFile, getSessionFiles, getDownloadUrl, fetchBlogPosts, deleteBlogPost } from "../utils/api";
@@ -331,10 +331,10 @@ function EvalsView({ user }: { user: any }) {
                       <button
                         onClick={() => handleDelete(ev.id)}
                         disabled={deletingId === ev.id}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors disabled:opacity-50"
-                        title="Supprimer"
+                        className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors disabled:opacity-50 shrink-0"
+                        title="Supprimer" aria-label="Supprimer"
                       >
-                        {deletingId === ev.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                        {deletingId === ev.id ? <Loader2 size={20} className="animate-spin shrink-0" /> : <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />}
                       </button>
                     </td>
                   </tr>
@@ -493,12 +493,12 @@ function BlogView() {
                     <td className="py-3 px-4 text-sm text-gray-500">{p._count?.exercises || 0}</td>
                     <td className="py-3 px-4 text-sm text-gray-500">{new Date(p.createdAt).toLocaleDateString("fr-FR")}</td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-1">
-                        <Link to={`/blog/edit/${p.id}`} className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Modifier">
-                          <BookOpen size={14} />
+                      <div className="flex items-center gap-2">
+                        <Link to={`/blog/edit/${p.id}`} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Modifier" aria-label="Modifier">
+                          <Edit size={20} strokeWidth={2.2} className="shrink-0" />
                         </Link>
-                        <Link to={`/blog/${p.slug}`} className="p-1.5 rounded-lg hover:bg-accent-50 text-accent-700 transition-colors" title="Voir">
-                          <BookOpen size={14} />
+                        <Link to={`/blog/${p.slug}`} className="w-10 h-10 flex items-center justify-center rounded-lg bg-accent-100 text-accent-800 border border-accent-300 hover:bg-accent-200 transition-colors shrink-0" title="Voir" aria-label="Voir">
+                          <Eye size={20} strokeWidth={2.2} className="shrink-0" />
                         </Link>
                       </div>
                     </td>

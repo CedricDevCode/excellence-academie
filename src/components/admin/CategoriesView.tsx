@@ -191,17 +191,17 @@ export default function CategoriesView() {
                       <span className="text-[11px] text-gray-400">{cat.coursesCount || 0} formation{(cat.coursesCount || 0) > 1 ? 's' : ''}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => openEdit(cat)}
-                      className="w-8 h-8 rounded-lg bg-primary-50 text-[#c97e00] flex items-center justify-center hover:bg-primary-100 transition-colors"
-                      title="Modifier"
-                    ><Edit size={14} /></button>
+                      className="w-10 h-10 rounded-lg bg-primary-100 text-primary-800 border border-primary-300 flex items-center justify-center hover:bg-primary-200 transition-colors shrink-0"
+                      title="Modifier" aria-label="Modifier"
+                    ><Edit size={20} strokeWidth={2.2} className="shrink-0" /></button>
                     <button
                       onClick={() => setDeleteTarget(cat)}
-                      className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors"
-                      title="Supprimer"
-                    ><Trash2 size={14} /></button>
+                      className="w-10 h-10 rounded-lg bg-red-100 text-red-700 border border-red-300 flex items-center justify-center hover:bg-red-200 transition-colors shrink-0"
+                      title="Supprimer" aria-label="Supprimer"
+                    ><Trash2 size={20} strokeWidth={2.2} className="shrink-0" /></button>
                   </div>
                 </div>
 

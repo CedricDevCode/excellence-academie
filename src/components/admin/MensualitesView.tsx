@@ -323,13 +323,13 @@ export default function MensualitesView() {
                   <td className="px-5 py-3.5 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => openCashPay(r)} title="Encaisser en espèces"
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-600 text-white text-xs font-bold hover:bg-primary-700 transition-colors">
-                        <Banknote size={16} /> Encaisser
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary-700 text-white text-xs font-bold hover:bg-primary-800 transition-colors">
+                        <Banknote size={20} strokeWidth={2.2} className="shrink-0" /> Encaisser
                       </button>
                       {r.status === "retard" && (
-                        <button onClick={() => remindOne(r)} title="Envoyer un rappel"
-                          className="p-2 rounded border border-surface-200 text-surface-500 hover:text-primary-700 hover:border-primary-300 transition-colors">
-                          <Send size={13} />
+                        <button onClick={() => remindOne(r)} title="Envoyer un rappel" aria-label="Envoyer un rappel"
+                          className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0">
+                          <Send size={20} strokeWidth={2.2} className="shrink-0" />
                         </button>
                       )}
                     </div>

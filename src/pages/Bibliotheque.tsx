@@ -130,14 +130,14 @@ export default function Bibliotheque() {
                     <p className="num">{(d.size / 1024 / 1024).toFixed(1)} Mo</p>
                     <p>{new Date(d.createdAt).toLocaleDateString('fr-FR')}</p>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <a href={libraryDocumentUrl(d.id)} target="_blank" rel="noreferrer"
-                      className="p-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors" title="Télécharger" aria-label="Télécharger">
-                      <Download size={15} />
+                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-700 text-white hover:bg-primary-800 transition-colors shrink-0" title="Télécharger" aria-label="Télécharger">
+                      <Download size={20} strokeWidth={2.2} className="shrink-0" />
                     </a>
                     {(me?.role === 'ADMIN' || me?.id === d.uploadedById) && (
-                      <button onClick={() => handleDelete(d)} className="p-2 rounded-lg text-surface-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Supprimer" aria-label="Supprimer">
-                        <Trash2 size={15} />
+                      <button onClick={() => handleDelete(d)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                        <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />
                       </button>
                     )}
                   </div>

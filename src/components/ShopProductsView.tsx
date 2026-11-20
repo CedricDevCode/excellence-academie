@@ -389,14 +389,14 @@ export default function ShopProductsView() {
                     +{cnt - 1}
                   </div>
                 )}
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                  <button onClick={() => openEdit(p)}
-                    className="w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-primary-600 hover:bg-primary-50 transition-colors">
-                    <Edit size={12} />
+                <div className="absolute top-2 right-2 flex gap-1.5 opacity-100 transition-all duration-200">
+                  <button onClick={() => openEdit(p)} title="Modifier" aria-label="Modifier"
+                    className="w-9 h-9 rounded-full bg-primary-100 text-primary-800 border border-primary-300 shadow-md flex items-center justify-center hover:bg-primary-200 transition-colors shrink-0">
+                    <Edit size={18} strokeWidth={2.2} className="shrink-0" />
                   </button>
-                  <button onClick={() => handleDelete(p.id)} disabled={deletingId === p.id}
-                    className="w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-red-600 hover:bg-red-50 transition-colors">
-                    {deletingId === p.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  <button onClick={() => handleDelete(p.id)} disabled={deletingId === p.id} title="Supprimer" aria-label="Supprimer"
+                    className="w-9 h-9 rounded-full bg-red-100 text-red-700 border border-red-300 shadow-md flex items-center justify-center hover:bg-red-200 transition-colors shrink-0">
+                    {deletingId === p.id ? <Loader2 size={18} className="animate-spin shrink-0" /> : <Trash2 size={18} strokeWidth={2.2} className="shrink-0" />}
                   </button>
                 </div>
                 <div className="absolute top-2 left-2">

@@ -352,16 +352,16 @@ export default function TeacherSessionsView({ onSessionChange }: Props) {
                           </td>
                           <td className="px-6 py-3">{statusBadge(s.status)}</td>
                           <td className="px-6 py-3">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2">
                               {s.status === 'COMPLETED' && (
                                 <button onClick={() => handleValidate(s.id)} disabled={validatingId === s.id}
-                                  className="p-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors" title="Valider">
-                                  {validatingId === s.id ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
+                                  className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary-100 text-primary-800 border border-primary-300 hover:bg-primary-200 transition-colors shrink-0" title="Valider" aria-label="Valider">
+                                  {validatingId === s.id ? <Loader2 size={20} className="animate-spin shrink-0" /> : <ShieldCheck size={20} strokeWidth={2.2} className="shrink-0" />}
                                 </button>
                               )}
                               {s.status !== 'PAID' && s.status !== 'CANCELLED' && (
-                                <button onClick={() => handleDelete(s)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors" title="Supprimer">
-                                  <Trash2 size={15} />
+                                <button onClick={() => handleDelete(s)} className="w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors shrink-0" title="Supprimer" aria-label="Supprimer">
+                                  <Trash2 size={20} strokeWidth={2.2} className="shrink-0" />
                                 </button>
                               )}
                             </div>
