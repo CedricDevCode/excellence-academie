@@ -98,6 +98,28 @@ export const authFetch = (url: string, options: RequestInit = {}) => {
   });
 };
 
+// Le backend répond 503 pendant son initialisation : on réessaie automatiquement
+// pour éviter les fausses erreurs « Impossible de charger les messages ».
+export const authFetchWithRetry = (url: string, options: RequestInit = {}, attempts = 4): Promise<Response> => {
+  return (async () => {
+    let last: Response | undefined;
+    for (let i = 0; i < attempts; i++) {
+      last = await authFetch(url, options);
+      if (last.status !== 503) return last;
+      if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 900));
+    }
+    return last!;
+  })();
+};
+
+const apiError = async (res: Response, fallback: string) => {
+  try {
+    const body = await res.json();
+    if (body?.error) return new Error(String(body.error));
+  } catch { /* réponse vide ou non-JSON */ }
+  return new Error(fallback);
+};
+
 // Auth
 export const getMe = async () => {
   // Le backend répond 503 pendant son initialisation (quelques secondes à chaud).
@@ -1181,29 +1203,46 @@ const chatUploadFetch = async (url: string, form: FormData) => {
 };
 
 export const fetchContactableUsers = async () => {
-  const res = await authFetch(`${API_BASE_URL}/conversations/users`);
-  if (!res.ok) throw new Error('Failed to fetch contacts');
+  const res = await authFetchWithRetry(`${API_BASE_URL}/conversations/users`);
+  if (!res.ok) throw await apiError(res, 'Impossible de charger les contacts');
   return res.json();
 };
 export const fetchConversations = async () => {
-  const res = await authFetch(`${API_BASE_URL}/conversations`);
-  if (!res.ok) throw new Error('Failed to fetch conversations');
+  const res = await authFetchWithRetry(`${API_BASE_URL}/conversations`);
+  if (!res.ok) throw await apiError(res, 'Impossible de charger les discussions');
   return res.json();
 };
 export const createConversation = async (data: { type: string; title?: string; memberIds: string[] }) => {
   const res = await authFetch(`${API_BASE_URL}/conversations`, { method: 'POST', body: JSON.stringify(data) });
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error || 'Failed to create conversation'); }
+  if (!res.ok) throw await apiError(res, 'Impossible de créer la discussion');
   return res.json();
 };
 export const fetchConversationMessages = async (id: string, before?: string) => {
   const q = before ? `?before=${encodeURIComponent(before)}` : '';
-  const res = await authFetch(`${API_BASE_URL}/conversations/${id}/messages${q}`);
-  if (!res.ok) throw new Error('Failed to fetch messages');
+  const res = await authFetchWithRetry(`${API_BASE_URL}/conversations/${id}/messages${q}`);
+  if (!res.ok) throw await apiError(res, 'Impossible de charger les messages');
   return res.json();
 };
 export const postConversationMessage = async (id: string, content: string) => {
   const res = await authFetch(`${API_BASE_URL}/conversations/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) });
   if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error || 'Échec de l’envoi'); }
+  return res.json();
+};
+export const editConversationMessage = async (conversationId: string, messageId: string, content: string) => {
+  const res = await authFetch(`${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}`, {
+    method: 'PATCH', body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw await apiError(res, 'Impossible de modifier le message');
+  return res.json();
+};
+export const deleteConversationMessage = async (conversationId: string, messageId: string, mode: 'me' | 'everyone' = 'me') => {
+  const res = await authFetch(`${API_BASE_URL}/conversations/${conversationId}/messages/${messageId}?mode=${mode}`, { method: 'DELETE' });
+  if (!res.ok) throw await apiError(res, 'Impossible de supprimer le message');
+  return res.json();
+};
+export const deleteConversation = async (id: string) => {
+  const res = await authFetch(`${API_BASE_URL}/conversations/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw await apiError(res, 'Impossible de supprimer la discussion');
   return res.json();
 };
 export const uploadConversationAttachment = async (id: string, file: File, caption?: string) => {

@@ -281,26 +281,28 @@ function StatsRibbon({ config }: { config: HomeConfig['stats'] }) {
   return (
     <div ref={ref} className="py-6 sm:py-8 bg-white border-b border-gray-100">
       <Container>
-        <motion.div
-          variants={staggerContainer}
-          initial="hidden"
-          animate={isInView ? "visible" : "hidden"}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6"
-        >
-          {config.items.map((s, i) => (
-            <motion.div
-              key={i}
-              variants={staggerItem}
-              className="text-center p-4 rounded-2xl bg-gray-50/50 border border-gray-100"
-            >
-              <div className="w-10 h-10 bg-primary-50 text-primary-500 rounded-xl flex items-center justify-center mx-auto mb-3">
-                {getStatIcon(s.icon)}
-              </div>
-              <div className="text-3xl font-black text-primary-700">{s.number}</div>
-              <div className="text-xs text-gray-500 font-bold uppercase mt-1 tracking-wider">{s.label}</div>
-            </motion.div>
-          ))}
-        </motion.div>
+        <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            className="flex items-stretch gap-3 sm:gap-4 min-w-max lg:min-w-0"
+          >
+            {config.items.map((s, i) => (
+              <motion.div
+                key={i}
+                variants={staggerItem}
+                className="flex-1 min-w-[150px] sm:min-w-[170px] text-center p-3 sm:p-4 rounded-2xl bg-gray-50/50 border border-gray-100"
+              >
+                <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary-50 text-primary-500 rounded-xl flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                  {getStatIcon(s.icon)}
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-primary-700 whitespace-nowrap">{s.number}</div>
+                <div className="text-[10px] sm:text-xs text-gray-500 font-bold uppercase mt-1 tracking-wider leading-tight">{s.label}</div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
       </Container>
     </div>
   );

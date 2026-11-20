@@ -47,9 +47,10 @@ model User {
   blogComments  BlogComment[]
   blogSubmissions BlogSubmission[]
   blogRatings   BlogRating[]
-  conversations ConversationMember[]
-  messages      Message[]
-  parentLinks   ParentStudent[] @relation("ParentOf")
+  conversations  ConversationMember[]
+  messages       Message[]
+  hiddenMessages HiddenMessage[]
+  parentLinks    ParentStudent[] @relation("ParentOf")
   studentLinks  ParentStudent[] @relation("StudentOf")
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -529,7 +530,9 @@ model Message {
   senderId       String
   content        String?
   createdAt      DateTime          @default(now())
+  editedAt       DateTime?
   attachments    MessageAttachment[]
+  hiddenBy       HiddenMessage[]
 
   @@index([conversationId])
   @@index([createdAt])
@@ -543,6 +546,17 @@ model MessageAttachment {
   mimeType  String
   data      Bytes
   size      Int
+}
+
+model HiddenMessage {
+  id        String   @id @default(uuid())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([messageId, userId])
+  @@index([userId])
 }
 
 // ─── Bibliothèque en ligne (réservée aux inscrits + équipe) ─────────

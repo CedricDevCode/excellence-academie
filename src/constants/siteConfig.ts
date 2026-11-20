@@ -126,10 +126,11 @@ export const DEFAULT_SITE_CONFIG: HomeConfig = {
   stats: {
     enabled: true,
     items: [
-      { number: "13+", label: "Admis Magistrature", icon: "magistrature" },
-      { number: "8+",  label: "Admis ENA 2025",     icon: "ena" },
-      { number: "7+",  label: "Villes couvertes",   icon: "cities" },
-      { number: "100%", label: "En ligne & Présentiel", icon: "online" },
+      { number: "13/126", label: "Admis Magistrature 2026", icon: "magistrature" },
+      { number: "8+",     label: "Admis ENA 2026",          icon: "ena" },
+      { number: "7+",     label: "Villes couvertes",        icon: "cities" },
+      { number: "100%",   label: "En ligne & Présentiel",   icon: "online" },
+      { number: "2/5",    label: "EPP CS",                  icon: "award" },
     ],
   },
   actualite: {

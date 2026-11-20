@@ -292,26 +292,9 @@ app.use(helmet({
 // ─── Compression ──────────────────────────────────────────────────────────────
 app.use(compression());
 
-// ─── Rate Limiting global ─────────────────────────────────────────────────────
-app.use('/api', globalLimiter);
-
-// ─── Garde de disponibilité (initialisation Prisma) ───────────────────────────
-let dbReady = false;
-
-// Le port écoute dès le lancement (voir startServer) : plus jamais d'ECONNREFUSED.
-// Tant que `initDatabaseDefaults` n'est pas terminé, on répond 503 + Retry-After
-// au lieu de laisser les requêtes partir vers une base pas encore prête.
-app.use('/api', (_req, res, next) => {
-  if (!dbReady) {
-    res.set('Retry-After', '2');
-    return res.status(503).json({
-      error: 'Le backend est en cours de démarrage. Veuillez réessayer dans un instant.',
-    });
-  }
-  next();
-});
-
 // ─── CORS ─────────────────────────────────────────────────────────────────────
+// Doit rester AVANT la garde 503 : sinon les réponses de démarrage (et les
+// préflights OPTIONS) partent sans en-têtes CORS et le navigateur les refuse.
 app.use(cors({
   origin: (origin, callback) => {
     // Requêtes sans header origin (même origine, curl, serveurs)
@@ -338,6 +321,25 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
+
+// ─── Rate Limiting global ─────────────────────────────────────────────────────
+app.use('/api', globalLimiter);
+
+// ─── Garde de disponibilité (initialisation Prisma) ───────────────────────────
+let dbReady = false;
+
+// Le port écoute dès le lancement (voir startServer) : plus jamais d'ECONNREFUSED.
+// Tant que `initDatabaseDefaults` n'est pas terminé, on répond 503 + Retry-After
+// au lieu de laisser les requêtes partir vers une base pas encore prête.
+app.use('/api', (_req, res, next) => {
+  if (!dbReady) {
+    res.set('Retry-After', '2');
+    return res.status(503).json({
+      error: 'Le backend est en cours de démarrage. Veuillez réessayer dans un instant.',
+    });
+  }
+  next();
+});
 
 // ─── Webhook GeniusPay — doit être avant express.json() ───────────────────────
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), (req, _res, next) => {
@@ -647,11 +649,19 @@ async function initDatabaseDefaults() {
         "senderId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
         "content" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS "editedAt" TIMESTAMP(3)`);
       await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "MessageAttachment" (
         "id" TEXT PRIMARY KEY,
         "messageId" TEXT NOT NULL REFERENCES "Message"("id") ON DELETE CASCADE,
         "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL, "size" INTEGER NOT NULL
       )`);
+      await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "HiddenMessage" (
+        "id" TEXT PRIMARY KEY,
+        "messageId" TEXT NOT NULL REFERENCES "Message"("id") ON DELETE CASCADE,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE
+      )`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "HiddenMessage_messageId_userId_key" ON "HiddenMessage"("messageId", "userId")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HiddenMessage_userId_idx" ON "HiddenMessage"("userId")`);
       await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "LibraryDocument" (
         "id" TEXT PRIMARY KEY, "title" TEXT NOT NULL, "description" TEXT, "courseId" TEXT, "courseTitle" TEXT,
         "fileName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "data" BYTEA NOT NULL, "size" INTEGER NOT NULL,

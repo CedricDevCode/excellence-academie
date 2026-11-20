@@ -39,6 +39,7 @@ export const listConversations = async (req: Request, res: Response) => {
           include: { user: { select: { id: true, name: true, email: true, image: true, role: true } } },
         },
         messages: {
+          where: { hiddenBy: { none: { userId: req.user.id } } },
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
@@ -144,7 +145,11 @@ export const listMessages = async (req: Request, res: Response) => {
     const before = req.query.before ? new Date(String(req.query.before)) : undefined;
 
     const messages = await prisma.message.findMany({
-      where: { conversationId: id, ...(before ? { createdAt: { lt: before } } : {}) },
+      where: {
+        conversationId: id,
+        hiddenBy: { none: { userId: req.user.id } },
+        ...(before ? { createdAt: { lt: before } } : {}),
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
@@ -241,5 +246,90 @@ export const downloadAttachment = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('downloadAttachment error', 'chat', error);
     res.status(500).json({ error: 'Erreur lors du téléchargement' });
+  }
+};
+
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
+
+export const editMessage = async (req: Request, res: Response) => {
+  try {
+    const conversationId = String(req.params.conversationId);
+    const messageId = String(req.params.messageId);
+    if (!(await requireMembership(req, conversationId))) return res.status(403).json({ error: 'Accès refusé' });
+
+    const message = await prisma.message.findFirst({ where: { id: messageId, conversationId } });
+    if (!message) return res.status(404).json({ error: 'Message introuvable' });
+    if (message.senderId !== req.user.id) return res.status(403).json({ error: 'Vous ne pouvez modifier que vos messages' });
+    if (Date.now() - new Date(message.createdAt).getTime() > EDIT_WINDOW_MS) {
+      return res.status(400).json({ error: 'Délai de modification dépassé (15 minutes)' });
+    }
+
+    const content = String(req.body?.content || '').trim();
+    if (!content) return res.status(400).json({ error: 'Message vide' });
+    if (content.length > 4000) return res.status(400).json({ error: 'Message trop long' });
+
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: { content, editedAt: new Date() },
+      include: {
+        sender: { select: { id: true, name: true, image: true, role: true } },
+        attachments: { select: { id: true, fileName: true, mimeType: true, size: true } },
+      },
+    });
+    res.json(updated);
+  } catch (error: any) {
+    logger.error('editMessage error', 'chat', error);
+    res.status(500).json({ error: 'Erreur lors de la modification' });
+  }
+};
+
+export const deleteMessage = async (req: Request, res: Response) => {
+  try {
+    const conversationId = String(req.params.conversationId);
+    const messageId = String(req.params.messageId);
+    if (!(await requireMembership(req, conversationId))) return res.status(403).json({ error: 'Accès refusé' });
+
+    const message = await prisma.message.findFirst({ where: { id: messageId, conversationId } });
+    if (!message) return res.status(404).json({ error: 'Message introuvable' });
+
+    const mode = req.query.mode === 'everyone' ? 'everyone' : 'me';
+    if (mode === 'everyone') {
+      if (message.senderId !== req.user.id) return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos messages' });
+      if (Date.now() - new Date(message.createdAt).getTime() > EDIT_WINDOW_MS) {
+        return res.status(400).json({ error: 'Délai dépassé : supprimez ce message pour vous uniquement' });
+      }
+      await prisma.message.delete({ where: { id: messageId } });
+    } else {
+      await prisma.hiddenMessage.upsert({
+        where: { messageId_userId: { messageId, userId: req.user.id } },
+        create: { messageId, userId: req.user.id },
+        update: {},
+      });
+    }
+    res.json({ ok: true, mode, messageId });
+  } catch (error: any) {
+    logger.error('deleteMessage error', 'chat', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression' });
+  }
+};
+
+export const deleteConversation = async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    if (!(await requireMembership(req, id))) return res.status(403).json({ error: 'Accès refusé' });
+
+    await prisma.hiddenMessage.deleteMany({
+      where: { userId: req.user.id, message: { conversationId: id } },
+    });
+    await prisma.conversationMember.delete({
+      where: { conversationId_userId: { conversationId: id, userId: req.user.id } },
+    });
+    const remaining = await prisma.conversationMember.count({ where: { conversationId: id } });
+    if (remaining === 0) await prisma.conversation.delete({ where: { id } });
+
+    res.json({ ok: true });
+  } catch (error: any) {
+    logger.error('deleteConversation error', 'chat', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la discussion' });
   }
 };
